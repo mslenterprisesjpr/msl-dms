@@ -1,22 +1,22 @@
 {
-  "name": "@msl/auth",
-  "type": "module",
-  "exports": {
-    ".": "./src/index.ts",
-    "./*": "./src/*.ts"
-  },
-  "scripts": {
-    "check-types": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@better-auth/expo": "1.7.5",
-    "@msl/db": "*",
-    "better-auth": "1.7.5",
-    "mongodb": "^7.6.0",
-    "zod": "^4.5.4"
-  },
-  "devDependencies": {
-    "@msl/config": "*",
-    "typescript": "^6.0.3"
-  }
+	"name": "@msl/auth",
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./*": "./src/*.ts"
+	},
+	"scripts": {
+		"check-types": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@better-auth/expo": "1.7.5",
+		"@msl/db": "*",
+		"better-auth": "1.7.5",
+		"mongodb": "^7.6.0",
+		"zod": "^4.5.4"
+	},
+	"devDependencies": {
+		"@msl/config": "*",
+		"typescript": "^6.0.3"
+	}
 }

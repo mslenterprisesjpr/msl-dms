@@ -1,6 +1,6 @@
 {
-  "extends": "@msl/config/tsconfig.base.json",
-  "compilerOptions": {
-    "noEmit": true
-  }
+	"extends": "@msl/config/tsconfig.base.json",
+	"compilerOptions": {
+		"noEmit": true
+	}
 }

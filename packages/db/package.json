@@ -1,20 +1,20 @@
 {
-  "name": "@msl/db",
-  "type": "module",
-  "exports": {
-    ".": "./src/index.ts",
-    "./*": "./src/*.ts"
-  },
-  "scripts": {
-    "check-types": "tsc --noEmit"
-  },
-  "dependencies": {
-    "mongoose": "^9.9.5",
-    "zod": "^4.5.4"
-  },
-  "devDependencies": {
-    "@msl/config": "*",
-    "typescript": "^6.0.3",
-    "varlock": "1.18.0"
-  }
+	"name": "@msl/db",
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./*": "./src/*.ts"
+	},
+	"scripts": {
+		"check-types": "tsc --noEmit"
+	},
+	"dependencies": {
+		"mongoose": "^9.9.5",
+		"zod": "^4.5.4"
+	},
+	"devDependencies": {
+		"@msl/config": "*",
+		"typescript": "^6.0.3",
+		"varlock": "1.18.0"
+	}
 }

@@ -3,8 +3,8 @@ import mongoose from "mongoose";
 import type { DatabaseConfig } from "./config";
 
 export async function createDb(env: DatabaseConfig) {
-  await mongoose.connect(env.DATABASE_URL);
-  return mongoose.connection.getClient().db();
+	await mongoose.connect(env.DATABASE_URL);
+	return mongoose.connection.getClient().db();
 }
 
 export type Database = Awaited<ReturnType<typeof createDb>>;
