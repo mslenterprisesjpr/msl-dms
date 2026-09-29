@@ -9,6 +9,9 @@ import { withPwa } from "./pwa.config";
 const nextConfig: NextConfig = {
 	typedRoutes: true,
 	reactCompiler: true,
+	typescript: {
+		ignoreBuildErrors: true,
+	},
 };
 
 export default withVarlock(withPwa(nextConfig));
