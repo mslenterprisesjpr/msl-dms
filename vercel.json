@@ -1,0 +1,25 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "server": {
+      "root": "apps/server",
+      "framework": "hono",
+      "entrypoint": "src/index.ts",
+      "installCommand": "cd ../.. && npm install",
+      "buildCommand": "npm run env:generate && npm run check-types",
+      "functions": {
+        "src/index.ts": {
+          "includeFiles": "{package.json,apps/server/.env.schema,node_modules/.bin/varlock,node_modules/varlock/**}"
+        }
+      }
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "server"
+      }
+    }
+  ]
+}

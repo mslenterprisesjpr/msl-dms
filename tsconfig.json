@@ -1,0 +1,3 @@
+{
+  "extends": "@msl/config/tsconfig.base.json"
+}
