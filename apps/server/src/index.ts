@@ -44,10 +44,24 @@ app.use(
 
 app.on(["POST", "GET"], "/api/auth/*", async (c) => auth.handler(c.req.raw));
 
+import customerRoutes from "./routes/customer.routes";
+import orderRoutes from "./routes/order.routes";
+import paymentRoutes from "./routes/payment.routes";
 // Routes
 import productRoutes from "./routes/product.routes";
+import reportRoutes from "./routes/report.routes";
+import saleRoutes from "./routes/sale.routes";
+import stockRoutes from "./routes/stock.routes";
+import workerStockRoutes from "./routes/worker-stock.routes";
 
 app.route("/api/products", productRoutes);
+app.route("/api/customers", customerRoutes);
+app.route("/api/stock", stockRoutes);
+app.route("/api/worker-stock", workerStockRoutes);
+app.route("/api/orders", orderRoutes);
+app.route("/api/sales", saleRoutes);
+app.route("/api/payments", paymentRoutes);
+app.route("/api/reports", reportRoutes);
 
 app.get("/", (c) => {
 	return c.text("OK");
