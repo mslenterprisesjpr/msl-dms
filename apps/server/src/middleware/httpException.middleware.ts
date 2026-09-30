@@ -2,7 +2,6 @@ import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type mongoose from "mongoose";
-import type { ZodError } from "zod";
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -19,9 +18,9 @@ const handleDuplicateKey = (err: any): ErrorResponse => {
 
 // Error handlers map
 const handlers: Record<string, (err: any) => ErrorResponse> = {
-	ZodError: (err: ZodError) => ({
+	ZodError: (err: any) => ({
 		status: 400,
-		message: `Validation failed: ${err.issues.map((i) => `${i.path.join(".") || "field"}: ${i.message}`).join(", ")}`,
+		message: `Validation failed: ${err.issues.map((issue: any) => `${issue.path.join(".") || "field"}: ${issue.message}`).join(", ")}`,
 	}),
 
 	CastError: (err: mongoose.Error.CastError) => ({

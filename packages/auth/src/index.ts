@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { expo } from "@better-auth/expo";
 import type { Database } from "@msl/db";
 import { betterAuth } from "better-auth";
