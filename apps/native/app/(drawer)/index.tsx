@@ -1,4 +1,5 @@
 import { Card, useThemeColor } from "heroui-native";
+import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { Container } from "@/components/container";
@@ -8,6 +9,7 @@ import { authClient } from "@/lib/auth-client";
 
 export default function Home() {
 	const { data: session } = authClient.useSession();
+	const [isLogin, setIsLogin] = useState(true);
 
 	const _mutedColor = useThemeColor("muted");
 	const _successColor = useThemeColor("success");
@@ -40,10 +42,19 @@ export default function Home() {
 			) : null}
 
 			{!session?.user && (
-				<>
-					<SignIn />
-					<SignUp />
-				</>
+				<View className="flex-1">
+					{isLogin ? <SignIn /> : <SignUp />}
+					<Pressable
+						className="mt-6 items-center p-2 active:opacity-70"
+						onPress={() => setIsLogin(!isLogin)}
+					>
+						<Text className="font-medium text-foreground">
+							{isLogin
+								? "Don't have an account? Sign up"
+								: "Already have an account? Sign in"}
+						</Text>
+					</Pressable>
+				</View>
 			)}
 		</Container>
 	);
