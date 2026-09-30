@@ -5,6 +5,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 
 import { AppThemeProvider } from "@/contexts/app-theme-context";
+import { QueryProvider } from "@/lib/query-client";
 
 export const unstable_settings = {
 	initialRouteName: "(drawer)",
@@ -26,11 +27,13 @@ export default function Layout() {
 	return (
 		<GestureHandlerRootView style={{ flex: 1 }}>
 			<KeyboardProvider>
-				<AppThemeProvider>
-					<HeroUINativeProvider>
-						<StackLayout />
-					</HeroUINativeProvider>
-				</AppThemeProvider>
+				<QueryProvider>
+					<AppThemeProvider>
+						<HeroUINativeProvider>
+							<StackLayout />
+						</HeroUINativeProvider>
+					</AppThemeProvider>
+				</QueryProvider>
 			</KeyboardProvider>
 		</GestureHandlerRootView>
 	);
