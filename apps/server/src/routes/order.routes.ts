@@ -1,4 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
+import type { AppSession as Session, AppUser as User } from "@msl/auth";
 import {
 	Customer,
 	Order,
@@ -10,7 +11,6 @@ import {
 	StockTransaction,
 	WorkerStock,
 } from "@msl/db";
-import type { Session, User } from "better-auth";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 
@@ -585,7 +585,7 @@ app.post(
 						? "PARTIAL"
 						: "PENDING",
 			paidAmount: body.paidAmount,
-			dueAmount: total - body.paidAmount,
+			pendingAmount: total - body.paidAmount,
 			note: body.note,
 			createdBy: user.id,
 		});

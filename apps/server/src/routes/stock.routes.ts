@@ -1,6 +1,6 @@
 import { zValidator } from "@hono/zod-validator";
+import type { AppSession as Session, AppUser as User } from "@msl/auth";
 import { Product, StockTransaction, WorkerStock } from "@msl/db";
-import type { Session, User } from "better-auth/types";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 

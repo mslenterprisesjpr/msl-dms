@@ -39,6 +39,7 @@ export const issueStockBodySchema = z
 export const returnStockBodySchema = z
 	.object({
 		productId: z.string().min(1, "Product ID is required"),
+		workerId: z.string().optional(),
 		cases: z.number().int().min(0, "Cases must be non-negative").default(0),
 		units: z.number().int().min(0, "Units must be non-negative").default(0),
 		note: z.string().optional(),

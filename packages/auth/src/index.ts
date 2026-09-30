@@ -40,3 +40,5 @@ export function createAuth(
 }
 
 export type Session = ReturnType<typeof createAuth>["$Infer"]["Session"];
+export type AppUser = Session["user"];
+export type AppSession = Session["session"];
