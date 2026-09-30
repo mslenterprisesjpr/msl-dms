@@ -6,7 +6,8 @@ export interface IPayment {
 	orgId: string;
 	saleId: string;
 	amount: number;
-	method: "CASH" | "UPI";
+	paymentMethod: "CASH" | "UPI" | "CARD" | "CREDIT";
+	paymentDate: Date;
 	note?: string;
 	createdBy: string;
 	createdAt: Date;
@@ -39,9 +40,14 @@ const PaymentSchema = new Schema(
 			min: 0,
 		},
 
-		method: {
+		paymentMethod: {
 			type: String,
-			enum: ["CASH", "UPI"],
+			enum: ["CASH", "UPI", "CARD", "CREDIT"],
+			required: true,
+		},
+
+		paymentDate: {
+			type: Date,
 			required: true,
 		},
 

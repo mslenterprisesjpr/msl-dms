@@ -1,5 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
-import { Payment, Product, Sale, StockTransaction, WorkerStock } from "@msl/db";
+import { Payment, Product, Sale, WorkerStock } from "@msl/db";
 import type { Session, User } from "better-auth/types";
 import { Hono } from "hono";
 
@@ -10,10 +10,7 @@ import {
 	requireRole,
 	UserRole,
 } from "@/middleware/authorization.middleware";
-import {
-	dateRangeQuerySchema,
-	workerReportParamsSchema,
-} from "@/schemas/report.schema";
+import { dateRangeQuerySchema } from "@/schemas/report.schema";
 
 type Variables = {
 	user: User | null;

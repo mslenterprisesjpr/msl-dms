@@ -10,17 +10,13 @@ import {
 	StockTransaction,
 	WorkerStock,
 } from "@msl/db";
-import type { Session, User } from "better-auth/types";
+import type { Session, User } from "better-auth";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 
 import { organizationFilter, resolveOrganizationId } from "@/lib/org-context";
 import { requireAuth } from "@/middleware/authentication.middleware";
-import {
-	requireAdmin,
-	requireRole,
-	UserRole,
-} from "@/middleware/authorization.middleware";
+import { requireRole, UserRole } from "@/middleware/authorization.middleware";
 import {
 	createOrderBodySchema,
 	deliverOrderBodySchema,

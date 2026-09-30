@@ -8,10 +8,14 @@ const orderItemSchema = z
 		units: z.number().int().min(0, "Units must be non-negative").default(0),
 		price: z.number().min(0, "Price must be non-negative"),
 	})
-	.refine((data) => data.cases > 0 || data.units > 0, {
-		message: "At least one of cases or units must be greater than 0",
-		path: ["cases"],
-	});
+	.refine(
+		(data: { cases: number; units: number }) =>
+			data.cases > 0 || data.units > 0,
+		{
+			message: "At least one of cases or units must be greater than 0",
+			path: ["cases"],
+		},
+	);
 
 // Schema for creating an order
 export const createOrderBodySchema = z.object({
@@ -75,11 +79,15 @@ export const deliverOrderBodySchema = z.object({
 						.min(0, "Delivered units must be non-negative")
 						.default(0),
 				})
-				.refine((data) => data.deliveredCases > 0 || data.deliveredUnits > 0, {
-					message:
-						"At least one of delivered cases or units must be greater than 0",
-					path: ["deliveredCases"],
-				}),
+				.refine(
+					(data: { deliveredCases: number; deliveredUnits: number }) =>
+						data.deliveredCases > 0 || data.deliveredUnits > 0,
+					{
+						message:
+							"At least one of delivered cases or units must be greater than 0",
+						path: ["deliveredCases"],
+					},
+				),
 		)
 		.min(1, "At least one item must be delivered"),
 	paymentMethod: z.enum(["CASH", "UPI", "CARD", "CREDIT"]).default("CASH"),

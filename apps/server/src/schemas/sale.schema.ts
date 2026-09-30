@@ -8,10 +8,14 @@ const saleItemSchema = z
 		units: z.number().int().min(0, "Units must be non-negative").default(0),
 		price: z.number().min(0, "Price must be non-negative"),
 	})
-	.refine((data) => data.cases > 0 || data.units > 0, {
-		message: "At least one of cases or units must be greater than 0",
-		path: ["cases"],
-	});
+	.refine(
+		(data: { cases: number; units: number }) =>
+			data.cases > 0 || data.units > 0,
+		{
+			message: "At least one of cases or units must be greater than 0",
+			path: ["cases"],
+		},
+	);
 
 // Schema for creating a sale (direct sale without order)
 export const createSaleBodySchema = z.object({

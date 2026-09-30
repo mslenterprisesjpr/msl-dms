@@ -8,10 +8,14 @@ export const purchaseStockBodySchema = z
 		units: z.number().int().min(0, "Units must be non-negative").default(0),
 		note: z.string().optional(),
 	})
-	.refine((data) => data.cases > 0 || data.units > 0, {
-		message: "At least one of cases or units must be greater than 0",
-		path: ["cases"],
-	});
+	.refine(
+		(data: { cases: number; units: number }) =>
+			data.cases > 0 || data.units > 0,
+		{
+			message: "At least one of cases or units must be greater than 0",
+			path: ["cases"],
+		},
+	);
 
 // Schema for issuing stock to worker
 export const issueStockBodySchema = z
@@ -22,10 +26,14 @@ export const issueStockBodySchema = z
 		units: z.number().int().min(0, "Units must be non-negative").default(0),
 		note: z.string().optional(),
 	})
-	.refine((data) => data.cases > 0 || data.units > 0, {
-		message: "At least one of cases or units must be greater than 0",
-		path: ["cases"],
-	});
+	.refine(
+		(data: { cases: number; units: number }) =>
+			data.cases > 0 || data.units > 0,
+		{
+			message: "At least one of cases or units must be greater than 0",
+			path: ["cases"],
+		},
+	);
 
 // Schema for returning stock from worker
 export const returnStockBodySchema = z
@@ -35,10 +43,14 @@ export const returnStockBodySchema = z
 		units: z.number().int().min(0, "Units must be non-negative").default(0),
 		note: z.string().optional(),
 	})
-	.refine((data) => data.cases > 0 || data.units > 0, {
-		message: "At least one of cases or units must be greater than 0",
-		path: ["cases"],
-	});
+	.refine(
+		(data: { cases: number; units: number }) =>
+			data.cases > 0 || data.units > 0,
+		{
+			message: "At least one of cases or units must be greater than 0",
+			path: ["cases"],
+		},
+	);
 
 // Schema for manual stock adjustment
 export const adjustStockBodySchema = z.object({

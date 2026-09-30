@@ -8,6 +8,7 @@ export interface ISale {
 	orderId?: string;
 	customerId: string;
 	workerId: string;
+	saleDate: Date;
 	subtotal: number;
 	discount: number;
 	total: number;
@@ -15,6 +16,8 @@ export interface ISale {
 	pendingAmount: number;
 	paymentStatus: "PAID" | "PARTIAL" | "PENDING";
 	status: "DRAFT" | "CONFIRMED" | "CANCELLED";
+	note?: string;
+	createdBy: string;
 	createdAt: Date;
 	updatedAt: Date;
 }
@@ -53,6 +56,11 @@ const SaleSchema = new Schema(
 			type: String,
 			required: true,
 			index: true,
+		},
+
+		saleDate: {
+			type: Date,
+			default: Date.now,
 		},
 
 		subtotal: {
@@ -95,6 +103,16 @@ const SaleSchema = new Schema(
 			type: String,
 			enum: ["DRAFT", "CONFIRMED", "CANCELLED"],
 			default: "DRAFT",
+		},
+
+		note: {
+			type: String,
+			trim: true,
+		},
+
+		createdBy: {
+			type: String,
+			required: true,
 		},
 	},
 	{
