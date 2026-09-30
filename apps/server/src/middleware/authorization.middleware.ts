@@ -3,6 +3,8 @@ import { HTTPException } from "hono/http-exception";
 
 /**
  * User type from better-auth
+ * Note: orgId is NOT stored in user object by default
+ * Use resolveOrganizationId() from lib/org-context.ts instead
  */
 type User = {
 	id: string;
@@ -24,7 +26,7 @@ export enum UserRole {
  */
 export function requireRole(...allowedRoles: UserRole[]) {
 	return async (c: Context, next: () => Promise<void>) => {
-		const user = c.get("user");
+		const user = c.get("user") as User | null;
 
 		if (!user) {
 			throw new HTTPException(401, { message: "Unauthorized - No user found" });
@@ -45,7 +47,7 @@ export function requireRole(...allowedRoles: UserRole[]) {
 /**
  * Admin-only middleware
  */
-export function requireAdmin(c: Context, next: () => Promise<void>) {
+export async function requireAdmin(c: Context, next: () => Promise<void>) {
 	return requireRole(UserRole.ADMIN)(c, next);
 }
 

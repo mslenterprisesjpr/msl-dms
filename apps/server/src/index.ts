@@ -44,6 +44,11 @@ app.use(
 
 app.on(["POST", "GET"], "/api/auth/*", async (c) => auth.handler(c.req.raw));
 
+// Routes
+import productRoutes from "./routes/product.routes";
+
+app.route("/api/products", productRoutes);
+
 app.get("/", (c) => {
 	return c.text("OK");
 });
