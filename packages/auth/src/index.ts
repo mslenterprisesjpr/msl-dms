@@ -3,7 +3,7 @@ import { expo } from "@better-auth/expo";
 import type { Database } from "@msl/db";
 import { betterAuth } from "better-auth";
 import { mongodbAdapter } from "better-auth/adapters/mongodb";
-import { admin } from "better-auth/plugins";
+import { admin, organization } from "better-auth/plugins";
 
 export type AuthConfig = {
 	BETTER_AUTH_URL: string;
@@ -35,10 +35,21 @@ export function createAuth(
 				httpOnly: true,
 			},
 		},
-		plugins: [expo(), admin()],
+		plugins: [
+			expo(),
+			admin(),
+			organization({
+				// Only admins can create organizations
+				allowUserToCreateOrganization: false,
+				creatorRole: "owner",
+			}),
+		],
 	});
 }
 
 export type Session = ReturnType<typeof createAuth>["$Infer"]["Session"];
 export type AppUser = Session["user"];
 export type AppSession = Session["session"];
+export type Organization = ReturnType<
+	typeof createAuth
+>["$Infer"]["Organization"];
