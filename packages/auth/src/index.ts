@@ -39,8 +39,8 @@ export function createAuth(
 			expo(),
 			admin(),
 			organization({
-				// Only admins can create organizations
-				allowUserToCreateOrganization: false,
+				// Allow all users to create organizations (change to false for admin-only)
+				allowUserToCreateOrganization: true,
 				creatorRole: "owner",
 			}),
 		],
