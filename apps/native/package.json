@@ -18,6 +18,7 @@
 		"@expo/metro-runtime": "~57.0.15",
 		"@expo/vector-icons": "^15.0.2",
 		"@gorhom/bottom-sheet": "^5.2.14",
+		"@react-native-async-storage/async-storage": "^3.1.1",
 		"@tanstack/react-form": "^1.33.5",
 		"@varlock/expo-integration": "1.2.1",
 		"better-auth": "1.7.5",
@@ -50,7 +51,8 @@
 		"tailwindcss": "^4.3.3",
 		"uniwind": "^1.12.0",
 		"varlock": "1.18.0",
-		"zod": "^4.5.4"
+		"zod": "^4.5.4",
+		"zustand": "^5.0.15"
 	},
 	"devDependencies": {
 		"@msl/config": "*",

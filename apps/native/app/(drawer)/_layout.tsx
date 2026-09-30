@@ -5,6 +5,7 @@ import { useThemeColor } from "heroui-native";
 import { useCallback } from "react";
 import { Pressable, Text } from "react-native";
 
+import { CustomDrawerContent } from "@/components/drawer-content";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 function DrawerLayout() {
@@ -15,6 +16,7 @@ function DrawerLayout() {
 
 	return (
 		<Drawer
+			drawerContent={(props) => <CustomDrawerContent {...props} />}
 			screenOptions={{
 				headerTintColor: themeColorForeground,
 				headerStyle: { backgroundColor: themeColorBackground },
@@ -27,27 +29,9 @@ function DrawerLayout() {
 			}}
 		>
 			<Drawer.Screen
-				name="index"
-				options={{
-					headerTitle: "Home",
-					drawerLabel: ({ color, focused }) => (
-						<Text style={{ color: focused ? color : themeColorForeground }}>
-							Home
-						</Text>
-					),
-					drawerIcon: ({ size, color, focused }) => (
-						<Ionicons
-							name="home-outline"
-							size={size}
-							color={focused ? color : themeColorForeground}
-						/>
-					),
-				}}
-			/>
-			<Drawer.Screen
 				name="(tabs)"
 				options={{
-					headerTitle: "Tabs",
+					headerShown: false, // Tabs will show their own headers with drawer button
 					drawerLabel: ({ color, focused }) => (
 						<Text style={{ color: focused ? color : themeColorForeground }}>
 							Tabs
@@ -60,16 +44,23 @@ function DrawerLayout() {
 							color={focused ? color : themeColorForeground}
 						/>
 					),
-					headerRight: () => (
-						<Link href="/modal" asChild>
-							<Pressable className="mr-4">
-								<Ionicons
-									name="add-outline"
-									size={24}
-									color={themeColorForeground}
-								/>
-							</Pressable>
-						</Link>
+				}}
+			/>
+			<Drawer.Screen
+				name="second"
+				options={{
+					headerTitle: "Second",
+					drawerLabel: ({ color, focused }) => (
+						<Text style={{ color: focused ? color : themeColorForeground }}>
+							Second
+						</Text>
+					),
+					drawerIcon: ({ size, color, focused }) => (
+						<Ionicons
+							name="home-outline"
+							size={size}
+							color={focused ? color : themeColorForeground}
+						/>
 					),
 				}}
 			/>
