@@ -14,14 +14,13 @@ import { HTTPException } from "hono/http-exception";
  * For now, we'll assume orgId is stored in user metadata or a separate collection
  */
 export async function resolveOrganizationId(c: Context): Promise<string> {
-	const user = c.get("user");
+	const user = c.get("user") as any;
 
 	if (!user) {
 		throw new HTTPException(401, { message: "Unauthorized" });
 	}
 
 	// Option 1: If orgId is stored in user metadata
-	// @ts-expect-error - Better Auth user might have custom fields
 	const orgId = user.orgId || user.organizationId;
 
 	if (!orgId) {
@@ -61,7 +60,7 @@ export function organizationFilter(organizationId: string) {
  * You'll need to implement this based on your organization/member model
  */
 export async function findMembersByOrganizationId(
-	organizationId: string,
+	_organizationId: string,
 ): Promise<Array<{ userId: string; role: string; _id: string }>> {
 	// TODO: Implement based on your organization member model
 	// For now, returning empty array
@@ -73,8 +72,8 @@ export async function findMembersByOrganizationId(
  * Check if user belongs to organization
  */
 export async function userBelongsToOrganization(
-	userId: string,
-	organizationId: string,
+	_userId: string,
+	_organizationId: string,
 ): Promise<boolean> {
 	// TODO: Implement based on your organization member model
 	// For now, return true (you'll need to add proper check)

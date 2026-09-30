@@ -12,6 +12,7 @@
 	},
 	"dependencies": {
 		"@hono/node-server": "^2.1.1",
+		"@hono/zod-validator": "^0.9.1",
 		"@msl/auth": "*",
 		"@msl/db": "*",
 		"better-auth": "1.7.5",

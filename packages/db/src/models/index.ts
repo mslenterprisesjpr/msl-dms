@@ -1,9 +1,0 @@
-export { Customer, type ICustomer } from "./Customer";
-export { type IOrder, Order } from "./Order";
-export { type IOrderItem, OrderItem } from "./OrderItem";
-export { type IPayment, Payment } from "./Payment";
-export { type IProduct, Product } from "./Product";
-export { type ISale, Sale } from "./Sale";
-export { type ISaleItem, SaleItem } from "./SaleItem";
-export { type IStockTransaction, StockTransaction } from "./StockTransaction";
-export { type IWorkerStock, WorkerStock } from "./WorkerStock";
