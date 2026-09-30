@@ -16,6 +16,10 @@ export default function Home() {
 	const _dangerColor = useThemeColor("danger");
 	const _foregroundColor = useThemeColor("foreground");
 
+	const toggleLogin = () => {
+		setIsLogin((prev) => !prev);
+	};
+
 	return (
 		<Container className="p-6">
 			<View className="mb-6 py-4">
@@ -46,7 +50,7 @@ export default function Home() {
 					{isLogin ? <SignIn /> : <SignUp />}
 					<Pressable
 						className="mt-6 items-center p-2 active:opacity-70"
-						onPress={() => setIsLogin(!isLogin)}
+						onPress={toggleLogin}
 					>
 						<Text className="font-medium text-foreground">
 							{isLogin
