@@ -13,6 +13,7 @@ import {
 } from "heroui-native";
 import { useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
 import { useCustomer, useUpdateCustomer } from "@/hooks/use-customers";
 import type { CreateCustomerDto } from "@/types/customer";
@@ -21,6 +22,7 @@ export default function EditCustomerScreen() {
 	const router = useRouter();
 	const { id } = useLocalSearchParams<{ id: string }>();
 	const { toast } = useToast();
+	const insets = useSafeAreaInsets();
 
 	const { data: customerData, isLoading } = useCustomer(id || "");
 	const updateMutation = useUpdateCustomer();
@@ -102,7 +104,10 @@ export default function EditCustomerScreen() {
 
 	return (
 		<Container>
-			<View className="mb-4 flex-row items-center pt-4">
+			<View
+				className="mb-4 flex-row items-center pt-4"
+				style={{ paddingTop: insets.top + 16 }}
+			>
 				<Button
 					variant="ghost"
 					size="sm"

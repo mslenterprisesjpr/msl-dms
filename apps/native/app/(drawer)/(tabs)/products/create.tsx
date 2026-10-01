@@ -109,7 +109,10 @@ export default function CreateProductScreen() {
 	return (
 		<Container className="flex-1">
 			{/* Header */}
-			<View className="border-border border-b bg-surface p-4">
+			<View
+				className="border-border border-b bg-surface p-4"
+				style={{ paddingTop: insets.top + 16 }}
+			>
 				<View className="flex-row items-center justify-between">
 					<View className="flex-row items-center gap-3">
 						<Button size="sm" variant="outline" onPress={() => router.back()}>

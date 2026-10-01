@@ -11,6 +11,7 @@ import {
 } from "heroui-native";
 import { useState } from "react";
 import { Alert, FlatList, RefreshControl, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
 import { useDeleteProduct, useProducts } from "@/hooks/queries/use-products";
 import { authClient } from "@/lib/auth-client";
@@ -21,6 +22,7 @@ export default function ProductsScreen() {
 	const router = useRouter();
 	const [search, setSearch] = useState("");
 	const [refreshing, setRefreshing] = useState(false);
+	const insets = useSafeAreaInsets();
 
 	// Check if user is logged in
 	const { data: session } = authClient.useSession();
@@ -203,7 +205,10 @@ export default function ProductsScreen() {
 	return (
 		<Container className="flex-1" isScrollable={false}>
 			{/* Header */}
-			<View className="border-border border-b bg-surface p-4">
+			<View
+				className="border-border border-b bg-surface p-4"
+				style={{ paddingTop: insets.top + 16 }}
+			>
 				<View className="mb-3 flex-row items-center justify-between">
 					<Typography variant="title1" className="text-foreground">
 						Products

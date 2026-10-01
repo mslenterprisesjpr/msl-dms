@@ -12,6 +12,7 @@ import {
 } from "heroui-native";
 import { useState } from "react";
 import { ScrollView, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
 import { useCreateCustomer } from "@/hooks/use-customers";
 import type { CreateCustomerDto } from "@/types/customer";
@@ -20,6 +21,7 @@ export default function CreateCustomerScreen() {
 	const router = useRouter();
 	const createMutation = useCreateCustomer();
 	const { toast } = useToast();
+	const insets = useSafeAreaInsets();
 
 	const [formData, setFormData] = useState<CreateCustomerDto>({
 		name: "",
@@ -75,7 +77,10 @@ export default function CreateCustomerScreen() {
 
 	return (
 		<Container>
-			<View className="mb-4 flex-row items-center pt-4">
+			<View
+				className="mb-4 flex-row items-center pt-4"
+				style={{ paddingTop: insets.top + 16 }}
+			>
 				<Button
 					variant="ghost"
 					size="sm"

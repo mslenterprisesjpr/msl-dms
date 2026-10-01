@@ -10,6 +10,7 @@ import {
 } from "heroui-native";
 import { useState } from "react";
 import { Alert, FlatList, RefreshControl, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
 import { useCustomers, useDeleteCustomer } from "@/hooks/use-customers";
 import type { Customer } from "@/types/customer";
@@ -18,6 +19,7 @@ export default function CustomersScreen() {
 	const router = useRouter();
 	const [search, setSearch] = useState("");
 	const { toast } = useToast();
+	const insets = useSafeAreaInsets();
 
 	const { data, isLoading, refetch } = useCustomers({ search });
 	const deleteMutation = useDeleteCustomer();
@@ -122,7 +124,10 @@ export default function CustomersScreen() {
 				data={data?.data || []}
 				renderItem={renderCustomer}
 				keyExtractor={(item) => item._id}
-				contentContainerStyle={{ padding: 16, paddingTop: 16 }}
+				contentContainerStyle={{
+					padding: 16,
+					paddingTop: insets.top + 16,
+				}}
 				ListHeaderComponent={
 					<>
 						<View className="mb-4 flex-row items-center justify-between">
