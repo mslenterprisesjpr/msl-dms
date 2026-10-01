@@ -3,7 +3,9 @@ import mongoose from "mongoose";
 import type { DatabaseConfig } from "./config";
 
 export async function createDb(env: DatabaseConfig) {
-	await mongoose.connect(env.DATABASE_URL);
+	await mongoose.connect(env.DATABASE_URL, {
+		dbName: env.DATABASE_NAME || "msl",
+	});
 	return mongoose.connection
 		.getClient()
 		.db(env.DATABASE_NAME || mongoose.connection.name || "msl");
