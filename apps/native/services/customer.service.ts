@@ -1,59 +1,59 @@
 import { apiClient } from "@/lib/api-client";
-import type { PaginatedResponse } from "./product.service";
-
-export interface Customer {
-	_id: string;
-	orgId: string;
-	name: string;
-	phone?: string;
-	address?: string;
-	isActive: boolean;
-	createdAt: string;
-	updatedAt: string;
-}
-
-export interface CustomerQuery {
-	page?: number;
-	limit?: number;
-	isActive?: boolean;
-	search?: string;
-}
-
-export interface CreateCustomerDto {
-	name: string;
-	phone?: string;
-	address?: string;
-	isActive?: boolean;
-}
-
-export interface UpdateCustomerDto extends Partial<CreateCustomerDto> {}
+import type {
+	CreateCustomerDto,
+	Customer,
+	CustomersQuery,
+	CustomersResponse,
+	UpdateCustomerDto,
+} from "@/types/customer";
 
 export const customerService = {
-	getCustomers: async (query?: CustomerQuery) => {
-		const { data } = await apiClient.get<PaginatedResponse<Customer>>(
-			"/customers",
-			{ params: query },
+	getAll: async (query: CustomersQuery = {}) => {
+		const params = new URLSearchParams();
+		if (query.search) params.append("search", query.search);
+		if (query.page) params.append("page", query.page.toString());
+		if (query.limit) params.append("limit", query.limit.toString());
+		if (query.isActive !== undefined)
+			params.append("isActive", query.isActive.toString());
+
+		const response = await apiClient.get<CustomersResponse>(
+			`/customers?${params.toString()}`,
 		);
-		return data;
+		return response.data;
 	},
 
-	getCustomerById: async (id: string) => {
-		const { data } = await apiClient.get<Customer>(`/customers/${id}`);
-		return data;
+	search: async (q: string) => {
+		const response = await apiClient.get<{ data: Customer[] }>(
+			`/customers/search?q=${encodeURIComponent(q)}`,
+		);
+		return response.data.data;
 	},
 
-	createCustomer: async (dto: CreateCustomerDto) => {
-		const { data } = await apiClient.post<Customer>("/customers", dto);
-		return data;
+	getById: async (id: string) => {
+		const response = await apiClient.get<{ data: Customer }>(
+			`/customers/${id}`,
+		);
+		return response.data.data;
 	},
 
-	updateCustomer: async (id: string, dto: UpdateCustomerDto) => {
-		const { data } = await apiClient.patch<Customer>(`/customers/${id}`, dto);
-		return data;
+	create: async (data: CreateCustomerDto) => {
+		const response = await apiClient.post<{ data: Customer }>(
+			"/customers",
+			data,
+		);
+		return response.data.data;
 	},
 
-	deleteCustomer: async (id: string) => {
-		const { data } = await apiClient.delete(`/customers/${id}`);
-		return data;
+	update: async (id: string, data: UpdateCustomerDto) => {
+		const response = await apiClient.put<{ data: Customer }>(
+			`/customers/${id}`,
+			data,
+		);
+		return response.data.data;
+	},
+
+	delete: async (id: string) => {
+		const response = await apiClient.delete(`/customers/${id}`);
+		return response.data;
 	},
 };
