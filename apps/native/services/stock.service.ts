@@ -4,17 +4,19 @@ import type { PaginatedResponse } from "./product.service";
 export interface StockTransaction {
 	_id: string;
 	orgId: string;
-	productId: string | {
-		_id: string;
-		id: string;
-		name: string;
-		sku: string;
-		unit: string;
-		unitsPerCase: number;
-		stockInCases?: number;
-		remainingUnits?: number;
-		stockDisplay?: string;
-	};
+	productId:
+		| string
+		| {
+				_id: string;
+				id: string;
+				name: string;
+				sku: string;
+				unit: string;
+				unitsPerCase: number;
+				stockInCases?: number;
+				remainingUnits?: number;
+				stockDisplay?: string;
+		  };
 	workerId?: string;
 	type: "PURCHASE" | "ISSUE" | "SALE" | "RETURN" | "ADJUSTMENT";
 	quantity: number;
@@ -63,7 +65,9 @@ export const stockService = {
 	},
 
 	getStockTransactionById: async (id: string) => {
-		const { data } = await apiClient.get<StockTransaction>(`/stock/transactions/${id}`);
+		const { data } = await apiClient.get<StockTransaction>(
+			`/stock/transactions/${id}`,
+		);
 		return data;
 	},
 

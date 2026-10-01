@@ -72,7 +72,7 @@ export const useUpdatePayment = () => {
 	return useMutation({
 		mutationFn: ({ id, dto }: { id: string; dto: UpdatePaymentDto }) =>
 			paymentService.updatePayment(id, dto),
-		onSuccess: (data, variables) => {
+		onSuccess: (_data, variables) => {
 			queryClient.invalidateQueries({
 				queryKey: paymentKeys.detail(variables.id),
 			});

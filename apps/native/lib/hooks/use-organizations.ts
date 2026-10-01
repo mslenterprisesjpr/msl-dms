@@ -41,7 +41,7 @@ export function useOrganizations() {
 
 	useEffect(() => {
 		fetchOrganizations();
-	}, []);
+	}, [fetchOrganizations]);
 
 	return {
 		organizations,

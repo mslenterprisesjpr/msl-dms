@@ -10,7 +10,7 @@ import {
 	Typography,
 	useToast,
 } from "heroui-native";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { Container } from "@/components/container";
 import { useProduct, useUpdateProduct } from "@/hooks/queries/use-products";
@@ -85,7 +85,10 @@ export default function EditProductScreen() {
 			return;
 		}
 		if (formData.purchaseRate < 0) {
-			toast.show({ variant: "danger", label: "Purchase rate must be positive" });
+			toast.show({
+				variant: "danger",
+				label: "Purchase rate must be positive",
+			});
 			return;
 		}
 		if (formData.sellingRate < 0) {
@@ -138,7 +141,10 @@ export default function EditProductScreen() {
 				<Typography variant="title2" className="mb-2 text-danger">
 					Error Loading Product
 				</Typography>
-				<Typography variant="body" className="mb-4 text-center text-foreground/60">
+				<Typography
+					variant="body"
+					className="mb-4 text-center text-foreground/60"
+				>
 					{error?.message || "Product not found"}
 				</Typography>
 				<Button onPress={() => router.back()}>Go Back</Button>
@@ -216,7 +222,10 @@ export default function EditProductScreen() {
 
 					{/* Unit */}
 					<View className="mb-4">
-						<Typography variant="caption" className="mb-2 font-semibold text-foreground">
+						<Typography
+							variant="caption"
+							className="mb-2 font-semibold text-foreground"
+						>
 							Unit Type *
 						</Typography>
 						<View className="flex-row flex-wrap gap-2">
@@ -226,7 +235,9 @@ export default function EditProductScreen() {
 									size="sm"
 									variant={formData.unit === unit ? "default" : "outline"}
 									onPress={() => updateField("unit", unit)}
-									className={formData.unit === unit ? "bg-success border-success" : ""}
+									className={
+										formData.unit === unit ? "border-success bg-success" : ""
+									}
 								>
 									{unit}
 								</Button>
@@ -242,13 +253,11 @@ export default function EditProductScreen() {
 								placeholder="e.g., 24"
 								value={formData.unitsPerCase.toString()}
 								onChangeText={(text) =>
-									updateField("unitsPerCase", Number.parseInt(text) || 0)
+									updateField("unitsPerCase", Number.parseInt(text, 10) || 0)
 								}
 								keyboardType="numeric"
 							/>
-							<Description>
-								How many units in one case?
-							</Description>
+							<Description>How many units in one case?</Description>
 						</TextField>
 					</View>
 
@@ -290,13 +299,11 @@ export default function EditProductScreen() {
 								placeholder="e.g., 5"
 								value={formData.minimumStock?.toString() || "0"}
 								onChangeText={(text) =>
-									updateField("minimumStock", Number.parseInt(text) || 0)
+									updateField("minimumStock", Number.parseInt(text, 10) || 0)
 								}
 								keyboardType="numeric"
 							/>
-							<Description>
-								Alert when stock goes below this level
-							</Description>
+							<Description>Alert when stock goes below this level</Description>
 						</TextField>
 					</View>
 
@@ -317,7 +324,10 @@ export default function EditProductScreen() {
 
 					{/* Is Active Toggle */}
 					<View className="mb-6 flex-row items-center justify-between">
-						<Typography variant="body" className="font-semibold text-foreground">
+						<Typography
+							variant="body"
+							className="font-semibold text-foreground"
+						>
 							Product is Active
 						</Typography>
 						<Button
@@ -335,7 +345,10 @@ export default function EditProductScreen() {
 							<Typography variant="caption" className="mb-1 text-foreground/60">
 								Profit Analysis
 							</Typography>
-							<Typography variant="body" className="font-semibold text-foreground">
+							<Typography
+								variant="body"
+								className="font-semibold text-foreground"
+							>
 								Profit per case: ₹
 								{(formData.sellingRate - formData.purchaseRate).toFixed(2)}
 							</Typography>

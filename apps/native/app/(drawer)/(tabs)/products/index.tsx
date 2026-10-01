@@ -9,7 +9,7 @@ import {
 	TextField,
 	Typography,
 } from "heroui-native";
-import React, { useState } from "react";
+import { useState } from "react";
 import { Alert, FlatList, RefreshControl, View } from "react-native";
 import { Container } from "@/components/container";
 import { useDeleteProduct, useProducts } from "@/hooks/queries/use-products";
@@ -140,7 +140,10 @@ export default function ProductsScreen() {
 				<Typography variant="title2" className="mt-4 mb-2 text-foreground">
 					Please Login
 				</Typography>
-				<Typography variant="body" className="mb-4 text-center text-foreground/60">
+				<Typography
+					variant="body"
+					className="mb-4 text-center text-foreground/60"
+				>
 					You need to be logged in to view products
 				</Typography>
 			</Container>
@@ -155,7 +158,10 @@ export default function ProductsScreen() {
 				<Typography variant="title2" className="mt-4 mb-2 text-foreground">
 					Select Organization
 				</Typography>
-				<Typography variant="body" className="mb-4 text-center text-foreground/60">
+				<Typography
+					variant="body"
+					className="mb-4 text-center text-foreground/60"
+				>
 					Please select an organization to view products
 				</Typography>
 				<Button onPress={() => router.push("/(drawer)/(tabs)/organizations")}>
@@ -183,7 +189,10 @@ export default function ProductsScreen() {
 				<Typography variant="title2" className="mt-4 mb-2 text-danger">
 					Error
 				</Typography>
-				<Typography variant="body" className="mb-4 text-center text-foreground/60">
+				<Typography
+					variant="body"
+					className="mb-4 text-center text-foreground/60"
+				>
 					{error.message}
 				</Typography>
 				<Button onPress={() => refetch()}>Try Again</Button>
@@ -203,14 +212,18 @@ export default function ProductsScreen() {
 						<Button
 							size="sm"
 							variant="secondary"
-							onPress={() => router.push("/(drawer)/(tabs)/products/stock-history")}
+							onPress={() =>
+								router.push("/(drawer)/(tabs)/products/stock-history")
+							}
 						>
 							<Ionicons name="list" size={18} />
 						</Button>
 						<Button
 							size="sm"
 							variant="accent"
-							onPress={() => router.push("/(drawer)/(tabs)/products/stock-entry")}
+							onPress={() =>
+								router.push("/(drawer)/(tabs)/products/stock-entry")
+							}
 						>
 							<Ionicons name="cube" size={18} />
 						</Button>
@@ -249,7 +262,11 @@ export default function ProductsScreen() {
 				}
 				ListEmptyComponent={
 					<View className="items-center justify-center py-12">
-						<Ionicons name="cube-outline" size={64} className="text-foreground/20" />
+						<Ionicons
+							name="cube-outline"
+							size={64}
+							className="text-foreground/20"
+						/>
 						<Typography variant="body" className="mt-4 text-foreground/60">
 							No products found
 						</Typography>

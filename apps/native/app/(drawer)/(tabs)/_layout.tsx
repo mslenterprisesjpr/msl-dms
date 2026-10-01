@@ -47,22 +47,23 @@ export default function TabLayout() {
 				}}
 			/>
 			<Tabs.Screen
+				name="products"
+				options={{
+					title: "Products",
+					headerTitle: "Products",
+					headerShown: false,
+					tabBarIcon: ({ color, size }) => (
+						<Ionicons name="cube" size={size} color={color} />
+					),
+				}}
+			/>
+			<Tabs.Screen
 				name="organizations"
 				options={{
 					title: "Organizations",
 					headerTitle: "Organizations",
 					tabBarIcon: ({ color, size }) => (
 						<Ionicons name="business" size={size} color={color} />
-					),
-				}}
-			/>
-			<Tabs.Screen
-				name="two"
-				options={{
-					title: "Explore",
-					headerTitle: "Explore",
-					tabBarIcon: ({ color, size }) => (
-						<Ionicons name="compass" size={size} color={color} />
 					),
 				}}
 			/>

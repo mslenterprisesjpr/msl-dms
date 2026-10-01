@@ -16,7 +16,8 @@ export default function StockScreen() {
 	const { data: session } = authClient.useSession();
 	const currentOrgId = useOrganizationStore((state) => state.currentOrgId);
 	const organizations = useOrganizationStore((state) => state.organizations);
-	const currentOrg = organizations.find((org) => org.id === currentOrgId) || null;
+	const currentOrg =
+		organizations.find((org) => org.id === currentOrgId) || null;
 
 	const { data, isLoading, error, refetch } = useStockTransactions(
 		{ page: 1, limit: 20 },
@@ -48,22 +49,28 @@ export default function StockScreen() {
 	const renderTransaction = ({ item }: { item: StockTransaction }) => {
 		const isAddition = item.type === "PURCHASE" || item.type === "RETURN";
 		const color = isAddition ? "text-success" : "text-danger";
-		
+
 		// Handle populated productId (can be object or string)
-		const product = typeof item.productId === 'object' ? item.productId : null;
+		const product = typeof item.productId === "object" ? item.productId : null;
 		const productName = product?.name || "Unknown Product";
-		const productId = typeof item.productId === 'string' ? item.productId : product?.id || item.productId?._id;
-		
+		const _productId =
+			typeof item.productId === "string"
+				? item.productId
+				: product?.id || item.productId?._id;
+
 		return (
 			<Card className="mb-3 p-4">
-				<View className="flex-row items-center justify-between mb-2">
+				<View className="mb-2 flex-row items-center justify-between">
 					<View className="flex-row items-center">
-						<Ionicons 
-							name={isAddition ? "arrow-down-circle" : "arrow-up-circle"} 
-							size={20} 
+						<Ionicons
+							name={isAddition ? "arrow-down-circle" : "arrow-up-circle"}
+							size={20}
 							className={color}
 						/>
-						<Typography variant="body" className="font-bold ml-2 text-foreground">
+						<Typography
+							variant="body"
+							className="ml-2 font-bold text-foreground"
+						>
 							{item.type}
 						</Typography>
 					</View>
@@ -71,21 +78,22 @@ export default function StockScreen() {
 						{new Date(item.createdAt).toLocaleDateString()}
 					</Typography>
 				</View>
-				
+
 				<Typography variant="title3" className="mb-1 text-foreground">
 					{productName}
 				</Typography>
 				{product?.sku && (
-					<Typography variant="caption" className="text-foreground/50 mb-2">
+					<Typography variant="caption" className="mb-2 text-foreground/50">
 						SKU: {product.sku}
 					</Typography>
 				)}
-				
-				<View className="flex-row items-center justify-between mt-2">
+
+				<View className="mt-2 flex-row items-center justify-between">
 					<Typography variant="body" className={`${color} font-semibold`}>
-						{isAddition ? "+" : "-"} {item.quantityDisplay || `${item.quantity} Units`}
+						{isAddition ? "+" : "-"}{" "}
+						{item.quantityDisplay || `${item.quantity} Units`}
 					</Typography>
-					
+
 					{(item.cases > 0 || item.units > 0) && (
 						<Chip size="sm" variant="secondary">
 							{item.cases} Cases + {item.units} Loose
@@ -94,7 +102,10 @@ export default function StockScreen() {
 				</View>
 
 				{item.note && (
-					<Typography variant="caption" className="mt-2 text-foreground/60 italic">
+					<Typography
+						variant="caption"
+						className="mt-2 text-foreground/60 italic"
+					>
 						Note: {item.note}
 					</Typography>
 				)}
@@ -144,7 +155,10 @@ export default function StockScreen() {
 				<Typography variant="title2" className="mt-4 mb-2 text-danger">
 					Error Loading Stock History
 				</Typography>
-				<Typography variant="body" className="mb-4 text-center text-foreground/60">
+				<Typography
+					variant="body"
+					className="mb-4 text-center text-foreground/60"
+				>
 					{error?.message || "Failed to load stock transactions"}
 				</Typography>
 				<Button onPress={() => refetch()}>Try Again</Button>
@@ -154,13 +168,18 @@ export default function StockScreen() {
 
 	return (
 		<Container className="flex-1" isScrollable={false}>
-			<View className="border-border border-b bg-surface p-4 flex-row items-center justify-between">
+			<View className="flex-row items-center justify-between border-border border-b bg-surface p-4">
 				<Typography variant="title1" className="text-foreground">
 					Stock History
 				</Typography>
-				<Button size="sm" onPress={() => router.push("/(drawer)/(tabs)/products/stock-entry")}>
+				<Button
+					size="sm"
+					onPress={() => router.push("/(drawer)/(tabs)/products/stock-entry")}
+				>
 					<Ionicons name="add" size={18} />
-					<Typography variant="caption" className="ml-1">Entry</Typography>
+					<Typography variant="caption" className="ml-1">
+						Entry
+					</Typography>
 				</Button>
 			</View>
 
@@ -169,10 +188,16 @@ export default function StockScreen() {
 				renderItem={renderTransaction}
 				keyExtractor={(item) => item._id}
 				contentContainerStyle={{ padding: 16 }}
-				refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+				refreshControl={
+					<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+				}
 				ListEmptyComponent={
 					<View className="items-center justify-center py-12">
-						<Ionicons name="cube-outline" size={64} className="text-foreground/20" />
+						<Ionicons
+							name="cube-outline"
+							size={64}
+							className="text-foreground/20"
+						/>
 						<Typography variant="body" className="mt-4 text-foreground/60">
 							No stock transactions yet
 						</Typography>

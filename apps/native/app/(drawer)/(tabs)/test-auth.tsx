@@ -1,7 +1,7 @@
 import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
 import { Button, Card, Typography } from "heroui-native";
-import React, { useState } from "react";
+import { useState } from "react";
 import { ScrollView, View } from "react-native";
 import { Container } from "@/components/container";
 import { apiClient } from "@/lib/api-client";
@@ -215,9 +215,9 @@ export default function TestAuthScreen() {
 					Logs:
 				</Typography>
 				<ScrollView>
-					{logs.map((log, index) => (
+					{logs.map((log) => (
 						<Typography
-							key={index}
+							key={log}
 							variant="caption"
 							className="mb-1 font-mono text-xs"
 						>

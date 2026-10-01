@@ -24,7 +24,13 @@ export interface Product {
 
 export type CreateProductDto = Omit<
 	Product,
-	"_id" | "orgId" | "createdAt" | "updatedAt" | "stock" | "stockDisplay" | "stockInCases"
+	| "_id"
+	| "orgId"
+	| "createdAt"
+	| "updatedAt"
+	| "stock"
+	| "stockDisplay"
+	| "stockInCases"
 >;
 
 export interface ProductQuery {

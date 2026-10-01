@@ -69,7 +69,7 @@ export const useUpdateOrder = () => {
 	return useMutation({
 		mutationFn: ({ id, dto }: { id: string; dto: UpdateOrderDto }) =>
 			orderService.updateOrder(id, dto),
-		onSuccess: (data, variables) => {
+		onSuccess: (_data, variables) => {
 			queryClient.invalidateQueries({
 				queryKey: orderKeys.detail(variables.id),
 			});

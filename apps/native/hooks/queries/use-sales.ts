@@ -69,7 +69,7 @@ export const useUpdateSale = () => {
 	return useMutation({
 		mutationFn: ({ id, dto }: { id: string; dto: UpdateSaleDto }) =>
 			saleService.updateSale(id, dto),
-		onSuccess: (data, variables) => {
+		onSuccess: (_data, variables) => {
 			queryClient.invalidateQueries({
 				queryKey: saleKeys.detail(variables.id),
 			});

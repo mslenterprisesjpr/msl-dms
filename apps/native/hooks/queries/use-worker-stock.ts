@@ -74,7 +74,7 @@ export const useUpdateWorkerStock = () => {
 	return useMutation({
 		mutationFn: ({ id, dto }: { id: string; dto: UpdateWorkerStockDto }) =>
 			workerStockService.updateWorkerStock(id, dto),
-		onSuccess: (data, variables) => {
+		onSuccess: (_data, variables) => {
 			queryClient.invalidateQueries({
 				queryKey: workerStockKeys.detail(variables.id),
 			});

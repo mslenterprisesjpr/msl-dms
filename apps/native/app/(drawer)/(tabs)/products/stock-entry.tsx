@@ -1,4 +1,3 @@
-import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import {
 	Button,
@@ -9,7 +8,7 @@ import {
 	Typography,
 	useToast,
 } from "heroui-native";
-import React, { useState } from "react";
+import { useState } from "react";
 import { ScrollView, View } from "react-native";
 import { Container } from "@/components/container";
 import { useProducts } from "@/hooks/queries/use-products";
@@ -41,8 +40,8 @@ export default function StockEntryScreen() {
 			return;
 		}
 
-		const numCases = Number.parseInt(cases) || 0;
-		const numUnits = Number.parseInt(units) || 0;
+		const numCases = Number.parseInt(cases, 10) || 0;
+		const numUnits = Number.parseInt(units, 10) || 0;
 
 		if (numCases === 0 && numUnits === 0) {
 			toast.show({
@@ -119,7 +118,10 @@ export default function StockEntryScreen() {
 				<Card className="mb-4 p-4">
 					{/* Transaction Type */}
 					<View className="mb-6">
-						<Typography variant="caption" className="mb-2 font-semibold text-foreground">
+						<Typography
+							variant="caption"
+							className="mb-2 font-semibold text-foreground"
+						>
 							Entry Type *
 						</Typography>
 						<View className="flex-row flex-wrap gap-2">
@@ -129,13 +131,13 @@ export default function StockEntryScreen() {
 									size="sm"
 									variant={type === t ? "default" : "outline"}
 									onPress={() => setType(t)}
-									className={type === t ? "bg-success border-success" : ""}
+									className={type === t ? "border-success bg-success" : ""}
 								>
 									{t}
 								</Button>
 							))}
 						</View>
-						<Typography variant="caption" className="text-foreground/60 mt-2">
+						<Typography variant="caption" className="mt-2 text-foreground/60">
 							{type === "PURCHASE"
 								? "Add new stock from supplier"
 								: "Adjust stock for corrections"}
@@ -144,7 +146,10 @@ export default function StockEntryScreen() {
 
 					{/* Product Selection */}
 					<View className="mb-6">
-						<Typography variant="caption" className="mb-2 font-semibold text-foreground">
+						<Typography
+							variant="caption"
+							className="mb-2 font-semibold text-foreground"
+						>
 							Select Product *
 						</Typography>
 						{isLoading ? (
@@ -163,12 +168,14 @@ export default function StockEntryScreen() {
 											key={product._id}
 											size="sm"
 											variant={
-												selectedProduct?._id === product._id ? "default" : "secondary"
+												selectedProduct?._id === product._id
+													? "default"
+													: "secondary"
 											}
 											onPress={() => setSelectedProduct(product)}
 											className={
 												selectedProduct?._id === product._id
-													? "bg-success border-success"
+													? "border-success bg-success"
 													: ""
 											}
 										>
@@ -179,14 +186,14 @@ export default function StockEntryScreen() {
 							</ScrollView>
 						)}
 						{!selectedProduct && (
-							<Typography variant="caption" className="text-danger mt-1">
+							<Typography variant="caption" className="mt-1 text-danger">
 								Required
 							</Typography>
 						)}
 					</View>
 
 					{selectedProduct && (
-						<View className="bg-accent/10 p-3 rounded-lg mb-6 border border-accent/20">
+						<View className="mb-6 rounded-lg border border-accent/20 bg-accent/10 p-3">
 							<Typography variant="body" className="font-bold text-accent">
 								{selectedProduct.name}
 							</Typography>
@@ -203,7 +210,7 @@ export default function StockEntryScreen() {
 					)}
 
 					{/* Cases & Units Entry */}
-					<View className="flex-row gap-4 mb-6">
+					<View className="mb-6 flex-row gap-4">
 						<View className="flex-1">
 							<TextField>
 								<Label>Cases</Label>
@@ -242,17 +249,25 @@ export default function StockEntryScreen() {
 
 					{/* Total Calculation Display */}
 					{selectedProduct &&
-						(Number.parseInt(cases) > 0 || Number.parseInt(units) > 0) && (
-							<View className="bg-success/10 p-4 rounded-lg mb-6 border border-success/20">
-								<Typography variant="caption" className="text-foreground/60 mb-1">
+						(Number.parseInt(cases, 10) > 0 ||
+							Number.parseInt(units, 10) > 0) && (
+							<View className="mb-6 rounded-lg border border-success/20 bg-success/10 p-4">
+								<Typography
+									variant="caption"
+									className="mb-1 text-foreground/60"
+								>
 									Total Units to Add:
 								</Typography>
-								<Typography variant="title2" className="text-success font-bold">
-									{(Number.parseInt(cases) || 0) * selectedProduct.unitsPerCase +
-										(Number.parseInt(units) || 0)}{" "}
+								<Typography variant="title2" className="font-bold text-success">
+									{(Number.parseInt(cases, 10) || 0) *
+										selectedProduct.unitsPerCase +
+										(Number.parseInt(units, 10) || 0)}{" "}
 									Units
 								</Typography>
-								<Typography variant="caption" className="text-foreground/60 mt-1">
+								<Typography
+									variant="caption"
+									className="mt-1 text-foreground/60"
+								>
 									= {cases || "0"} cases × {selectedProduct.unitsPerCase} +{" "}
 									{units || "0"} loose units
 								</Typography>
