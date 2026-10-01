@@ -14,7 +14,7 @@ export const apiClient = axios.create({
 // Request interceptor - add auth cookie
 apiClient.interceptors.request.use(
 	async (config) => {
-		const cookies = authClient.getCookie();
+		const cookies = await authClient.getCookie();
 
 		if (cookies) {
 			config.headers.Cookie = cookies;
