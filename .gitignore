@@ -3,6 +3,12 @@ node_modules
 .pnp
 .pnp.js
 
+# Kiro AI Agent files - IGNORE FOR BUILD
+.agents/
+.kiro/
+.claude/
+.kimchi/
+
 # Build outputs
 dist
 build
