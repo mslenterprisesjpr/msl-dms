@@ -33,8 +33,7 @@ export function createAuth(
 		advanced: {
 			defaultCookieAttributes: {
 				sameSite: "none",
-				// Only use secure in production (HTTPS required)
-				secure: process.env.NODE_ENV === "production",
+				secure: true,
 				httpOnly: true,
 			},
 		},

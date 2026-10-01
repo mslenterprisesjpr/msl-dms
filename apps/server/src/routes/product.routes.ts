@@ -27,9 +27,11 @@ app.get(
 	requireAuth,
 	zValidator("query", getProductsQuerySchema),
 	async (c) => {
+		const query = c.req.valid("query");
+
+		// Resolve organization ID (from header or session)
 		const organizationId = await resolveOrganizationId(c);
 		const orgFilter = organizationFilter(organizationId);
-		const query = c.req.valid("query");
 
 		// Build filter - always filter by orgId
 		const filter: any = { orgId: orgFilter };
