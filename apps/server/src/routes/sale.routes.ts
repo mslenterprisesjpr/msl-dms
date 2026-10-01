@@ -96,6 +96,7 @@ app.get(
 		]);
 
 		return c.json({
+			message: "Sales retrieved successfully",
 			data: sales,
 			pagination: {
 				total,
@@ -139,6 +140,7 @@ app.get(
 		);
 
 		return c.json({
+			message: "Pending sales retrieved successfully",
 			data: sales,
 			totalPending,
 		});
@@ -172,7 +174,10 @@ app.get(
 			.populate("customerId", "name phone address")
 			.limit(100);
 
-		return c.json({ data: sales });
+		return c.json({
+			message: "Worker sales retrieved successfully",
+			data: sales,
+		});
 	},
 );
 
@@ -216,9 +221,12 @@ app.get(
 		});
 
 		return c.json({
-			...sale.toObject(),
-			items,
-			payments,
+			message: "Sale details retrieved successfully",
+			data: {
+				...sale.toObject(),
+				items,
+				payments,
+			},
 		});
 	},
 );
@@ -457,7 +465,7 @@ app.put(
 
 		await sale.save();
 
-		return c.json(sale);
+		return c.json({ message: "Sale status updated successfully", data: sale });
 	},
 );
 

@@ -70,6 +70,7 @@ app.get("/all", requireAuth, requireAdmin, async (c) => {
 	const data = Object.values(groupedByWorker);
 
 	return c.json({
+		message: "Worker stock summary retrieved successfully",
 		data,
 		totalWorkers: data.length,
 	});
@@ -127,6 +128,7 @@ app.get(
 		});
 
 		return c.json({
+			message: "Worker stock retrieved successfully",
 			workerId,
 			data: products,
 			totalProducts: products.length,
@@ -173,6 +175,7 @@ app.get(
 		const remainingUnits = workerStock.quantity % product.unitsPerCase;
 
 		return c.json({
+			message: "Worker product stock retrieved successfully",
 			_id: workerStock._id,
 			workerId: workerStock.workerId,
 			productId: product._id,

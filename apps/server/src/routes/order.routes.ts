@@ -92,6 +92,7 @@ app.get(
 		]);
 
 		return c.json({
+			message: "Orders retrieved successfully",
 			data: orders,
 			pagination: {
 				total,
@@ -128,7 +129,10 @@ app.get(
 			.populate("customerId", "name phone address")
 			.limit(50);
 
-		return c.json({ data: orders });
+		return c.json({
+			message: "Pending orders retrieved successfully",
+			data: orders,
+		});
 	},
 );
 
@@ -159,7 +163,10 @@ app.get(
 			.populate("customerId", "name phone address")
 			.limit(100);
 
-		return c.json({ data: orders });
+		return c.json({
+			message: "Worker orders retrieved successfully",
+			data: orders,
+		});
 	},
 );
 
@@ -198,8 +205,11 @@ app.get(
 		);
 
 		return c.json({
-			...order.toObject(),
-			items,
+			message: "Order retrieved successfully",
+			data: {
+				...order.toObject(),
+				items,
+			},
 		});
 	},
 );
@@ -344,7 +354,10 @@ app.put(
 			{ new: true },
 		).populate("customerId", "name phone address");
 
-		return c.json(updatedOrder);
+		return c.json({
+			message: "Order updated successfully",
+			data: updatedOrder,
+		});
 	},
 );
 
@@ -381,7 +394,10 @@ app.patch(
 		}
 		await order.save();
 
-		return c.json(order);
+		return c.json({
+			message: "Order status updated successfully",
+			data: order,
+		});
 	},
 );
 

@@ -57,6 +57,7 @@ app.get(
 		]);
 
 		return c.json({
+			message: "Payments retrieved successfully",
 			data: payments,
 			pagination: {
 				total,
@@ -103,6 +104,7 @@ app.get(
 		};
 
 		return c.json({
+			message: "Pending payments retrieved successfully",
 			data: sales,
 			summary,
 		});
@@ -138,13 +140,16 @@ app.get(
 		const payments = await Payment.find({ saleId }).sort({ createdAt: -1 });
 
 		return c.json({
-			saleId,
-			invoiceNo: sale.invoiceNo,
-			total: sale.total,
-			paidAmount: sale.paidAmount,
-			pendingAmount: sale.pendingAmount,
-			paymentStatus: sale.paymentStatus,
-			payments,
+			message: "Sale payments retrieved successfully",
+			data: {
+				saleId,
+				invoiceNo: sale.invoiceNo,
+				total: sale.total,
+				paidAmount: sale.paidAmount,
+				pendingAmount: sale.pendingAmount,
+				paymentStatus: sale.paymentStatus,
+				payments,
+			},
 		});
 	},
 );
