@@ -4,15 +4,28 @@ export interface Product {
 	_id: string;
 	orgId: string;
 	name: string;
-	brandName: string;
-	category: string;
+	sku: string;
+	category?: string;
+	packSize: string;
+	unit: string;
 	unitsPerCase: number;
-	pricePerCase: number;
-	pricePerUnit: number;
+	purchaseRate: number;
+	sellingRate: number;
+	minimumStock: number;
+	gstRate: number;
+	image?: string;
 	isActive: boolean;
+	stock?: number;
+	stockDisplay?: string;
+	stockInCases?: number;
 	createdAt: string;
 	updatedAt: string;
 }
+
+export type CreateProductDto = Omit<
+	Product,
+	"_id" | "orgId" | "createdAt" | "updatedAt" | "stock" | "stockDisplay" | "stockInCases"
+>;
 
 export interface ProductQuery {
 	page?: number;
@@ -65,7 +78,7 @@ export const updateProduct = async (
 	id: string,
 	productData: Partial<Product>,
 ): Promise<{ data: Product }> => {
-	const { data } = await apiClient.patch<{ data: Product }>(
+	const { data } = await apiClient.put<{ data: Product }>(
 		`/products/${id}`,
 		productData,
 	);

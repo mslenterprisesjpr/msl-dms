@@ -1,5 +1,6 @@
 import axios from "axios";
 import { authClient } from "./auth-client";
+import { useOrganizationStore } from "./stores/organization-store";
 
 const API_URL = process.env.EXPO_PUBLIC_SERVER_URL || "http://localhost:3000";
 
@@ -11,13 +12,19 @@ export const apiClient = axios.create({
 	},
 });
 
-// Request interceptor - add auth cookie
+// Request interceptor - add auth cookie and org header
 apiClient.interceptors.request.use(
 	async (config) => {
 		const cookies = await authClient.getCookie();
 
 		if (cookies) {
 			config.headers.Cookie = cookies;
+		}
+
+		// Add organization ID header
+		const currentOrgId = useOrganizationStore.getState().currentOrgId;
+		if (currentOrgId) {
+			config.headers["x-organization-id"] = currentOrgId;
 		}
 
 		return config;

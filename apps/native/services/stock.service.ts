@@ -4,7 +4,17 @@ import type { PaginatedResponse } from "./product.service";
 export interface StockTransaction {
 	_id: string;
 	orgId: string;
-	productId: string;
+	productId: string | {
+		_id: string;
+		id: string;
+		name: string;
+		sku: string;
+		unit: string;
+		unitsPerCase: number;
+		stockInCases?: number;
+		remainingUnits?: number;
+		stockDisplay?: string;
+	};
 	workerId?: string;
 	type: "PURCHASE" | "ISSUE" | "SALE" | "RETURN" | "ADJUSTMENT";
 	quantity: number;
@@ -46,14 +56,14 @@ export interface UpdateStockTransactionDto
 export const stockService = {
 	getStockTransactions: async (query?: StockQuery) => {
 		const { data } = await apiClient.get<PaginatedResponse<StockTransaction>>(
-			"/stock",
+			"/stock/transactions",
 			{ params: query },
 		);
 		return data;
 	},
 
 	getStockTransactionById: async (id: string) => {
-		const { data } = await apiClient.get<StockTransaction>(`/stock/${id}`);
+		const { data } = await apiClient.get<StockTransaction>(`/stock/transactions/${id}`);
 		return data;
 	},
 

@@ -12,8 +12,27 @@ export default function ProductsLayout() {
 				name="create"
 				options={{
 					presentation: "modal",
-					headerShown: true,
-					title: "Create Product",
+					headerShown: false,
+				}}
+			/>
+			<Stack.Screen
+				name="stock-history"
+				options={{
+					headerShown: false,
+				}}
+			/>
+			<Stack.Screen
+				name="stock-entry"
+				options={{
+					presentation: "modal",
+					headerShown: false,
+				}}
+			/>
+			<Stack.Screen
+				name="[id]"
+				options={{
+					presentation: "modal",
+					headerShown: false,
 				}}
 			/>
 		</Stack>

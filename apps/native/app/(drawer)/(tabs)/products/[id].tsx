@@ -1,26 +1,30 @@
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import {
 	Button,
 	Card,
 	Description,
 	Input,
 	Label,
+	Spinner,
 	TextField,
 	Typography,
 	useToast,
 } from "heroui-native";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { Container } from "@/components/container";
-import { useCreateProduct } from "@/hooks/queries/use-products";
+import { useProduct, useUpdateProduct } from "@/hooks/queries/use-products";
 import type { CreateProductDto } from "@/services/product.service";
 
 const UNITS = ["BOTTLE", "PIECE", "KG", "LITER", "PACKET"] as const;
 
-export default function CreateProductScreen() {
+export default function EditProductScreen() {
+	const { id } = useLocalSearchParams<{ id: string }>();
 	const router = useRouter();
-	const createMutation = useCreateProduct();
 	const { toast } = useToast();
+
+	const { data: productData, isLoading, error } = useProduct(id!);
+	const updateMutation = useUpdateProduct();
 
 	const [formData, setFormData] = useState<CreateProductDto>({
 		name: "",
@@ -35,6 +39,25 @@ export default function CreateProductScreen() {
 		gstRate: 0,
 		isActive: true,
 	});
+
+	useEffect(() => {
+		if (productData?.data) {
+			const p = productData.data;
+			setFormData({
+				name: p.name || "",
+				sku: p.sku || "",
+				category: p.category || "",
+				packSize: p.packSize || "",
+				unit: p.unit || "BOTTLE",
+				unitsPerCase: p.unitsPerCase || 1,
+				purchaseRate: p.purchaseRate || 0,
+				sellingRate: p.sellingRate || 0,
+				minimumStock: p.minimumStock || 0,
+				gstRate: p.gstRate || 0,
+				isActive: p.isActive !== false,
+			});
+		}
+	}, [productData]);
 
 	const updateField = (field: keyof CreateProductDto, value: any) => {
 		setFormData((prev) => ({ ...prev, [field]: value }));
@@ -71,55 +94,69 @@ export default function CreateProductScreen() {
 		}
 
 		try {
-			await createMutation.mutateAsync(formData);
+			await updateMutation.mutateAsync({ id: id!, data: formData });
 			toast.show({
 				variant: "success",
-				label: "Product created successfully!",
+				label: "Product updated successfully!",
 			});
 			router.back();
 		} catch (error: any) {
-			// Log the full error for debugging
-			console.log("❌ CREATE PRODUCT ERROR:", {
+			console.log("❌ UPDATE PRODUCT ERROR:", {
 				status: error.response?.status,
-				statusText: error.response?.statusText,
 				data: error.response?.data,
 				message: error.message,
-				fullError: error,
 			});
 
-			// Get the actual error message from server
 			const errorMessage =
 				error.response?.data?.message ||
 				error.response?.data ||
 				error.message ||
-				"Failed to create product";
+				"Failed to update product";
 
-			// Show toast with actual server error
 			toast.show({
 				variant: "danger",
-				label: "Failed to create product",
+				label: "Failed to update product",
 				description: String(errorMessage),
 			});
 		}
 	};
 
+	if (isLoading) {
+		return (
+			<Container className="flex-1 items-center justify-center">
+				<Spinner size="lg" />
+				<Typography variant="body" className="mt-4 text-foreground">
+					Loading product details...
+				</Typography>
+			</Container>
+		);
+	}
+
+	if (error || !productData?.data) {
+		return (
+			<Container className="flex-1 items-center justify-center p-6">
+				<Typography variant="title2" className="mb-2 text-danger">
+					Error Loading Product
+				</Typography>
+				<Typography variant="body" className="mb-4 text-center text-foreground/60">
+					{error?.message || "Product not found"}
+				</Typography>
+				<Button onPress={() => router.back()}>Go Back</Button>
+			</Container>
+		);
+	}
+
 	return (
 		<Container className="flex-1">
 			{/* Header */}
 			<View className="border-border border-b bg-surface p-4">
-				<View className="flex-row items-center justify-between">
-					<View className="flex-row items-center gap-3">
-						<Button
-							size="sm"
-							variant="outline"
-							onPress={() => router.back()}
-						>
-							← Back
-						</Button>
-						<Typography variant="title1" className="text-foreground">
-							Create Product
-						</Typography>
-					</View>
+				<View className="flex-row items-center gap-3">
+					<Button size="sm" variant="outline" onPress={() => router.back()}>
+						← Back
+					</Button>
+					<Typography variant="title1" className="text-foreground">
+						Edit Product
+					</Typography>
 				</View>
 			</View>
 
@@ -278,6 +315,20 @@ export default function CreateProductScreen() {
 						</TextField>
 					</View>
 
+					{/* Is Active Toggle */}
+					<View className="mb-6 flex-row items-center justify-between">
+						<Typography variant="body" className="font-semibold text-foreground">
+							Product is Active
+						</Typography>
+						<Button
+							size="sm"
+							variant={formData.isActive ? "success" : "secondary"}
+							onPress={() => updateField("isActive", !formData.isActive)}
+						>
+							{formData.isActive ? "Active" : "Inactive"}
+						</Button>
+					</View>
+
 					{/* Profit Display */}
 					{formData.purchaseRate > 0 && formData.sellingRate > 0 && (
 						<Card variant="secondary" className="mb-4 p-3">
@@ -306,16 +357,16 @@ export default function CreateProductScreen() {
 							variant="outline"
 							className="flex-1"
 							onPress={() => router.back()}
-							isDisabled={createMutation.isPending}
+							isDisabled={updateMutation.isPending}
 						>
 							Cancel
 						</Button>
 						<Button
 							className="flex-1"
 							onPress={handleSubmit}
-							isLoading={createMutation.isPending}
+							isLoading={updateMutation.isPending}
 						>
-							Create Product
+							Update Product
 						</Button>
 					</View>
 				</Card>
