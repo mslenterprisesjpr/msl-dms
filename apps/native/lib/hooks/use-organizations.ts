@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 
 import { authClient } from "@/lib/auth-client";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
@@ -7,7 +7,7 @@ export function useOrganizations() {
 	const { setOrganizations, setLoading, organizations, currentOrgId } =
 		useOrganizationStore();
 
-	const fetchOrganizations = async () => {
+	const fetchOrganizations = useCallback(async () => {
 		setLoading(true);
 		try {
 			console.log("=== FETCHING ORGANIZATIONS ===");
@@ -37,7 +37,7 @@ export function useOrganizations() {
 			setLoading(false);
 			console.log("=== FETCH COMPLETE ===");
 		}
-	};
+	}, [setLoading, setOrganizations]);
 
 	useEffect(() => {
 		fetchOrganizations();
