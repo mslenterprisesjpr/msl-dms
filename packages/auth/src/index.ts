@@ -22,7 +22,9 @@ export function createAuth(
 			env.CORS_ORIGIN,
 			...desktopOrigins,
 			"msl://",
-			"exp://",
+			"msl://*",
+			"exp://", // Trust any host of the exp:// scheme
+			"exp://**",
 			"http://localhost:8081",
 		],
 		emailAndPassword: { enabled: true },
