@@ -59,6 +59,7 @@ app.get(
 		]);
 
 		return c.json({
+			message: "Customers retrieved successfully",
 			data: customers,
 			pagination: {
 				total,
@@ -95,7 +96,7 @@ app.get(
 			.limit(20)
 			.sort({ name: 1 });
 
-		return c.json({ data: customers });
+		return c.json({ message: "Customers found", data: customers });
 	},
 );
 
@@ -116,7 +117,10 @@ app.get(
 			throw new HTTPException(404, { message: "Customer not found" });
 		}
 
-		return c.json(customer);
+		return c.json({
+			message: "Customer retrieved successfully",
+			data: customer,
+		});
 	},
 );
 
@@ -149,7 +153,10 @@ app.post(
 			orgId: organizationId,
 		});
 
-		return c.json(customer, 201);
+		return c.json(
+			{ message: "Customer created successfully", data: customer },
+			201,
+		);
 	},
 );
 
@@ -197,7 +204,7 @@ app.put(
 			{ new: true },
 		);
 
-		return c.json(customer);
+		return c.json({ message: "Customer updated successfully", data: customer });
 	},
 );
 
