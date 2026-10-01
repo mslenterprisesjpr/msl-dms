@@ -1,0 +1,7 @@
+# EAS Build Ignore
+.agents/
+.kiro/
+.claude/
+node_modules/
+.git/
+*.log

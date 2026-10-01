@@ -1,0 +1,7 @@
+# EAS Build Ignore
+.agents/
+node_modules/
+.expo/
+.git/
+*.log
+.DS_Store
