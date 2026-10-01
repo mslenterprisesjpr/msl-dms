@@ -133,7 +133,7 @@ app.get(
 			throw new HTTPException(404, { message: "Product not found" });
 		}
 
-		return c.json(product);
+		return c.json({ data: product });
 	},
 );
 
@@ -164,7 +164,7 @@ app.post(
 			orgId: organizationId,
 		});
 
-		return c.json(product, 201);
+		return c.json({ data: product }, 201);
 	},
 );
 
@@ -212,7 +212,7 @@ app.put(
 			{ new: true },
 		);
 
-		return c.json(product);
+		return c.json({ data: product });
 	},
 );
 
