@@ -14,17 +14,26 @@
 			"ios": {
 				"buildConfiguration": "Debug"
 			},
-			"channel": "development"
+			"channel": "development",
+			"env": {
+				"EXPO_PUBLIC_SERVER_URL": "https://server-one-nu-69.vercel.app"
+			}
 		},
 		"preview": {
 			"distribution": "internal",
 			"android": {
 				"buildType": "apk"
+			},
+			"env": {
+				"EXPO_PUBLIC_SERVER_URL": "https://server-one-nu-69.vercel.app"
 			}
 		},
 		"production": {
 			"android": {
 				"buildType": "apk"
+			},
+			"env": {
+				"EXPO_PUBLIC_SERVER_URL": "https://server-one-nu-69.vercel.app"
 			}
 		}
 	},
