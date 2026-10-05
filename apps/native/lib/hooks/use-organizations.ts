@@ -8,9 +8,10 @@ export function useOrganizations() {
 		useOrganizationStore();
 
 	const fetchOrganizations = useCallback(async () => {
+		console.log("=== STARTING FETCH ORGANIZATIONS ===");
 		setLoading(true);
 		try {
-			console.log("=== FETCHING ORGANIZATIONS ===");
+			console.log("Calling authClient.organization.list()");
 			// Use Better Auth organization plugin method
 			const { data, error } = await authClient.organization.list();
 
@@ -20,6 +21,7 @@ export function useOrganizations() {
 			if (error) {
 				console.log("Organization list error:", error.message);
 				setOrganizations([]);
+				setLoading(false);
 				return;
 			}
 
@@ -35,11 +37,12 @@ export function useOrganizations() {
 			setOrganizations([]);
 		} finally {
 			setLoading(false);
-			console.log("=== FETCH COMPLETE ===");
+			console.log("=== FETCH COMPLETE, loading set to false ===");
 		}
 	}, [setLoading, setOrganizations]);
 
 	useEffect(() => {
+		console.log("useOrganizations: Running initial fetch");
 		fetchOrganizations();
 	}, [fetchOrganizations]);
 
