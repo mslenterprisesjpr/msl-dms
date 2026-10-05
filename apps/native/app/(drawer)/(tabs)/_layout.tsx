@@ -69,6 +69,17 @@ export default function TabLayout() {
 				}}
 			/>
 			<Tabs.Screen
+				name="worker-stock"
+				options={{
+					title: "My Stock",
+					headerTitle: "Worker Stock",
+					headerShown: false,
+					tabBarIcon: ({ color, size }) => (
+						<Ionicons name="briefcase" size={size} color={color} />
+					),
+				}}
+			/>
+			<Tabs.Screen
 				name="organizations"
 				options={{
 					title: "Organizations",
@@ -76,6 +87,12 @@ export default function TabLayout() {
 					tabBarIcon: ({ color, size }) => (
 						<Ionicons name="business" size={size} color={color} />
 					),
+				}}
+			/>
+			<Tabs.Screen
+				name="test-auth"
+				options={{
+					href: null, // Hide from tabs
 				}}
 			/>
 		</Tabs>

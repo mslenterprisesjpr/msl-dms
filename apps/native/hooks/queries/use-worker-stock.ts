@@ -1,95 +1,133 @@
-import {
-	type UseQueryOptions,
-	useMutation,
-	useQuery,
-	useQueryClient,
-} from "@tanstack/react-query";
-import {
-	type CreateWorkerStockDto,
-	type UpdateWorkerStockDto,
-	type WorkerStock,
-	type WorkerStockQuery,
-	workerStockService,
-} from "@/services/worker-stock.service";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
+import { useOrganizationStore } from "@/lib/stores/organization-store";
 
-// Query Keys
-export const workerStockKeys = {
-	all: ["workerStock"] as const,
-	lists: () => [...workerStockKeys.all, "list"] as const,
-	list: (filters?: WorkerStockQuery) =>
-		[...workerStockKeys.lists(), filters] as const,
-	details: () => [...workerStockKeys.all, "detail"] as const,
-	detail: (id: string) => [...workerStockKeys.details(), id] as const,
-};
+// Types
+export interface WorkerStock {
+	_id: string;
+	orgId: string;
+	workerId: string;
+	productId: {
+		_id: string;
+		name: string;
+		sku: string;
+		packSize: string;
+		unit: string;
+		unitsPerCase: number;
+	};
+	stock: number; // Total units
+	stockInCases?: number;
+	remainingUnits?: number;
+	stockDisplay?: string;
+	createdAt: string;
+	updatedAt: string;
+}
 
-// Queries
-export const useWorkerStocks = (
-	query?: WorkerStockQuery,
-	options?: Omit<
-		UseQueryOptions<
-			Awaited<ReturnType<typeof workerStockService.getWorkerStocks>>,
-			Error
-		>,
-		"queryKey" | "queryFn"
-	>,
-) => {
+export interface IssueStockDto {
+	workerId: string;
+	productId: string;
+	quantity: number; // Total units
+	cases?: number;
+	units?: number;
+	note?: string;
+}
+
+export interface ReturnStockDto {
+	productId: string;
+	quantity: number; // Total units
+	cases?: number;
+	units?: number;
+	note?: string;
+}
+
+// Get current worker's stock (for worker role)
+export function useWorkerStock() {
+	const currentOrgId = useOrganizationStore((state) => state.currentOrgId);
+
 	return useQuery({
-		queryKey: workerStockKeys.list(query),
-		queryFn: () => workerStockService.getWorkerStocks(query),
-		...options,
-	});
-};
-
-export const useWorkerStock = (
-	id: string,
-	options?: Omit<
-		UseQueryOptions<WorkerStock, Error>,
-		"queryKey" | "queryFn" | "enabled"
-	>,
-) => {
-	return useQuery({
-		queryKey: workerStockKeys.detail(id),
-		queryFn: () => workerStockService.getWorkerStockById(id),
-		enabled: !!id,
-		...options,
-	});
-};
-
-// Mutations
-export const useCreateWorkerStock = () => {
-	const queryClient = useQueryClient();
-
-	return useMutation({
-		mutationFn: (dto: CreateWorkerStockDto) =>
-			workerStockService.createWorkerStock(dto),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: workerStockKeys.lists() });
+		queryKey: ["worker-stock", currentOrgId],
+		queryFn: async () => {
+			const { data } = await apiClient.get<{ data: WorkerStock[] }>(
+				"/worker-stock/my-stock",
+			);
+			return data;
 		},
+		enabled: !!currentOrgId,
 	});
-};
+}
 
-export const useUpdateWorkerStock = () => {
+// Get specific worker's stock (for admin)
+export function useWorkerStockByWorker(workerId: string) {
+	const currentOrgId = useOrganizationStore((state) => state.currentOrgId);
+
+	return useQuery({
+		queryKey: ["worker-stock", currentOrgId, workerId],
+		queryFn: async () => {
+			const { data } = await apiClient.get<{ data: WorkerStock[] }>(
+				`/worker-stock/${workerId}`,
+			);
+			return data;
+		},
+		enabled: !!currentOrgId && !!workerId,
+	});
+}
+
+// Get all workers' stock (admin only)
+export function useAllWorkersStock() {
+	const currentOrgId = useOrganizationStore((state) => state.currentOrgId);
+
+	return useQuery({
+		queryKey: ["worker-stock", "all", currentOrgId],
+		queryFn: async () => {
+			const { data } = await apiClient.get<{ data: WorkerStock[] }>(
+				"/worker-stock/all",
+			);
+			return data;
+		},
+		enabled: !!currentOrgId,
+	});
+}
+
+// Issue stock to worker (admin only)
+export function useIssueStock() {
 	const queryClient = useQueryClient();
+	const currentOrgId = useOrganizationStore((state) => state.currentOrgId);
 
 	return useMutation({
-		mutationFn: ({ id, dto }: { id: string; dto: UpdateWorkerStockDto }) =>
-			workerStockService.updateWorkerStock(id, dto),
-		onSuccess: (_data, variables) => {
+		mutationFn: async (data: IssueStockDto) => {
+			const response = await apiClient.post("/stock/issue", data);
+			return response.data;
+		},
+		onSuccess: () => {
 			queryClient.invalidateQueries({
-				queryKey: workerStockKeys.detail(variables.id),
+				queryKey: ["worker-stock", currentOrgId],
 			});
-			queryClient.invalidateQueries({ queryKey: workerStockKeys.lists() });
+			queryClient.invalidateQueries({
+				queryKey: ["stock-transactions", currentOrgId],
+			});
+			queryClient.invalidateQueries({ queryKey: ["products", currentOrgId] });
 		},
 	});
-};
+}
 
-export const useDeleteWorkerStock = () => {
+// Return stock from worker
+export function useReturnStock() {
 	const queryClient = useQueryClient();
+	const currentOrgId = useOrganizationStore((state) => state.currentOrgId);
 
 	return useMutation({
-		mutationFn: (id: string) => workerStockService.deleteWorkerStock(id),
+		mutationFn: async (data: ReturnStockDto) => {
+			const response = await apiClient.post("/stock/return", data);
+			return response.data;
+		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: workerStockKeys.all });
+			queryClient.invalidateQueries({
+				queryKey: ["worker-stock", currentOrgId],
+			});
+			queryClient.invalidateQueries({
+				queryKey: ["stock-transactions", currentOrgId],
+			});
+			queryClient.invalidateQueries({ queryKey: ["products", currentOrgId] });
 		},
 	});
-};
+}
