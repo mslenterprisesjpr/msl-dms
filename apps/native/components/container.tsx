@@ -6,12 +6,9 @@ import {
 	View,
 	type ViewProps,
 } from "react-native";
-import Animated, { type AnimatedProps } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const AnimatedView = Animated.createAnimatedComponent(View);
-
-type Props = AnimatedProps<ViewProps> & {
+type Props = ViewProps & {
 	className?: string;
 	isScrollable?: boolean;
 	scrollViewProps?: Omit<ScrollViewProps, "contentContainerStyle">;
@@ -27,7 +24,7 @@ export function Container({
 	const insets = useSafeAreaInsets();
 
 	return (
-		<AnimatedView
+		<View
 			className={cn("flex-1 bg-background", className)}
 			style={{
 				paddingBottom: insets.bottom,
@@ -46,6 +43,6 @@ export function Container({
 			) : (
 				<View className="flex-1">{children}</View>
 			)}
-		</AnimatedView>
+		</View>
 	);
 }

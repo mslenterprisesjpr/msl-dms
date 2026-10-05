@@ -7,11 +7,13 @@ import {
 	Label,
 	Surface,
 	TextField,
+	Typography,
 } from "heroui-native";
 import { useState } from "react";
 import { Alert, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { LoadingScreen } from "@/components/loading-screen";
 import { authClient } from "@/lib/auth-client";
 import { useOrganizations } from "@/lib/hooks/use-organizations";
 import {
@@ -130,11 +132,7 @@ export default function OrganizationsScreen() {
 	};
 
 	if (isLoading) {
-		return (
-			<SafeAreaView className="flex-1 items-center justify-center bg-background">
-				<Text className="text-lg">Loading...</Text>
-			</SafeAreaView>
-		);
+		return <LoadingScreen message="Loading organizations..." />;
 	}
 
 	return (
@@ -142,20 +140,20 @@ export default function OrganizationsScreen() {
 			<View className="flex-1 p-4">
 				{/* Header */}
 				<View className="mb-6">
-					<Text className="font-bold text-3xl text-foreground">
+					<Typography variant="title1" className="text-foreground">
 						Organizations
-					</Text>
-					<Text className="mt-1 text-default-500">
+					</Typography>
+					<Typography variant="body" className="mt-1 text-foreground/60">
 						Manage your organizations
-					</Text>
+					</Typography>
 				</View>
 
 				{/* Create Button */}
 				<Button onPress={handleCreate} variant="primary" className="mb-4">
 					<Ionicons name="add" size={20} color="white" />
-					<Text className="ml-2 text-primary-foreground">
+					<Typography variant="button" className="ml-2 text-primary-foreground">
 						Create Organization
-					</Text>
+					</Typography>
 				</Button>
 
 				{/* Organizations List */}
@@ -163,9 +161,12 @@ export default function OrganizationsScreen() {
 					{organizations.length === 0 ? (
 						<Surface className="mt-4 items-center p-10">
 							<Ionicons name="business-outline" size={48} color="#888" />
-							<Text className="mt-4 text-center text-default-500">
+							<Typography
+								variant="body"
+								className="mt-4 text-center text-foreground/60"
+							>
 								No organizations yet.{"\n"}Create one to get started!
-							</Text>
+							</Typography>
 						</Surface>
 					) : (
 						<View className="gap-4">
@@ -184,9 +185,12 @@ export default function OrganizationsScreen() {
 													variant="success"
 													className="rounded-full px-3 py-1"
 												>
-													<Text className="font-medium text-success text-xs">
+													<Typography
+														variant="caption"
+														className="font-medium text-success"
+													>
 														Current
-													</Text>
+													</Typography>
 												</Surface>
 											)}
 										</View>
@@ -198,7 +202,7 @@ export default function OrganizationsScreen() {
 												disabled={currentOrgId === org.id}
 												className="flex-1"
 											>
-												<Text>Select</Text>
+												<Typography variant="caption">Select</Typography>
 											</Button>
 											<Button
 												size="sm"
@@ -206,7 +210,9 @@ export default function OrganizationsScreen() {
 												onPress={() => handleEdit(org)}
 											>
 												<Ionicons name="create-outline" size={16} />
-												<Text className="ml-1">Edit</Text>
+												<Typography variant="caption" className="ml-1">
+													Edit
+												</Typography>
 											</Button>
 										</View>
 									</Card.Body>

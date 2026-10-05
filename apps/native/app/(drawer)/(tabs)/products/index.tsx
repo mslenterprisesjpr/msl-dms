@@ -5,14 +5,17 @@ import {
 	Card,
 	Chip,
 	Input,
-	Spinner,
 	TextField,
 	Typography,
 } from "heroui-native";
 import { useState } from "react";
 import { Alert, FlatList, RefreshControl, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+	SafeAreaView,
+	useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { Container } from "@/components/container";
+import { LoadingScreen } from "@/components/loading-screen";
 import { useDeleteProduct, useProducts } from "@/hooks/queries/use-products";
 import { authClient } from "@/lib/auth-client";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
@@ -174,14 +177,7 @@ export default function ProductsScreen() {
 	}
 
 	if (isLoading && !refreshing) {
-		return (
-			<Container className="flex-1 items-center justify-center">
-				<Spinner size="lg" />
-				<Typography variant="body" className="mt-4 text-foreground">
-					Loading products...
-				</Typography>
-			</Container>
-		);
+		return <LoadingScreen message="Loading products..." />;
 	}
 
 	if (error) {

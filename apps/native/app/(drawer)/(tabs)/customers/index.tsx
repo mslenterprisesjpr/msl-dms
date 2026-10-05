@@ -1,17 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import {
-	Button,
-	Card,
-	Input,
-	Spinner,
-	Typography,
-	useToast,
-} from "heroui-native";
+import { Button, Card, Input, Typography, useToast } from "heroui-native";
 import { useState } from "react";
 import { Alert, FlatList, RefreshControl, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+	SafeAreaView,
+	useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { Container } from "@/components/container";
+import { LoadingScreen } from "@/components/loading-screen";
 import { useCustomers, useDeleteCustomer } from "@/hooks/use-customers";
 import type { Customer } from "@/types/customer";
 
@@ -109,13 +106,7 @@ export default function CustomersScreen() {
 	);
 
 	if (isLoading) {
-		return (
-			<Container>
-				<View className="flex-1 items-center justify-center">
-					<Spinner size="lg" />
-				</View>
-			</Container>
-		);
+		return <LoadingScreen message="Loading customers..." />;
 	}
 
 	return (

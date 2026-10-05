@@ -6,15 +6,18 @@ import {
 	Description,
 	Input,
 	Label,
-	Spinner,
 	Switch,
 	Typography,
 	useToast,
 } from "heroui-native";
 import { useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+	SafeAreaView,
+	useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { Container } from "@/components/container";
+import { LoadingScreen } from "@/components/loading-screen";
 import { useCustomer, useUpdateCustomer } from "@/hooks/use-customers";
 import type { CreateCustomerDto } from "@/types/customer";
 
@@ -93,13 +96,7 @@ export default function EditCustomerScreen() {
 	};
 
 	if (isLoading) {
-		return (
-			<Container>
-				<View className="flex-1 items-center justify-center">
-					<Spinner size="lg" />
-				</View>
-			</Container>
-		);
+		return <LoadingScreen message="Loading customer..." />;
 	}
 
 	return (

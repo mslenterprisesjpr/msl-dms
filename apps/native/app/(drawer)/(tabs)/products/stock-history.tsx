@@ -1,9 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { Button, Card, Chip, Spinner, Typography } from "heroui-native";
+import { Button, Card, Chip, Typography } from "heroui-native";
 import React, { useState } from "react";
 import { FlatList, RefreshControl, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
+import { LoadingScreen } from "@/components/loading-screen";
 import { useStockTransactions } from "@/hooks/queries/use-stock";
 import { authClient } from "@/lib/auth-client";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
@@ -115,42 +117,64 @@ export default function StockScreen() {
 
 	if (!session) {
 		return (
-			<Container className="flex-1 items-center justify-center p-6">
+			<SafeAreaView
+				style={{
+					flex: 1,
+					justifyContent: "center",
+					alignItems: "center",
+					backgroundColor: "#000",
+					padding: 24,
+				}}
+			>
 				<Ionicons name="lock-closed" size={48} className="text-foreground/30" />
 				<Typography variant="title2" className="mt-4 mb-2 text-foreground">
 					Please Login
 				</Typography>
-			</Container>
+			</SafeAreaView>
 		);
 	}
 
 	if (!currentOrg) {
 		return (
-			<Container className="flex-1 items-center justify-center p-6">
+			<SafeAreaView
+				style={{
+					flex: 1,
+					justifyContent: "center",
+					alignItems: "center",
+					backgroundColor: "#000",
+					padding: 24,
+				}}
+			>
 				<Typography variant="title2" className="text-foreground">
 					Select Organization
 				</Typography>
 				<Button onPress={() => router.push("/(drawer)/(tabs)/organizations")}>
 					Go to Organizations
 				</Button>
-			</Container>
+			</SafeAreaView>
 		);
 	}
 
 	if (isLoading && !refreshing) {
 		return (
-			<Container className="flex-1 items-center justify-center">
-				<Spinner size="lg" />
-				<Typography variant="body" className="mt-4 text-foreground">
-					Loading stock history...
-				</Typography>
-			</Container>
+			<LoadingScreen
+				message="Loading stock history..."
+				subtitle="Fetching all stock transactions"
+			/>
 		);
 	}
 
 	if (error) {
 		return (
-			<Container className="flex-1 items-center justify-center p-6">
+			<SafeAreaView
+				style={{
+					flex: 1,
+					justifyContent: "center",
+					alignItems: "center",
+					backgroundColor: "#000",
+					padding: 24,
+				}}
+			>
 				<Ionicons name="alert-circle" size={48} className="text-danger" />
 				<Typography variant="title2" className="mt-4 mb-2 text-danger">
 					Error Loading Stock History
@@ -162,7 +186,7 @@ export default function StockScreen() {
 					{error?.message || "Failed to load stock transactions"}
 				</Typography>
 				<Button onPress={() => refetch()}>Try Again</Button>
-			</Container>
+			</SafeAreaView>
 		);
 	}
 

@@ -5,14 +5,15 @@ import {
 	Description,
 	Input,
 	Label,
-	Spinner,
 	TextField,
 	Typography,
 	useToast,
 } from "heroui-native";
 import { useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
+import { LoadingScreen } from "@/components/loading-screen";
 import { useProduct, useUpdateProduct } from "@/hooks/queries/use-products";
 import type { CreateProductDto } from "@/services/product.service";
 
@@ -126,18 +127,24 @@ export default function EditProductScreen() {
 
 	if (isLoading) {
 		return (
-			<Container className="flex-1 items-center justify-center">
-				<Spinner size="lg" />
-				<Typography variant="body" className="mt-4 text-foreground">
-					Loading product details...
-				</Typography>
-			</Container>
+			<LoadingScreen
+				message="Loading product details..."
+				subtitle="Please wait while we fetch the product information"
+			/>
 		);
 	}
 
 	if (error || !productData?.data) {
 		return (
-			<Container className="flex-1 items-center justify-center p-6">
+			<SafeAreaView
+				style={{
+					flex: 1,
+					justifyContent: "center",
+					alignItems: "center",
+					backgroundColor: "#000",
+					padding: 24,
+				}}
+			>
 				<Typography variant="title2" className="mb-2 text-danger">
 					Error Loading Product
 				</Typography>
@@ -148,7 +155,7 @@ export default function EditProductScreen() {
 					{error?.message || "Product not found"}
 				</Typography>
 				<Button onPress={() => router.back()}>Go Back</Button>
-			</Container>
+			</SafeAreaView>
 		);
 	}
 
