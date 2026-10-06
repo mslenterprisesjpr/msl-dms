@@ -186,6 +186,22 @@ export function CustomDrawerContent(props: any) {
 					</Text>
 				</Pressable>
 
+				{/* Profile */}
+				<Pressable
+					onPress={() => navigateTo("/settings/profile")}
+					className="flex-row items-center px-4 py-3"
+				>
+					<Ionicons
+						name="person-outline"
+						size={24}
+						color={themeColorForeground}
+						style={{ marginRight: 32 }}
+					/>
+					<Text className="text-base" style={{ color: themeColorForeground }}>
+						Profile
+					</Text>
+				</Pressable>
+
 				{/* Second */}
 				<Pressable
 					onPress={() => navigateTo("/(drawer)/second")}

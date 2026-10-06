@@ -80,13 +80,34 @@ export default function TabLayout() {
 				}}
 			/>
 			<Tabs.Screen
+				name="settings"
+				options={{
+					title: "Settings",
+					headerTitle: "Settings",
+					headerShown: false,
+					tabBarIcon: ({ color, size }) => (
+						<Ionicons name="settings" size={size} color={color} />
+					),
+				}}
+			/>
+			<Tabs.Screen
 				name="organizations"
 				options={{
-					title: "Organizations",
-					headerTitle: "Organizations",
-					tabBarIcon: ({ color, size }) => (
-						<Ionicons name="business" size={size} color={color} />
-					),
+					href: null, // Hide from tabs, accessible via settings
+				}}
+			/>
+			<Tabs.Screen
+				name="settings/profile"
+				options={{
+					href: null, // Hide from tabs, accessible via settings
+					headerShown: false,
+				}}
+			/>
+			<Tabs.Screen
+				name="settings/users"
+				options={{
+					href: null, // Hide from tabs, accessible via settings
+					headerShown: false,
 				}}
 			/>
 			<Tabs.Screen

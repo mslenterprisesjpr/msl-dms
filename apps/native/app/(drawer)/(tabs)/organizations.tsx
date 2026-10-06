@@ -12,8 +12,15 @@ import {
 	Typography,
 } from "heroui-native";
 import { useEffect, useState } from "react";
-import { Alert, Modal, Pressable, ScrollView, View } from "react-native";
-
+import {
+	Alert,
+	Modal,
+	Pressable,
+	RefreshControl,
+	ScrollView,
+	View,
+} from "react-native";
+import { BottomSheetModal } from "@/components/bottom-sheet-modal";
 import { Container } from "@/components/container";
 import { LoadingScreen } from "@/components/loading-screen";
 import {
@@ -27,6 +34,18 @@ import {
 	useOrganizationStore,
 } from "@/lib/stores/organization-store";
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface SystemUser {
+	id: string;
+	name: string;
+	email: string;
+	createdAt: string;
+	banned?: boolean;
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
 export default function OrganizationsScreen() {
 	const { organizations, currentOrgId, refetch } = useOrganizations();
 	const { setCurrentOrg } = useOrganizationStore();
@@ -37,117 +56,130 @@ export default function OrganizationsScreen() {
 		isLoading: isMembersLoading,
 	} = useOrganizationMembers();
 
-	// Modal states
-	const [isOpen, setIsOpen] = useState<boolean>(false);
-	const [formMode, setFormMode] = useState<"create" | "edit">("create");
+	// ── Org modal ──────────────────────────────────────────────────────────────
+	const [isOrgModalOpen, setIsOrgModalOpen] = useState(false);
+	const [orgFormMode, setOrgFormMode] = useState<"create" | "edit">("create");
 	const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
-
-	// Member management modal
-	const [showMemberModal, setShowMemberModal] = useState<boolean>(false);
-	const [memberModalMode, setMemberModalMode] = useState<"invite" | "role">(
-		"invite",
-	);
-	const [selectedMember, setSelectedMember] =
-		useState<OrganizationMember | null>(null);
-
-	// Form state
 	const [orgName, setOrgName] = useState("");
 	const [orgSlug, setOrgSlug] = useState("");
-	const [isSubmitting, setIsSubmitting] = useState(false);
 
-	// Member form state
+	// ── Member modal: invite by email OR add existing user ─────────────────────
+	const [showMemberModal, setShowMemberModal] = useState(false);
+	const [memberModalMode, setMemberModalMode] = useState<
+		"invite" | "role" | "add-user"
+	>("invite");
+	const [selectedMember, setSelectedMember] =
+		useState<OrganizationMember | null>(null);
 	const [memberEmail, setMemberEmail] = useState("");
 	const [memberRole, setMemberRole] = useState("member");
 
-	// Force stop loading after timeout
-	useEffect(() => {
-		if (isLoading) {
-			const timeout = setTimeout(() => {
-				console.log("⚠️ Loading timeout - forcing stop");
-				useOrganizationStore.getState().setLoading(false);
-			}, 5000); // 5 second timeout
+	// ── Add-existing-user state ────────────────────────────────────────────────
+	const [systemUsers, setSystemUsers] = useState<SystemUser[]>([]);
+	const [usersLoading, setUsersLoading] = useState(false);
+	const [userSearch, setUserSearch] = useState("");
+	const [selectedUserId, setSelectedUserId] = useState<string>("");
 
-			return () => clearTimeout(timeout);
-		}
+	// ── Shared ─────────────────────────────────────────────────────────────────
+	const [isSubmitting, setIsSubmitting] = useState(false);
+
+	// Force-stop loading after 5 s timeout
+	useEffect(() => {
+		if (!isLoading) return;
+		const t = setTimeout(() => {
+			useOrganizationStore.getState().setLoading(false);
+		}, 5000);
+		return () => clearTimeout(t);
 	}, [isLoading]);
 
-	const handleCreate = () => {
-		setFormMode("create");
+	// ── Fetch all system users (for "Add Existing User" modal) ─────────────────
+	const fetchSystemUsers = async (search = "") => {
+		setUsersLoading(true);
+		try {
+			const { data, error } = await authClient.admin.listUsers({
+				query: {
+					limit: 100,
+					searchValue: search || undefined,
+					searchField: "name",
+				},
+			});
+			if (error) {
+				console.error("Failed to list users:", error);
+				setSystemUsers([]);
+			} else {
+				// Filter out users already in the org
+				const memberUserIds = new Set(members.map((m) => m.userId));
+				const filtered = (data?.users ?? []).filter(
+					(u) => !memberUserIds.has(u.id),
+				);
+				setSystemUsers(filtered as SystemUser[]);
+			}
+		} catch (e) {
+			console.error("fetchSystemUsers error:", e);
+			setSystemUsers([]);
+		} finally {
+			setUsersLoading(false);
+		}
+	};
+
+	// ── Org handlers ───────────────────────────────────────────────────────────
+
+	const handleCreateOrg = () => {
+		setOrgFormMode("create");
 		setOrgName("");
 		setOrgSlug("");
 		setSelectedOrg(null);
-		setIsOpen(true);
+		setIsOrgModalOpen(true);
 	};
 
-	const handleEdit = (org: Organization) => {
-		setFormMode("edit");
+	const handleEditOrg = (org: Organization) => {
+		setOrgFormMode("edit");
 		setOrgName(org.name);
 		setOrgSlug(org.slug);
 		setSelectedOrg(org);
-		setIsOpen(true);
+		setIsOrgModalOpen(true);
 	};
 
-	const handleSubmit = async () => {
+	const handleOrgSubmit = async () => {
 		if (!orgName.trim() || !orgSlug.trim()) {
 			Alert.alert("Error", "Please fill in all fields");
 			return;
 		}
-
 		setIsSubmitting(true);
 		try {
-			if (formMode === "create") {
-				// Use Better Auth organization plugin method
-				const { data, error } = await authClient.organization.create({
+			if (orgFormMode === "create") {
+				const { error } = await authClient.organization.create({
 					name: orgName,
 					slug: orgSlug,
 				});
-
 				if (error) {
-					console.error("Create organization error:", error);
-					// Check if it's a permission error
-					if (error.status === 403 || error.message?.includes("permission")) {
-						Alert.alert(
-							"Permission Denied",
-							"Only administrators can create organizations. Please contact your admin.",
-						);
-					} else {
-						Alert.alert(
-							"Error",
-							error.message || "Failed to create organization",
-						);
-					}
+					Alert.alert(
+						error.status === 403 ? "Permission Denied" : "Error",
+						error.message || "Failed to create organization",
+					);
 					return;
 				}
-
 				Alert.alert("Success", "Organization created successfully");
 			} else if (selectedOrg) {
-				// Use Better Auth organization plugin method
-				const { data, error } = await authClient.organization.update({
+				const { error } = await authClient.organization.update({
 					organizationId: selectedOrg.id,
 					name: orgName,
 					slug: orgSlug,
 				});
-
 				if (error) {
-					console.error("Update organization error:", error);
 					Alert.alert(
 						"Error",
 						error.message || "Failed to update organization",
 					);
 					return;
 				}
-
 				Alert.alert("Success", "Organization updated successfully");
 			}
-
-			setIsOpen(false);
-			// Refresh organizations list
+			setIsOrgModalOpen(false);
 			refetch();
-		} catch (error) {
-			console.error("Organization submit error:", error);
+		} catch (e) {
 			Alert.alert(
 				"Error",
-				error instanceof Error ? error.message : "Something went wrong",
+				e instanceof Error ? e.message : "Something went wrong",
 			);
 		} finally {
 			setIsSubmitting(false);
@@ -159,10 +191,21 @@ export default function OrganizationsScreen() {
 		Alert.alert("Success", "Organization selected");
 	};
 
-	const handleInviteMember = () => {
+	// ── Member handlers ────────────────────────────────────────────────────────
+
+	const openInviteByEmail = () => {
 		setMemberModalMode("invite");
 		setMemberEmail("");
 		setMemberRole("member");
+		setShowMemberModal(true);
+	};
+
+	const openAddExistingUser = () => {
+		setMemberModalMode("add-user");
+		setSelectedUserId("");
+		setUserSearch("");
+		setMemberRole("member");
+		fetchSystemUsers();
 		setShowMemberModal(true);
 	};
 
@@ -176,7 +219,7 @@ export default function OrganizationsScreen() {
 	const handleRemoveMember = (member: OrganizationMember) => {
 		Alert.alert(
 			"Remove Member",
-			`Are you sure you want to remove ${member.user.name} from this organization?`,
+			`Remove ${member.user.name} from this organization?`,
 			[
 				{ text: "Cancel", style: "cancel" },
 				{
@@ -188,7 +231,6 @@ export default function OrganizationsScreen() {
 								organizationId: currentOrgId!,
 								memberIdOrEmail: member.userId,
 							});
-
 							if (error) {
 								Alert.alert(
 									"Error",
@@ -196,15 +238,10 @@ export default function OrganizationsScreen() {
 								);
 								return;
 							}
-
-							Alert.alert("Success", "Member removed successfully");
+							Alert.alert("Success", "Member removed");
 							refetchMembers();
-						} catch (error) {
-							console.error("Remove member error:", error);
-							Alert.alert(
-								"Error",
-								error instanceof Error ? error.message : "Something went wrong",
-							);
+						} catch (e) {
+							Alert.alert("Error", "Something went wrong");
 						}
 					},
 				},
@@ -213,101 +250,121 @@ export default function OrganizationsScreen() {
 	};
 
 	const handleMemberSubmit = async () => {
-		if (memberModalMode === "invite") {
-			if (!memberEmail.trim()) {
-				Alert.alert("Error", "Please enter an email address");
-				return;
-			}
-
-			setIsSubmitting(true);
-			try {
+		setIsSubmitting(true);
+		try {
+			// ── Invite by email ──────────────────────────────────────────────
+			if (memberModalMode === "invite") {
+				if (!memberEmail.trim()) {
+					Alert.alert("Error", "Please enter an email address");
+					return;
+				}
 				const { error } = await authClient.organization.inviteMember({
 					organizationId: currentOrgId!,
 					email: memberEmail,
 					role: memberRole,
 				});
-
 				if (error) {
-					Alert.alert("Error", error.message || "Failed to invite member");
+					Alert.alert("Error", error.message || "Failed to send invite");
 					return;
 				}
+				Alert.alert("Success", "Invitation sent successfully");
 
-				Alert.alert("Success", "Member invited successfully");
-				setShowMemberModal(false);
-				refetchMembers();
-			} catch (error) {
-				console.error("Invite member error:", error);
-				Alert.alert(
-					"Error",
-					error instanceof Error ? error.message : "Something went wrong",
-				);
-			} finally {
-				setIsSubmitting(false);
-			}
-		} else if (memberModalMode === "role" && selectedMember) {
-			setIsSubmitting(true);
-			try {
+				// ── Add existing user directly ────────────────────────────────
+			} else if (memberModalMode === "add-user") {
+				if (!selectedUserId) {
+					Alert.alert("Error", "Please select a user");
+					return;
+				}
+				const user = systemUsers.find((u) => u.id === selectedUserId);
+				if (!user) {
+					Alert.alert("Error", "Selected user not found");
+					return;
+				}
+				// Use inviteMember with the user's email — Better Auth
+				// will add them directly if they already exist in the system.
+				const { error } = await authClient.organization.inviteMember({
+					organizationId: currentOrgId!,
+					email: user.email,
+					role: memberRole,
+				});
+				if (error) {
+					Alert.alert("Error", error.message || "Failed to add member");
+					return;
+				}
+				Alert.alert("Success", `${user.name} added to organization`);
+
+				// ── Change role ───────────────────────────────────────────────
+			} else if (memberModalMode === "role" && selectedMember) {
 				const { error } = await authClient.organization.updateMemberRole({
 					organizationId: currentOrgId!,
 					memberIdOrEmail: selectedMember.userId,
 					role: memberRole,
 				});
-
 				if (error) {
 					Alert.alert("Error", error.message || "Failed to update role");
 					return;
 				}
-
 				Alert.alert("Success", "Role updated successfully");
-				setShowMemberModal(false);
-				refetchMembers();
-			} catch (error) {
-				console.error("Update role error:", error);
-				Alert.alert(
-					"Error",
-					error instanceof Error ? error.message : "Something went wrong",
-				);
-			} finally {
-				setIsSubmitting(false);
 			}
+
+			setShowMemberModal(false);
+			refetchMembers();
+		} catch (e) {
+			Alert.alert(
+				"Error",
+				e instanceof Error ? e.message : "Something went wrong",
+			);
+		} finally {
+			setIsSubmitting(false);
 		}
 	};
 
+	// ── Filtered users for add-user modal ──────────────────────────────────────
+	const filteredSystemUsers = userSearch.trim()
+		? systemUsers.filter(
+				(u) =>
+					u.name.toLowerCase().includes(userSearch.toLowerCase()) ||
+					u.email.toLowerCase().includes(userSearch.toLowerCase()),
+			)
+		: systemUsers;
+
+	// ── Loading ────────────────────────────────────────────────────────────────
 	if (isLoading) {
 		return <LoadingScreen message="Loading organizations..." />;
 	}
 
+	// ── Render ─────────────────────────────────────────────────────────────────
 	return (
 		<Container className="flex-1">
-			{/* Header */}
+			{/* ── Header ── */}
 			<View className="border-border border-b bg-surface p-4">
-				<View className="mb-2 flex-row items-center justify-between">
+				<View className="flex-row items-center justify-between">
 					<View className="flex-1">
 						<Typography variant="title1" className="text-foreground">
 							Organizations
 						</Typography>
 						<Typography variant="caption" className="mt-1 text-foreground/60">
-							Manage your organizations and members
+							Manage organizations & members
 						</Typography>
 					</View>
 					<View className="flex-row gap-2">
 						<Button size="sm" variant="secondary" onPress={refetch}>
 							<Ionicons name="refresh" size={18} />
 						</Button>
-						<Button size="sm" variant="primary" onPress={handleCreate}>
+						<Button size="sm" variant="primary" onPress={handleCreateOrg}>
 							<Ionicons name="add" size={18} />
 						</Button>
 					</View>
 				</View>
 			</View>
 
-			{/* Content */}
+			{/* ── Scrollable content ── */}
 			<ScrollView
 				className="flex-1"
-				contentContainerStyle={{ padding: 16 }}
+				contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
 				showsVerticalScrollIndicator={false}
 			>
-				{/* Organizations List */}
+				{/* ── Organizations list ── */}
 				{organizations.length === 0 ? (
 					<View className="items-center justify-center py-12">
 						<Ionicons
@@ -322,13 +379,13 @@ export default function OrganizationsScreen() {
 							variant="caption"
 							className="mt-2 text-center text-foreground/40"
 						>
-							Create one to get started!
+							Tap + to create one
 						</Typography>
 					</View>
 				) : (
 					<View className="gap-3">
 						{organizations.map((org) => (
-							<Card key={org.id} className="mb-1">
+							<Card key={org.id}>
 								<View className="p-4">
 									<View className="mb-3 flex-row items-start justify-between">
 										<View className="flex-1 pr-2">
@@ -367,7 +424,7 @@ export default function OrganizationsScreen() {
 										<Button
 											size="sm"
 											variant="secondary"
-											onPress={() => handleEdit(org)}
+											onPress={() => handleEditOrg(org)}
 										>
 											<Ionicons name="create-outline" size={16} />
 										</Button>
@@ -378,18 +435,54 @@ export default function OrganizationsScreen() {
 					</View>
 				)}
 
-				{/* Members Section - Show only for current org */}
+				{/* ── Members section ── */}
 				{currentOrgId && (
-					<View className="mt-6">
+					<View className="mt-8">
+						{/* Section header */}
 						<View className="mb-4 flex-row items-center justify-between">
 							<Typography variant="title2" className="text-foreground">
 								Members
 							</Typography>
-							<Button size="sm" variant="primary" onPress={handleInviteMember}>
-								<Ionicons name="person-add" size={16} />
-							</Button>
+							{/* Two add-member buttons */}
+							<View className="flex-row gap-2">
+								<Button
+									size="sm"
+									variant="secondary"
+									onPress={openAddExistingUser}
+								>
+									<Ionicons name="people-outline" size={16} />
+								</Button>
+								<Button size="sm" variant="primary" onPress={openInviteByEmail}>
+									<Ionicons name="mail-outline" size={16} />
+								</Button>
+							</View>
 						</View>
 
+						{/* Legend */}
+						<View className="mb-3 flex-row gap-4">
+							<View className="flex-row items-center gap-1">
+								<Ionicons
+									name="people-outline"
+									size={14}
+									className="text-foreground/50"
+								/>
+								<Typography variant="caption" className="text-foreground/50">
+									Add existing user
+								</Typography>
+							</View>
+							<View className="flex-row items-center gap-1">
+								<Ionicons
+									name="mail-outline"
+									size={14}
+									className="text-foreground/50"
+								/>
+								<Typography variant="caption" className="text-foreground/50">
+									Invite by email
+								</Typography>
+							</View>
+						</View>
+
+						{/* Member cards */}
 						{isMembersLoading ? (
 							<View className="items-center py-8">
 								<Typography variant="body" className="text-foreground/60">
@@ -407,7 +500,7 @@ export default function OrganizationsScreen() {
 									variant="body"
 									className="mt-3 text-center text-foreground/60"
 								>
-									No members yet.{"\n"}Invite someone to get started!
+									No members yet.{"\n"}Add someone to get started!
 								</Typography>
 							</Surface>
 						) : (
@@ -427,10 +520,10 @@ export default function OrganizationsScreen() {
 														<Chip
 															size="sm"
 															variant={
-																member.role === "admin"
+																member.role === "owner"
 																	? "primary"
-																	: member.role === "owner"
-																		? "primary"
+																	: member.role === "admin"
+																		? "secondary"
 																		: "default"
 															}
 														>
@@ -470,179 +563,241 @@ export default function OrganizationsScreen() {
 				)}
 			</ScrollView>
 
-			{/* Create/Edit Modal */}
-			<Modal
-				visible={isOpen}
-				animationType="slide"
-				transparent={true}
-				onRequestClose={() => setIsOpen(false)}
+			{/* ══════════════════════════════════════════════════════════════════
+			    Org Create / Edit Modal (Keyboard-avoiding Bottom Sheet)
+			══════════════════════════════════════════════════════════════════ */}
+			<BottomSheetModal
+				visible={isOrgModalOpen}
+				onClose={() => setIsOrgModalOpen(false)}
+				title={
+					orgFormMode === "create" ? "Create Organization" : "Edit Organization"
+				}
+				subtitle={
+					orgFormMode === "create"
+						? "Set up a new workspace for your team"
+						: "Update organization name and slug"
+				}
+				footer={
+					<View className="flex-row justify-end gap-3">
+						<Button
+							variant="ghost"
+							size="sm"
+							onPress={() => setIsOrgModalOpen(false)}
+							disabled={isSubmitting}
+						>
+							Cancel
+						</Button>
+						<Button
+							variant="primary"
+							size="sm"
+							onPress={handleOrgSubmit}
+							disabled={isSubmitting}
+						>
+							{isSubmitting
+								? "Saving..."
+								: orgFormMode === "create"
+									? "Create Organization"
+									: "Update Organization"}
+						</Button>
+					</View>
+				}
 			>
-				<View className="flex-1 justify-end bg-black/50">
-					<Surface className="rounded-t-3xl p-6 pb-8">
-						{/* Header */}
-						<View className="mb-6 flex-row items-center justify-between">
-							<Typography variant="title2" className="text-foreground">
-								{formMode === "create" ? "Create" : "Edit"} Organization
-							</Typography>
-							<Pressable onPress={() => setIsOpen(false)}>
-								<Ionicons
-									name="close"
-									size={24}
-									className="text-foreground/60"
-								/>
-							</Pressable>
-						</View>
+				<View className="gap-4">
+					<TextField>
+						<Label>Organization Name</Label>
+						<Input
+							placeholder="Enter organization name"
+							value={orgName}
+							onChangeText={setOrgName}
+						/>
+					</TextField>
 
-						{/* Description */}
-						<Typography variant="body" className="mb-6 text-foreground/60">
-							{formMode === "create"
-								? "Create a new organization to manage your inventory"
-								: "Update organization details"}
-						</Typography>
-
-						{/* Form Fields */}
-						<View className="mb-6 gap-4">
-							<TextField>
-								<Label>Organization Name</Label>
-								<Input
-									placeholder="Enter organization name"
-									value={orgName}
-									onChangeText={setOrgName}
-								/>
-							</TextField>
-
-							<TextField>
-								<Label>Slug</Label>
-								<Input
-									placeholder="organization-slug"
-									value={orgSlug}
-									onChangeText={(text) =>
-										setOrgSlug(text.toLowerCase().replace(/\s+/g, "-"))
-									}
-								/>
-								<Description>Used in URLs and must be unique</Description>
-							</TextField>
-						</View>
-
-						{/* Actions */}
-						<View className="flex-row justify-end gap-3">
-							<Button
-								variant="ghost"
-								size="sm"
-								onPress={() => setIsOpen(false)}
-								disabled={isSubmitting}
-							>
-								Cancel
-							</Button>
-							<Button
-								variant="primary"
-								size="sm"
-								onPress={handleSubmit}
-								disabled={isSubmitting}
-							>
-								{isSubmitting
-									? "Saving..."
-									: formMode === "create"
-										? "Create"
-										: "Update"}
-							</Button>
-						</View>
-					</Surface>
+					<TextField>
+						<Label>Slug</Label>
+						<Input
+							placeholder="organization-slug"
+							value={orgSlug}
+							onChangeText={(t) =>
+								setOrgSlug(t.toLowerCase().replace(/\s+/g, "-"))
+							}
+						/>
+						<Description>Used in URLs, must be unique</Description>
+					</TextField>
 				</View>
-			</Modal>
+			</BottomSheetModal>
 
-			{/* Member Management Modal */}
-			<Modal
+			{/* ══════════════════════════════════════════════════════════════════
+			    Member Modal — Invite / Add Existing / Change Role (Keyboard-avoiding)
+			══════════════════════════════════════════════════════════════════ */}
+			<BottomSheetModal
 				visible={showMemberModal}
-				animationType="slide"
-				transparent={true}
-				onRequestClose={() => setShowMemberModal(false)}
-			>
-				<View className="flex-1 justify-end bg-black/50">
-					<Surface className="rounded-t-3xl p-6 pb-8">
-						{/* Header */}
-						<View className="mb-6 flex-row items-center justify-between">
-							<Typography variant="title2" className="text-foreground">
-								{memberModalMode === "invite" ? "Invite Member" : "Change Role"}
-							</Typography>
-							<Pressable onPress={() => setShowMemberModal(false)}>
-								<Ionicons
-									name="close"
-									size={24}
-									className="text-foreground/60"
-								/>
-							</Pressable>
-						</View>
-
-						{/* Description */}
-						<Typography variant="body" className="mb-6 text-foreground/60">
-							{memberModalMode === "invite"
-								? "Send an invitation to join this organization"
-								: `Update role for ${selectedMember?.user.name}`}
-						</Typography>
-
-						{/* Form Fields */}
-						<View className="mb-6 gap-4">
-							{memberModalMode === "invite" && (
-								<TextField>
-									<Label>Email Address</Label>
-									<Input
-										placeholder="member@example.com"
-										value={memberEmail}
-										onChangeText={setMemberEmail}
-										keyboardType="email-address"
-										autoCapitalize="none"
-									/>
-								</TextField>
-							)}
-
-							<TextField>
-								<Label>Role</Label>
-								<Select
-									value={memberRole}
-									onValueChange={setMemberRole}
-									placeholder="Select role"
-								>
-									<Select.Item value="member" label="Member" />
-									<Select.Item value="admin" label="Admin" />
-									<Select.Item value="owner" label="Owner" />
-								</Select>
-								<Description>
-									{memberRole === "member"
-										? "Can view and manage assigned tasks"
-										: memberRole === "admin"
-											? "Can manage members and settings"
-											: "Full control over organization"}
-								</Description>
-							</TextField>
-						</View>
-
-						{/* Actions */}
-						<View className="flex-row justify-end gap-3">
-							<Button
-								variant="ghost"
-								size="sm"
-								onPress={() => setShowMemberModal(false)}
-								disabled={isSubmitting}
-							>
-								Cancel
-							</Button>
-							<Button
-								variant="primary"
-								size="sm"
-								onPress={handleMemberSubmit}
-								disabled={isSubmitting}
-							>
-								{isSubmitting
-									? "Saving..."
-									: memberModalMode === "invite"
-										? "Send Invite"
+				onClose={() => setShowMemberModal(false)}
+				title={
+					memberModalMode === "invite"
+						? "Invite by Email"
+						: memberModalMode === "add-user"
+							? "Add Existing User"
+							: "Change Member Role"
+				}
+				subtitle={
+					memberModalMode === "invite"
+						? "Send an email invitation to join this organization"
+						: memberModalMode === "add-user"
+							? "Pick a registered user and assign them a role directly"
+							: `Update role for ${selectedMember?.user.name}`
+				}
+				footer={
+					<View className="flex-row justify-end gap-3">
+						<Button
+							variant="ghost"
+							size="sm"
+							onPress={() => setShowMemberModal(false)}
+							disabled={isSubmitting}
+						>
+							Cancel
+						</Button>
+						<Button
+							variant="primary"
+							size="sm"
+							onPress={handleMemberSubmit}
+							disabled={
+								isSubmitting ||
+								(memberModalMode === "add-user" && !selectedUserId)
+							}
+						>
+							{isSubmitting
+								? "Saving..."
+								: memberModalMode === "invite"
+									? "Send Invite"
+									: memberModalMode === "add-user"
+										? "Add Member"
 										: "Update Role"}
-							</Button>
+						</Button>
+					</View>
+				}
+			>
+				<View className="gap-4">
+					{/* ── Invite by email ── */}
+					{memberModalMode === "invite" && (
+						<TextField>
+							<Label>Email Address</Label>
+							<Input
+								placeholder="member@example.com"
+								value={memberEmail}
+								onChangeText={setMemberEmail}
+								keyboardType="email-address"
+								autoCapitalize="none"
+							/>
+						</TextField>
+					)}
+
+					{/* ── Add existing user — user picker ── */}
+					{memberModalMode === "add-user" && (
+						<View className="gap-3">
+							{/* Search */}
+							<TextField>
+								<Label>Search Users</Label>
+								<Input
+									placeholder="Search by name or email..."
+									value={userSearch}
+									onChangeText={setUserSearch}
+								/>
+							</TextField>
+
+							{/* User list */}
+							{usersLoading ? (
+								<View className="items-center py-4">
+									<Typography variant="caption" className="text-foreground/60">
+										Loading users...
+									</Typography>
+								</View>
+							) : filteredSystemUsers.length === 0 ? (
+								<Surface className="items-center p-4">
+									<Typography variant="caption" className="text-foreground/60">
+										{systemUsers.length === 0
+											? "All registered users are already members"
+											: "No users match your search"}
+									</Typography>
+								</Surface>
+							) : (
+								<ScrollView
+									style={{ maxHeight: 200 }}
+									nestedScrollEnabled={true}
+									showsVerticalScrollIndicator={false}
+								>
+									<View className="gap-2">
+										{filteredSystemUsers.map((u) => (
+											<Pressable
+												key={u.id}
+												onPress={() => setSelectedUserId(u.id)}
+											>
+												<View
+													className={`rounded-xl border p-3 ${
+														selectedUserId === u.id
+															? "border-primary bg-primary/10"
+															: "border-border bg-surface"
+													}`}
+												>
+													<View className="flex-row items-center justify-between">
+														<View className="flex-1">
+															<Typography
+																variant="body"
+																className="font-semibold text-foreground"
+															>
+																{u.name}
+															</Typography>
+															<Typography
+																variant="caption"
+																className="text-foreground/50"
+															>
+																{u.email}
+															</Typography>
+														</View>
+														{selectedUserId === u.id && (
+															<Ionicons
+																name="checkmark-circle"
+																size={20}
+																className="text-primary"
+															/>
+														)}
+													</View>
+												</View>
+											</Pressable>
+										))}
+									</View>
+								</ScrollView>
+							)}
 						</View>
-					</Surface>
+					)}
+
+					{/* ── Role selector (shown for invite, add-user, and role-change) ── */}
+					{(memberModalMode === "invite" ||
+						memberModalMode === "add-user" ||
+						memberModalMode === "role") && (
+						<TextField>
+							<Label>Role</Label>
+							<Select
+								value={memberRole}
+								onValueChange={setMemberRole}
+								placeholder="Select role"
+							>
+								<Select.Item
+									value="member"
+									label="Member — Can view and manage assigned tasks"
+								/>
+								<Select.Item
+									value="admin"
+									label="Admin — Can manage members and settings"
+								/>
+								<Select.Item
+									value="owner"
+									label="Owner — Full control over organization"
+								/>
+							</Select>
+						</TextField>
+					)}
 				</View>
-			</Modal>
+			</BottomSheetModal>
 		</Container>
 	);
 }
