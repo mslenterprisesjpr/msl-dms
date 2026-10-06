@@ -6,10 +6,9 @@ import Animated, {
 	useAnimatedStyle,
 	useSharedValue,
 	withSpring,
-	withTiming,
 } from "react-native-reanimated";
 
-export interface BottomSheetModalProps {
+export interface DialogModalProps {
 	visible: boolean;
 	onClose: () => void;
 	title: string;
@@ -20,10 +19,10 @@ export interface BottomSheetModalProps {
 }
 
 /**
- * Native modal powered by HeroUI Native's official Dialog component
- * with keyboard avoidance and smooth scrollable content.
+ * Centered modal dialog powered by HeroUI Native's official Dialog component
+ * with keyboard avoidance animation and scrollable form container.
  */
-export function BottomSheetModal({
+export function DialogModal({
 	visible,
 	onClose,
 	title,
@@ -31,7 +30,7 @@ export function BottomSheetModal({
 	children,
 	footer,
 	maxHeightPercentage = 85,
-}: BottomSheetModalProps) {
+}: DialogModalProps) {
 	const screenHeight = Dimensions.get("window").height;
 	const maxModalHeight = (screenHeight * maxHeightPercentage) / 100;
 
@@ -143,5 +142,4 @@ export function BottomSheetModal({
 	);
 }
 
-// Export alias for semantic clarity
-export const HeroDialogModal = BottomSheetModal;
+export const HeroDialogModal = DialogModal;

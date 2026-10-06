@@ -23,8 +23,8 @@ import {
 	Text,
 	View,
 } from "react-native";
-import { BottomSheetModal } from "@/components/bottom-sheet-modal";
 import { Container } from "@/components/container";
+import { DialogModal } from "@/components/dialog-modal";
 import { authClient } from "@/lib/auth-client";
 import { useSession } from "@/lib/hooks/use-session";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
@@ -650,7 +650,7 @@ export default function ProfileScreen() {
 				</ScrollView>
 
 				{/* Edit Profile Modal */}
-				<BottomSheetModal
+				<DialogModal
 					visible={isEditModalOpen}
 					onClose={() => setIsEditModalOpen(false)}
 					title="Edit Profile"
@@ -706,10 +706,10 @@ export default function ProfileScreen() {
 							</Description>
 						</TextField>
 					</View>
-				</BottomSheetModal>
+				</DialogModal>
 
 				{/* Change Password Modal */}
-				<BottomSheetModal
+				<DialogModal
 					visible={isPasswordModalOpen}
 					onClose={() => setIsPasswordModalOpen(false)}
 					title="Change Password"
@@ -821,7 +821,7 @@ export default function ProfileScreen() {
 							</View>
 						</TextField>
 					</View>
-				</BottomSheetModal>
+				</DialogModal>
 			</View>
 		</Container>
 	);

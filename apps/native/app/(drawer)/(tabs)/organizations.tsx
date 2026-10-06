@@ -14,14 +14,14 @@ import {
 import { useEffect, useState } from "react";
 import {
 	Alert,
-	Modal,
 	Pressable,
 	RefreshControl,
 	ScrollView,
 	View,
 } from "react-native";
-import { BottomSheetModal } from "@/components/bottom-sheet-modal";
 import { Container } from "@/components/container";
+import { DialogModal } from "@/components/dialog-modal";
+import { HeroBottomSheet } from "@/components/hero-bottom-sheet";
 import { LoadingScreen } from "@/components/loading-screen";
 import {
 	type OrganizationMember,
@@ -564,9 +564,9 @@ export default function OrganizationsScreen() {
 			</ScrollView>
 
 			{/* ══════════════════════════════════════════════════════════════════
-			    Org Create / Edit Modal (Keyboard-avoiding Bottom Sheet)
+			    Org Create / Edit Modal (Dialog Modal with Keyboard Avoidance)
 			══════════════════════════════════════════════════════════════════ */}
-			<BottomSheetModal
+			<DialogModal
 				visible={isOrgModalOpen}
 				onClose={() => setIsOrgModalOpen(false)}
 				title={
@@ -624,12 +624,12 @@ export default function OrganizationsScreen() {
 						<Description>Used in URLs, must be unique</Description>
 					</TextField>
 				</View>
-			</BottomSheetModal>
+			</DialogModal>
 
 			{/* ══════════════════════════════════════════════════════════════════
-			    Member Modal — Invite / Add Existing / Change Role (Keyboard-avoiding)
+			    Member Modal — HeroUI Native BottomSheet (for user pick & role)
 			══════════════════════════════════════════════════════════════════ */}
-			<BottomSheetModal
+			<HeroBottomSheet
 				visible={showMemberModal}
 				onClose={() => setShowMemberModal(false)}
 				title={
@@ -721,7 +721,7 @@ export default function OrganizationsScreen() {
 								</Surface>
 							) : (
 								<ScrollView
-									style={{ maxHeight: 200 }}
+									style={{ maxHeight: 220 }}
 									nestedScrollEnabled={true}
 									showsVerticalScrollIndicator={false}
 								>
@@ -797,7 +797,7 @@ export default function OrganizationsScreen() {
 						</TextField>
 					)}
 				</View>
-			</BottomSheetModal>
+			</HeroBottomSheet>
 		</Container>
 	);
 }

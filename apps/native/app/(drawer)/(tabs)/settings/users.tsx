@@ -20,9 +20,8 @@ import {
 	ScrollView,
 	View,
 } from "react-native";
-
-import { BottomSheetModal } from "@/components/bottom-sheet-modal";
 import { Container } from "@/components/container";
+import { DialogModal } from "@/components/dialog-modal";
 import { LoadingScreen } from "@/components/loading-screen";
 import { authClient } from "@/lib/auth-client";
 
@@ -523,8 +522,8 @@ export default function UserManagementScreen() {
 					)}
 				</ScrollView>
 
-				{/* Bottom Sheet Modal with Keyboard Avoidance */}
-				<BottomSheetModal
+				{/* Dialog Modal with Keyboard Avoidance */}
+				<DialogModal
 					visible={showModal}
 					onClose={() => setShowModal(false)}
 					title={
@@ -647,7 +646,7 @@ export default function UserManagementScreen() {
 							</>
 						)}
 					</View>
-				</BottomSheetModal>
+				</DialogModal>
 			</View>
 		</Container>
 	);
