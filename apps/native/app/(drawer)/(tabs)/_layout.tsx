@@ -6,6 +6,8 @@ import { Pressable } from "react-native";
 export default function TabLayout() {
 	const themeColorForeground = useThemeColor("foreground");
 	const themeColorBackground = useThemeColor("background");
+	const themeColorAccent = useThemeColor("accent");
+	const themeColorMuted = useThemeColor("muted");
 	const navigation = useNavigation();
 
 	return (
@@ -20,6 +22,8 @@ export default function TabLayout() {
 					color: themeColorForeground,
 					fontWeight: "600",
 				},
+				tabBarActiveTintColor: themeColorAccent,
+				tabBarInactiveTintColor: themeColorMuted,
 				tabBarStyle: {
 					backgroundColor: themeColorBackground,
 				},

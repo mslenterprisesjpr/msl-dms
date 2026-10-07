@@ -51,6 +51,9 @@
 					}
 				}
 			},
+			"suspicious": {
+				"noDuplicateCustomProperties": "off"
+			},
 			"style": {
 				"noParameterAssign": "error",
 				"useAsConstAssertion": "error",

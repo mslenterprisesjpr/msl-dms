@@ -10,6 +10,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 function DrawerLayout() {
 	const themeColorForeground = useThemeColor("foreground");
 	const themeColorBackground = useThemeColor("background");
+	const themeColorAccent = useThemeColor("accent");
 
 	const renderThemeToggle = useCallback(() => <ThemeToggle />, []);
 
@@ -23,6 +24,7 @@ function DrawerLayout() {
 					fontWeight: "600",
 					color: themeColorForeground,
 				},
+				drawerActiveTintColor: themeColorAccent,
 				headerRight: renderThemeToggle,
 				drawerStyle: { backgroundColor: themeColorBackground },
 			}}
