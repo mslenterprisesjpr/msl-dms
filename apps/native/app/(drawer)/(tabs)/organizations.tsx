@@ -19,6 +19,7 @@ import {
 	ScrollView,
 	View,
 } from "react-native";
+import { withUniwind } from "uniwind";
 import { Container } from "@/components/container";
 import { DialogModal } from "@/components/dialog-modal";
 import { HeroBottomSheet } from "@/components/hero-bottom-sheet";
@@ -37,6 +38,10 @@ import {
 	type Organization,
 	useOrganizationStore,
 } from "@/lib/stores/organization-store";
+
+// ─── Styled Components ────────────────────────────────────────────────────────
+
+const StyledIonicons = withUniwind(Ionicons);
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -409,10 +414,18 @@ export default function OrganizationsScreen() {
 					</View>
 					<View className="flex-row gap-2">
 						<Button size="sm" variant="secondary" onPress={refetch}>
-							<Ionicons name="refresh" size={18} />
+							<StyledIonicons
+								name="refresh"
+								size={18}
+								className="text-foreground"
+							/>
 						</Button>
 						<Button size="sm" variant="primary" onPress={handleCreateOrg}>
-							<Ionicons name="add" size={18} />
+							<StyledIonicons
+								name="add"
+								size={18}
+								className="text-foreground"
+							/>
 						</Button>
 					</View>
 				</View>
@@ -427,7 +440,7 @@ export default function OrganizationsScreen() {
 				{/* ── Organizations list ── */}
 				{organizations.length === 0 ? (
 					<View className="items-center justify-center py-12">
-						<Ionicons
+						<StyledIonicons
 							name="business-outline"
 							size={64}
 							className="text-foreground/20"
@@ -486,7 +499,11 @@ export default function OrganizationsScreen() {
 											variant="secondary"
 											onPress={() => handleEditOrg(org)}
 										>
-											<Ionicons name="create-outline" size={16} />
+											<StyledIonicons
+												name="create-outline"
+												size={16}
+												className="text-foreground"
+											/>
 										</Button>
 									</View>
 								</View>
@@ -558,7 +575,11 @@ export default function OrganizationsScreen() {
 									variant="secondary"
 									onPress={() => refetchInvitations()}
 								>
-									<Ionicons name="refresh" size={16} />
+									<StyledIonicons
+										name="refresh"
+										size={16}
+										className="text-foreground"
+									/>
 								</Button>
 							</View>
 
@@ -570,7 +591,7 @@ export default function OrganizationsScreen() {
 								</View>
 							) : invitations.length === 0 ? (
 								<Surface className="items-center p-8">
-									<Ionicons
+									<StyledIonicons
 										name="mail-outline"
 										size={40}
 										className="text-foreground/30"
@@ -636,7 +657,11 @@ export default function OrganizationsScreen() {
 														className="flex-1"
 													>
 														<View className="flex-row items-center gap-1">
-															<Ionicons name="mail-outline" size={14} />
+															<StyledIonicons
+																name="mail-outline"
+																size={14}
+																className="text-foreground"
+															/>
 															<Typography variant="caption">Resend</Typography>
 														</View>
 													</Button>
@@ -645,7 +670,11 @@ export default function OrganizationsScreen() {
 														variant="danger"
 														onPress={() => handleCancelInvitation(invitation)}
 													>
-														<Ionicons name="close-circle-outline" size={16} />
+														<StyledIonicons
+															name="close-circle-outline"
+															size={16}
+															className="text-foreground"
+														/>
 													</Button>
 												</View>
 											</View>
@@ -667,10 +696,18 @@ export default function OrganizationsScreen() {
 									variant="secondary"
 									onPress={openAddExistingUser}
 								>
-									<Ionicons name="people-outline" size={16} />
+									<StyledIonicons
+										name="people-outline"
+										size={16}
+										className="text-foreground"
+									/>
 								</Button>
 								<Button size="sm" variant="primary" onPress={openInviteByEmail}>
-									<Ionicons name="mail-outline" size={16} />
+									<StyledIonicons
+										name="mail-outline"
+										size={16}
+										className="text-foreground"
+									/>
 								</Button>
 							</View>
 						</View>
@@ -678,7 +715,7 @@ export default function OrganizationsScreen() {
 						{/* Legend */}
 						<View className="mb-3 flex-row gap-4">
 							<View className="flex-row items-center gap-1">
-								<Ionicons
+								<StyledIonicons
 									name="people-outline"
 									size={14}
 									className="text-foreground/50"
@@ -688,7 +725,7 @@ export default function OrganizationsScreen() {
 								</Typography>
 							</View>
 							<View className="flex-row items-center gap-1">
-								<Ionicons
+								<StyledIonicons
 									name="mail-outline"
 									size={14}
 									className="text-foreground/50"
@@ -708,7 +745,7 @@ export default function OrganizationsScreen() {
 							</View>
 						) : members.length === 0 ? (
 							<Surface className="items-center p-8">
-								<Ionicons
+								<StyledIonicons
 									name="people-outline"
 									size={40}
 									className="text-foreground/30"
@@ -760,14 +797,22 @@ export default function OrganizationsScreen() {
 														variant="secondary"
 														onPress={() => handleChangeRole(member)}
 													>
-														<Ionicons name="shield-outline" size={16} />
+														<StyledIonicons
+															name="shield-outline"
+															size={16}
+															className="text-foreground"
+														/>
 													</Button>
 													<Button
 														size="sm"
 														variant="danger"
 														onPress={() => handleRemoveMember(member)}
 													>
-														<Ionicons name="trash-outline" size={16} />
+														<StyledIonicons
+															name="trash-outline"
+															size={16}
+															className="text-foreground"
+														/>
 													</Button>
 												</View>
 											</View>
@@ -971,7 +1016,7 @@ export default function OrganizationsScreen() {
 															</Typography>
 														</View>
 														{selectedUserId === u.id && (
-															<Ionicons
+															<StyledIonicons
 																name="checkmark-circle"
 																size={20}
 																className="text-primary"
