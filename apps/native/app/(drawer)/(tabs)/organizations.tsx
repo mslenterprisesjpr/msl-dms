@@ -24,6 +24,10 @@ import { DialogModal } from "@/components/dialog-modal";
 import { HeroBottomSheet } from "@/components/hero-bottom-sheet";
 import { LoadingScreen } from "@/components/loading-screen";
 import {
+	type OrganizationInvitation,
+	useOrganizationInvitations,
+} from "@/hooks/use-organization-invitations";
+import {
 	type OrganizationMember,
 	useOrganizationMembers,
 } from "@/hooks/use-organization-members";
@@ -55,6 +59,11 @@ export default function OrganizationsScreen() {
 		refetch: refetchMembers,
 		isLoading: isMembersLoading,
 	} = useOrganizationMembers();
+	const {
+		data: invitations = [],
+		refetch: refetchInvitations,
+		isLoading: isInvitationsLoading,
+	} = useOrganizationInvitations();
 
 	// ── Org modal ──────────────────────────────────────────────────────────────
 	const [isOrgModalOpen, setIsOrgModalOpen] = useState(false);
@@ -193,6 +202,56 @@ export default function OrganizationsScreen() {
 
 	// ── Member handlers ────────────────────────────────────────────────────────
 
+	const handleCancelInvitation = (invitation: OrganizationInvitation) => {
+		Alert.alert(
+			"Cancel Invitation",
+			`Cancel invitation for ${invitation.email}?`,
+			[
+				{ text: "Keep", style: "cancel" },
+				{
+					text: "Cancel Invite",
+					style: "destructive",
+					onPress: async () => {
+						try {
+							const { error } = await authClient.organization.cancelInvitation({
+								invitationId: invitation.id,
+							});
+							if (error) {
+								Alert.alert(
+									"Error",
+									error.message || "Failed to cancel invitation",
+								);
+								return;
+							}
+							Alert.alert("Success", "Invitation cancelled");
+							refetchInvitations();
+						} catch (e) {
+							Alert.alert("Error", "Something went wrong");
+						}
+					},
+				},
+			],
+		);
+	};
+
+	const handleResendInvitation = async (invitation: OrganizationInvitation) => {
+		try {
+			const { error } = await authClient.organization.inviteMember({
+				organizationId: currentOrgId!,
+				email: invitation.email,
+				role: invitation.role as any,
+			});
+			if (error) {
+				Alert.alert("Error", error.message || "Failed to resend invitation");
+				return;
+			}
+			Alert.alert("Success", "Invitation resent successfully");
+			refetchInvitations();
+		} catch (e) {
+			Alert.alert("Error", "Something went wrong");
+		}
+	};
+
 	const openInviteByEmail = () => {
 		setMemberModalMode("invite");
 		setMemberEmail("");
@@ -261,13 +320,14 @@ export default function OrganizationsScreen() {
 				const { error } = await authClient.organization.inviteMember({
 					organizationId: currentOrgId!,
 					email: memberEmail,
-					role: memberRole,
+					role: memberRole as any,
 				});
 				if (error) {
 					Alert.alert("Error", error.message || "Failed to send invite");
 					return;
 				}
 				Alert.alert("Success", "Invitation sent successfully");
+				refetchInvitations();
 
 				// ── Add existing user directly ────────────────────────────────
 			} else if (memberModalMode === "add-user") {
@@ -285,7 +345,7 @@ export default function OrganizationsScreen() {
 				const { error } = await authClient.organization.inviteMember({
 					organizationId: currentOrgId!,
 					email: user.email,
-					role: memberRole,
+					role: memberRole as any,
 				});
 				if (error) {
 					Alert.alert("Error", error.message || "Failed to add member");
@@ -438,6 +498,163 @@ export default function OrganizationsScreen() {
 				{/* ── Members section ── */}
 				{currentOrgId && (
 					<View className="mt-8">
+						{/* ── Stats row ── */}
+						<View className="mb-6 flex-row gap-3">
+							<Card className="flex-1">
+								<View className="p-4">
+									<Typography
+										variant="title2"
+										className="font-bold text-warning"
+									>
+										{invitations.length}
+									</Typography>
+									<Typography
+										variant="caption"
+										className="mt-1 font-semibold text-foreground"
+									>
+										Pending Invitations
+									</Typography>
+									<Typography variant="caption" className="text-foreground/50">
+										Awaiting acceptance
+									</Typography>
+								</View>
+							</Card>
+							<Card className="flex-1">
+								<View className="p-4">
+									<Typography
+										variant="title2"
+										className="font-bold text-primary"
+									>
+										{members.length}
+									</Typography>
+									<Typography
+										variant="caption"
+										className="mt-1 font-semibold text-foreground"
+									>
+										Active Members
+									</Typography>
+									<Typography variant="caption" className="text-foreground/50">
+										Total organization members
+									</Typography>
+								</View>
+							</Card>
+						</View>
+
+						{/* ── Pending Invitations section ── */}
+						<View className="mb-8">
+							<View className="mb-4 flex-row items-center justify-between">
+								<View className="flex-row items-center gap-2">
+									<Typography variant="title2" className="text-foreground">
+										Pending Invitations
+									</Typography>
+									{invitations.length > 0 && (
+										<Chip size="sm" variant="warning">
+											{String(invitations.length)}
+										</Chip>
+									)}
+								</View>
+								<Button
+									size="sm"
+									variant="secondary"
+									onPress={() => refetchInvitations()}
+								>
+									<Ionicons name="refresh" size={16} />
+								</Button>
+							</View>
+
+							{isInvitationsLoading ? (
+								<View className="items-center py-8">
+									<Typography variant="body" className="text-foreground/60">
+										Loading invitations...
+									</Typography>
+								</View>
+							) : invitations.length === 0 ? (
+								<Surface className="items-center p-8">
+									<Ionicons
+										name="mail-outline"
+										size={40}
+										className="text-foreground/30"
+									/>
+									<Typography
+										variant="body"
+										className="mt-3 text-center text-foreground/60"
+									>
+										No pending invitations.{"\n"}Invite someone via the Members
+										section below.
+									</Typography>
+								</Surface>
+							) : (
+								<View className="gap-3">
+									{invitations.map((invitation) => (
+										<Card key={invitation.id}>
+											<View className="p-4">
+												<View className="mb-2 flex-row items-center justify-between">
+													<View className="flex-1 pr-2">
+														<View className="mb-1 flex-row items-center gap-2">
+															<Typography
+																variant="title3"
+																className="text-foreground"
+															>
+																{invitation.email}
+															</Typography>
+														</View>
+														<View className="flex-row items-center gap-2">
+															<Chip size="sm" variant="warning">
+																Pending
+															</Chip>
+															<Chip
+																size="sm"
+																variant={
+																	invitation.role === "owner"
+																		? "primary"
+																		: invitation.role === "admin"
+																			? "secondary"
+																			: "default"
+																}
+															>
+																{invitation.role}
+															</Chip>
+														</View>
+													</View>
+												</View>
+												{invitation.expiresAt && (
+													<Typography
+														variant="caption"
+														className="mb-3 text-foreground/40"
+													>
+														Expires:{" "}
+														{new Date(
+															invitation.expiresAt,
+														).toLocaleDateString()}
+													</Typography>
+												)}
+												<View className="flex-row gap-2">
+													<Button
+														size="sm"
+														variant="secondary"
+														onPress={() => handleResendInvitation(invitation)}
+														className="flex-1"
+													>
+														<View className="flex-row items-center gap-1">
+															<Ionicons name="mail-outline" size={14} />
+															<Typography variant="caption">Resend</Typography>
+														</View>
+													</Button>
+													<Button
+														size="sm"
+														variant="danger"
+														onPress={() => handleCancelInvitation(invitation)}
+													>
+														<Ionicons name="close-circle-outline" size={16} />
+													</Button>
+												</View>
+											</View>
+										</Card>
+									))}
+								</View>
+							)}
+						</View>
+
 						{/* Section header */}
 						<View className="mb-4 flex-row items-center justify-between">
 							<Typography variant="title2" className="text-foreground">
