@@ -28,14 +28,17 @@ export function useOrganizationMembers() {
 
 			// Get members using Better Auth organization plugin
 			const { data, error } = await authClient.organization.listMembers({
-				organizationId: currentOrgId,
+				query: {
+					organizationId: currentOrgId,
+				},
 			});
 
 			if (error) {
 				throw new Error(error.message || "Failed to fetch members");
 			}
 
-			return (data?.members || []) as OrganizationMember[];
+			const members = (data?.members || []) as OrganizationMember[];
+			return members;
 		},
 		enabled: !!currentOrgId,
 	});

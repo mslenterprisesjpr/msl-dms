@@ -7,10 +7,10 @@ export interface OrganizationInvitation {
 	email: string;
 	role: string;
 	organizationId: string;
-	status: string;
+	status: "pending" | "accepted" | "rejected";
+	expiresAt: Date | string;
 	inviterId: string;
-	expiresAt: string;
-	createdAt?: string;
+	createdAt: Date | string;
 }
 
 export function useOrganizationInvitations() {
@@ -23,15 +23,28 @@ export function useOrganizationInvitations() {
 				return [];
 			}
 
-			const { data, error } = await authClient.organization.listInvitations({
-				organizationId: currentOrgId,
-			});
+			try {
+				// Get invitations using Better Auth organization plugin
+				const { data, error } = await authClient.organization.listInvitations({
+					query: {
+						organizationId: currentOrgId,
+					},
+				});
 
-			if (error) {
-				throw new Error(error.message || "Failed to fetch invitations");
+				if (error) {
+					throw new Error(error.message || "Failed to fetch invitations");
+				}
+
+				// NOTE: Better Auth returns invitations directly as an array, not nested in data.invitations
+				// Response format: { data: [invitation1, invitation2, ...], error: null }
+				const invitations = (
+					Array.isArray(data) ? data : []
+				) as OrganizationInvitation[];
+				return invitations;
+			} catch (err) {
+				console.error("[useOrganizationInvitations] Error:", err);
+				throw err;
 			}
-
-			return (data || []) as OrganizationInvitation[];
 		},
 		enabled: !!currentOrgId,
 	});
