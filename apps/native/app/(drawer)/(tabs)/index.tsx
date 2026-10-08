@@ -485,9 +485,13 @@ function WorkerDashboard({
 }) {
 	const { data: stats, refetch: refetchStats } = useWorkerStats();
 
+	const todaySales = stats?.todaySales ?? 0;
+	const todayOrders = stats?.todayOrders ?? 0;
+	const todayCollection = stats?.todayCollection ?? 0;
+	const monthlySales = stats?.monthlySales ?? 0;
 	const totalStockItems = stats?.totalStockItems ?? 0;
+	const totalUnitsInHand = stats?.totalUnitsInHand ?? 0;
 	const issuedToday = stats?.issuedToday ?? 0;
-	const returnsToday = stats?.returnsToday ?? 0;
 	const lowStockItems = stats?.lowStockItems ?? 0;
 
 	// Store refetch function in ref
@@ -534,12 +538,127 @@ function WorkerDashboard({
 
 	return (
 		<View>
-			{/* Worker Stats */}
+			{/* Field Work & Sales */}
 			<View className="mb-6">
-				<Typography variant="title2" className="mb-4 text-foreground">
-					My Stats
+				<Typography variant="title2" className="mb-3 text-foreground">
+					Today's Field Work
 				</Typography>
 				<View className="flex-row flex-wrap gap-3">
+					{/* Today's Sales */}
+					<Card className="min-w-[45%] flex-1">
+						<View className="p-4">
+							<View className="mb-2 flex-row items-center justify-between">
+								<View className="rounded-full bg-success/10 p-2">
+									<StyledIonicons
+										name="cash-outline"
+										size={20}
+										className="text-success"
+									/>
+								</View>
+								<StyledIonicons
+									name="trending-up"
+									size={16}
+									className="text-success"
+								/>
+							</View>
+							<Typography
+								variant="title1"
+								className="font-bold text-foreground"
+							>
+								₹{todaySales.toLocaleString("en-IN")}
+							</Typography>
+							<Typography variant="caption" className="text-foreground/60">
+								Today's Sales
+							</Typography>
+						</View>
+					</Card>
+
+					{/* Cash in Hand / Collection */}
+					<Card className="min-w-[45%] flex-1">
+						<View className="p-4">
+							<View className="mb-2 flex-row items-center justify-between">
+								<View className="rounded-full bg-primary/10 p-2">
+									<StyledIonicons
+										name="wallet-outline"
+										size={20}
+										className="text-primary"
+									/>
+								</View>
+								<StyledIonicons
+									name="checkmark-circle"
+									size={16}
+									className="text-success"
+								/>
+							</View>
+							<Typography
+								variant="title1"
+								className="font-bold text-foreground"
+							>
+								₹{todayCollection.toLocaleString("en-IN")}
+							</Typography>
+							<Typography variant="caption" className="text-foreground/60">
+								Cash Collected
+							</Typography>
+						</View>
+					</Card>
+
+					{/* Orders Booked */}
+					<Card className="min-w-[45%] flex-1">
+						<View className="p-4">
+							<View className="mb-2 flex-row items-center justify-between">
+								<View className="rounded-full bg-warning/10 p-2">
+									<StyledIonicons
+										name="cart-outline"
+										size={20}
+										className="text-warning"
+									/>
+								</View>
+							</View>
+							<Typography
+								variant="title1"
+								className="font-bold text-foreground"
+							>
+								{todayOrders}
+							</Typography>
+							<Typography variant="caption" className="text-foreground/60">
+								Orders Booked
+							</Typography>
+						</View>
+					</Card>
+
+					{/* Month's Sales */}
+					<Card className="min-w-[45%] flex-1">
+						<View className="p-4">
+							<View className="mb-2 flex-row items-center justify-between">
+								<View className="rounded-full bg-accent/10 p-2">
+									<StyledIonicons
+										name="trophy-outline"
+										size={20}
+										className="text-accent"
+									/>
+								</View>
+							</View>
+							<Typography
+								variant="title1"
+								className="font-bold text-foreground"
+							>
+								₹{monthlySales.toLocaleString("en-IN")}
+							</Typography>
+							<Typography variant="caption" className="text-foreground/60">
+								Month's Sales
+							</Typography>
+						</View>
+					</Card>
+				</View>
+			</View>
+
+			{/* Van / Bag Stock */}
+			<View className="mb-6">
+				<Typography variant="title2" className="mb-3 text-foreground">
+					My Stock & Inventory
+				</Typography>
+				<View className="flex-row flex-wrap gap-3">
+					{/* Stock Items (SKUs) */}
 					<Card className="min-w-[45%] flex-1">
 						<View className="p-4">
 							<View className="mb-2 flex-row items-center justify-between">
@@ -558,19 +677,44 @@ function WorkerDashboard({
 								{totalStockItems}
 							</Typography>
 							<Typography variant="caption" className="text-foreground/60">
-								Stock Items
+								Stock Items (SKUs)
 							</Typography>
 						</View>
 					</Card>
 
+					{/* Total Units in Hand */}
 					<Card className="min-w-[45%] flex-1">
 						<View className="p-4">
 							<View className="mb-2 flex-row items-center justify-between">
 								<View className="rounded-full bg-success/10 p-2">
 									<StyledIonicons
-										name="checkmark-circle-outline"
+										name="layers-outline"
 										size={20}
 										className="text-success"
+									/>
+								</View>
+							</View>
+							<Typography
+								variant="title1"
+								className="font-bold text-foreground"
+							>
+								{totalUnitsInHand}
+							</Typography>
+							<Typography variant="caption" className="text-foreground/60">
+								Total Units in Hand
+							</Typography>
+						</View>
+					</Card>
+
+					{/* Issued Today */}
+					<Card className="min-w-[45%] flex-1">
+						<View className="p-4">
+							<View className="mb-2 flex-row items-center justify-between">
+								<View className="rounded-full bg-default p-2">
+									<StyledIonicons
+										name="arrow-down-circle-outline"
+										size={20}
+										className="text-foreground/70"
 									/>
 								</View>
 							</View>
@@ -586,48 +730,41 @@ function WorkerDashboard({
 						</View>
 					</Card>
 
+					{/* Low Stock Items */}
 					<Card className="min-w-[45%] flex-1">
 						<View className="p-4">
 							<View className="mb-2 flex-row items-center justify-between">
-								<View className="rounded-full bg-warning/10 p-2">
-									<StyledIonicons
-										name="return-down-back-outline"
-										size={20}
-										className="text-warning"
-									/>
-								</View>
-							</View>
-							<Typography
-								variant="title1"
-								className="font-bold text-foreground"
-							>
-								{returnsToday}
-							</Typography>
-							<Typography variant="caption" className="text-foreground/60">
-								Returns Today
-							</Typography>
-						</View>
-					</Card>
-
-					<Card className="min-w-[45%] flex-1">
-						<View className="p-4">
-							<View className="mb-2 flex-row items-center justify-between">
-								<View className="rounded-full bg-danger/10 p-2">
+								<View
+									className={`rounded-full p-2 ${
+										lowStockItems > 0 ? "bg-danger/10" : "bg-default"
+									}`}
+								>
 									<StyledIonicons
 										name="alert-circle-outline"
 										size={20}
-										className="text-danger"
+										className={
+											lowStockItems > 0 ? "text-danger" : "text-foreground/60"
+										}
 									/>
 								</View>
+								{lowStockItems > 0 && (
+									<StyledIonicons
+										name="warning"
+										size={16}
+										className="text-danger"
+									/>
+								)}
 							</View>
 							<Typography
 								variant="title1"
-								className="font-bold text-foreground"
+								className={`font-bold ${
+									lowStockItems > 0 ? "text-danger" : "text-foreground"
+								}`}
 							>
 								{lowStockItems}
 							</Typography>
 							<Typography variant="caption" className="text-foreground/60">
-								Low Stock Items
+								Low Stock Alert
 							</Typography>
 						</View>
 					</Card>

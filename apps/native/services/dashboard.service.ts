@@ -12,9 +12,13 @@ export interface AdminStats {
 }
 
 export interface WorkerStats {
+	todaySales: number;
+	todayOrders: number;
+	todayCollection: number;
+	monthlySales: number;
 	totalStockItems: number;
+	totalUnitsInHand: number;
 	issuedToday: number;
-	returnsToday: number;
 	lowStockItems: number;
 }
 

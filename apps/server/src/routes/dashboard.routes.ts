@@ -150,38 +150,131 @@ app.get(
 			queryWorkerId && user.role === UserRole.ADMIN ? queryWorkerId : user.id;
 
 		const now = new Date();
+		const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 		const startOfToday = new Date(
 			now.getFullYear(),
 			now.getMonth(),
 			now.getDate(),
 		);
 
-		const [totalStockItems, issuedToday, returnsToday, lowStockItems] =
-			await Promise.all([
-				WorkerStock.countDocuments({ orgId: orgFilter, workerId }),
-				StockTransaction.countDocuments({
-					orgId: orgFilter,
-					workerId,
-					type: "ISSUE",
-					createdAt: { $gte: startOfToday },
-				}),
-				StockTransaction.countDocuments({
-					orgId: orgFilter,
-					workerId,
-					type: "RETURN",
-					createdAt: { $gte: startOfToday },
-				}),
-				WorkerStock.countDocuments({
-					orgId: orgFilter,
-					workerId,
-					quantity: { $lte: 5 },
-				}),
-			]);
+		const [
+			todaySalesResult,
+			todayOrders,
+			todayCollectionResult,
+			monthlySalesResult,
+			totalStockItems,
+			totalUnitsResult,
+			issuedTodayResult,
+			lowStockItems,
+		] = await Promise.all([
+			Sale.aggregate([
+				{
+					$match: {
+						orgId: orgFilter,
+						workerId,
+						status: { $ne: "CANCELLED" },
+						createdAt: { $gte: startOfToday },
+					},
+				},
+				{
+					$group: {
+						_id: null,
+						total: { $sum: "$total" },
+					},
+				},
+			]),
+			Order.countDocuments({
+				orgId: orgFilter,
+				workerId,
+				createdAt: { $gte: startOfToday },
+			}),
+			Payment.aggregate([
+				{
+					$match: {
+						orgId: orgFilter,
+						createdBy: workerId,
+						createdAt: { $gte: startOfToday },
+					},
+				},
+				{
+					$group: {
+						_id: null,
+						total: { $sum: "$amount" },
+					},
+				},
+			]),
+			Sale.aggregate([
+				{
+					$match: {
+						orgId: orgFilter,
+						workerId,
+						status: { $ne: "CANCELLED" },
+						createdAt: { $gte: startOfMonth },
+					},
+				},
+				{
+					$group: {
+						_id: null,
+						total: { $sum: "$total" },
+					},
+				},
+			]),
+			WorkerStock.countDocuments({
+				orgId: orgFilter,
+				workerId,
+				quantity: { $gt: 0 },
+			}),
+			WorkerStock.aggregate([
+				{
+					$match: {
+						orgId: orgFilter,
+						workerId,
+					},
+				},
+				{
+					$group: {
+						_id: null,
+						totalUnits: { $sum: "$quantity" },
+					},
+				},
+			]),
+			StockTransaction.aggregate([
+				{
+					$match: {
+						orgId: orgFilter,
+						workerId,
+						type: "ISSUE",
+						createdAt: { $gte: startOfToday },
+					},
+				},
+				{
+					$group: {
+						_id: null,
+						total: { $sum: "$quantity" },
+					},
+				},
+			]),
+			WorkerStock.countDocuments({
+				orgId: orgFilter,
+				workerId,
+				quantity: { $gt: 0, $lte: 5 },
+			}),
+		]);
+
+		const todaySales = todaySalesResult[0]?.total || 0;
+		const todayCollection = todayCollectionResult[0]?.total || 0;
+		const monthlySales = monthlySalesResult[0]?.total || 0;
+		const totalUnitsInHand = totalUnitsResult[0]?.totalUnits || 0;
+		const issuedToday = issuedTodayResult[0]?.total || 0;
 
 		return c.json({
+			todaySales,
+			todayOrders,
+			todayCollection,
+			monthlySales,
 			totalStockItems,
+			totalUnitsInHand,
 			issuedToday,
-			returnsToday,
 			lowStockItems,
 		});
 	},
