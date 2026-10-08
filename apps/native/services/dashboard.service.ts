@@ -4,7 +4,11 @@ export interface AdminStats {
 	totalProducts: number;
 	totalCustomers: number;
 	pendingOrders: number;
+	lowStockCount: number;
 	monthlyRevenue: number;
+	todaySales: number;
+	totalOutstanding: number;
+	todayCollection: number;
 }
 
 export interface WorkerStats {

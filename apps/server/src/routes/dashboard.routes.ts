@@ -2,6 +2,7 @@ import type { AppSession as Session, AppUser as User } from "@msl/auth";
 import {
 	Customer,
 	Order,
+	Payment,
 	Product,
 	Sale,
 	StockTransaction,
@@ -31,36 +32,105 @@ app.get("/admin-stats", requireAuth, requireAdmin, async (c) => {
 
 	const now = new Date();
 	const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+	const startOfToday = new Date(
+		now.getFullYear(),
+		now.getMonth(),
+		now.getDate(),
+	);
 
-	const [totalProducts, totalCustomers, pendingOrders, revenueResult] =
-		await Promise.all([
-			Product.countDocuments({ orgId: orgFilter, isActive: true }),
-			Customer.countDocuments({ orgId: orgFilter, isActive: true }),
-			Order.countDocuments({ orgId: orgFilter, status: "PENDING" }),
-			Sale.aggregate([
-				{
-					$match: {
-						orgId: orgFilter,
-						status: { $ne: "CANCELLED" },
-						createdAt: { $gte: startOfMonth },
-					},
+	const [
+		totalProducts,
+		totalCustomers,
+		pendingOrders,
+		lowStockCount,
+		monthlyRevenueResult,
+		todaySalesResult,
+		outstandingResult,
+		todayCollectionResult,
+	] = await Promise.all([
+		Product.countDocuments({ orgId: orgFilter, isActive: true }),
+		Customer.countDocuments({ orgId: orgFilter, isActive: true }),
+		Order.countDocuments({ orgId: orgFilter, status: "PENDING" }),
+		Product.countDocuments({
+			orgId: orgFilter,
+			isActive: true,
+			$expr: { $lte: ["$stock", "$minimumStock"] },
+		}),
+		Sale.aggregate([
+			{
+				$match: {
+					orgId: orgFilter,
+					status: { $ne: "CANCELLED" },
+					createdAt: { $gte: startOfMonth },
 				},
-				{
-					$group: {
-						_id: null,
-						totalRevenue: { $sum: "$total" },
-					},
+			},
+			{
+				$group: {
+					_id: null,
+					total: { $sum: "$total" },
 				},
-			]),
-		]);
+			},
+		]),
+		Sale.aggregate([
+			{
+				$match: {
+					orgId: orgFilter,
+					status: { $ne: "CANCELLED" },
+					createdAt: { $gte: startOfToday },
+				},
+			},
+			{
+				$group: {
+					_id: null,
+					total: { $sum: "$total" },
+				},
+			},
+		]),
+		Sale.aggregate([
+			{
+				$match: {
+					orgId: orgFilter,
+					status: { $ne: "CANCELLED" },
+					pendingAmount: { $gt: 0 },
+				},
+			},
+			{
+				$group: {
+					_id: null,
+					total: { $sum: "$pendingAmount" },
+				},
+			},
+		]),
+		Payment.aggregate([
+			{
+				$match: {
+					orgId: orgFilter,
+					createdAt: { $gte: startOfToday },
+				},
+			},
+			{
+				$group: {
+					_id: null,
+					total: { $sum: "$amount" },
+				},
+			},
+		]),
+	]);
 
-	const monthlyRevenue = revenueResult[0]?.totalRevenue || 0;
+	const monthlyRevenue = monthlyRevenueResult[0]?.total || 0;
+	const todaySales = todaySalesResult[0]?.total || 0;
+	const totalOutstanding = outstandingResult[0]?.total || 0;
+	const todayCollection = todayCollectionResult[0]?.total || 0;
 
 	return c.json({
 		totalProducts,
 		totalCustomers,
 		pendingOrders,
+		lowStockCount,
 		monthlyRevenue,
+		todaySales,
+		totalOutstanding,
+		todayCollection,
 	});
 });
 

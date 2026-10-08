@@ -134,7 +134,11 @@ function AdminDashboard({
 	const totalProducts = stats?.totalProducts ?? 0;
 	const totalCustomers = stats?.totalCustomers ?? 0;
 	const pendingOrders = stats?.pendingOrders ?? 0;
+	const lowStockCount = stats?.lowStockCount ?? 0;
 	const monthlyRevenue = stats?.monthlyRevenue ?? 0;
+	const todaySales = stats?.todaySales ?? 0;
+	const totalOutstanding = stats?.totalOutstanding ?? 0;
+	const todayCollection = stats?.todayCollection ?? 0;
 
 	// Store refetch function in ref
 	React.useEffect(() => {
@@ -180,104 +184,21 @@ function AdminDashboard({
 
 	return (
 		<View>
-			{/* Statistics Cards */}
+			{/* Sales & Finance Overview */}
 			<View className="mb-6">
-				<Typography variant="title2" className="mb-4 text-foreground">
-					Overview
+				<Typography variant="title2" className="mb-3 text-foreground">
+					Sales & Finance
 				</Typography>
 				<View className="flex-row flex-wrap gap-3">
-					<Card className="min-w-[45%] flex-1">
-						<View className="p-4">
-							<View className="mb-2 flex-row items-center justify-between">
-								<View className="rounded-full bg-accent/10 p-2">
-									<StyledIonicons
-										name="cube-outline"
-										size={20}
-										className="text-accent"
-									/>
-								</View>
-								<StyledIonicons
-									name="trending-up"
-									size={16}
-									className="text-success"
-								/>
-							</View>
-							<Typography
-								variant="title1"
-								className="font-bold text-foreground"
-							>
-								{totalProducts}
-							</Typography>
-							<Typography variant="caption" className="text-foreground/60">
-								Total Products
-							</Typography>
-						</View>
-					</Card>
-
+					{/* Monthly Revenue */}
 					<Card className="min-w-[45%] flex-1">
 						<View className="p-4">
 							<View className="mb-2 flex-row items-center justify-between">
 								<View className="rounded-full bg-success/10 p-2">
 									<StyledIonicons
-										name="people-outline"
-										size={20}
-										className="text-success"
-									/>
-								</View>
-								<StyledIonicons
-									name="trending-up"
-									size={16}
-									className="text-success"
-								/>
-							</View>
-							<Typography
-								variant="title1"
-								className="font-bold text-foreground"
-							>
-								{totalCustomers}
-							</Typography>
-							<Typography variant="caption" className="text-foreground/60">
-								Total Customers
-							</Typography>
-						</View>
-					</Card>
-
-					<Card className="min-w-[45%] flex-1">
-						<View className="p-4">
-							<View className="mb-2 flex-row items-center justify-between">
-								<View className="rounded-full bg-warning/10 p-2">
-									<StyledIonicons
-										name="cart-outline"
-										size={20}
-										className="text-warning"
-									/>
-								</View>
-								<StyledIonicons
-									name="trending-down"
-									size={16}
-									className="text-danger"
-								/>
-							</View>
-							<Typography
-								variant="title1"
-								className="font-bold text-foreground"
-							>
-								{pendingOrders}
-							</Typography>
-							<Typography variant="caption" className="text-foreground/60">
-								Pending Orders
-							</Typography>
-						</View>
-					</Card>
-
-					<Card className="min-w-[45%] flex-1">
-						<View className="p-4">
-							<View className="mb-2 flex-row items-center justify-between">
-								<View className="rounded-full bg-danger/10 p-2">
-									<StyledIonicons
 										name="cash-outline"
 										size={20}
-										className="text-danger"
+										className="text-success"
 									/>
 								</View>
 								<StyledIonicons
@@ -294,6 +215,213 @@ function AdminDashboard({
 							</Typography>
 							<Typography variant="caption" className="text-foreground/60">
 								Revenue (Month)
+							</Typography>
+						</View>
+					</Card>
+
+					{/* Today's Sales */}
+					<Card className="min-w-[45%] flex-1">
+						<View className="p-4">
+							<View className="mb-2 flex-row items-center justify-between">
+								<View className="rounded-full bg-accent/10 p-2">
+									<StyledIonicons
+										name="trending-up-outline"
+										size={20}
+										className="text-accent"
+									/>
+								</View>
+							</View>
+							<Typography
+								variant="title1"
+								className="font-bold text-foreground"
+							>
+								₹{todaySales.toLocaleString("en-IN")}
+							</Typography>
+							<Typography variant="caption" className="text-foreground/60">
+								Today's Sales
+							</Typography>
+						</View>
+					</Card>
+
+					{/* Market Outstanding */}
+					<Card className="min-w-[45%] flex-1">
+						<View className="p-4">
+							<View className="mb-2 flex-row items-center justify-between">
+								<View className="rounded-full bg-danger/10 p-2">
+									<StyledIonicons
+										name="time-outline"
+										size={20}
+										className="text-danger"
+									/>
+								</View>
+								{totalOutstanding > 0 && (
+									<StyledIonicons
+										name="alert-circle"
+										size={16}
+										className="text-danger"
+									/>
+								)}
+							</View>
+							<Typography variant="title1" className="font-bold text-danger">
+								₹{totalOutstanding.toLocaleString("en-IN")}
+							</Typography>
+							<Typography variant="caption" className="text-foreground/60">
+								Market Outstanding
+							</Typography>
+						</View>
+					</Card>
+
+					{/* Today's Collection */}
+					<Card className="min-w-[45%] flex-1">
+						<View className="p-4">
+							<View className="mb-2 flex-row items-center justify-between">
+								<View className="rounded-full bg-primary/10 p-2">
+									<StyledIonicons
+										name="wallet-outline"
+										size={20}
+										className="text-primary"
+									/>
+								</View>
+								<StyledIonicons
+									name="checkmark-circle"
+									size={16}
+									className="text-success"
+								/>
+							</View>
+							<Typography
+								variant="title1"
+								className="font-bold text-foreground"
+							>
+								₹{todayCollection.toLocaleString("en-IN")}
+							</Typography>
+							<Typography variant="caption" className="text-foreground/60">
+								Today's Collection
+							</Typography>
+						</View>
+					</Card>
+				</View>
+			</View>
+
+			{/* Inventory & Operations */}
+			<View className="mb-6">
+				<Typography variant="title2" className="mb-3 text-foreground">
+					Inventory & Orders
+				</Typography>
+				<View className="flex-row flex-wrap gap-3">
+					{/* Total Products */}
+					<Card className="min-w-[45%] flex-1">
+						<View className="p-4">
+							<View className="mb-2 flex-row items-center justify-between">
+								<View className="rounded-full bg-accent/10 p-2">
+									<StyledIonicons
+										name="cube-outline"
+										size={20}
+										className="text-accent"
+									/>
+								</View>
+							</View>
+							<Typography
+								variant="title1"
+								className="font-bold text-foreground"
+							>
+								{totalProducts}
+							</Typography>
+							<Typography variant="caption" className="text-foreground/60">
+								Total Products
+							</Typography>
+						</View>
+					</Card>
+
+					{/* Total Customers */}
+					<Card className="min-w-[45%] flex-1">
+						<View className="p-4">
+							<View className="mb-2 flex-row items-center justify-between">
+								<View className="rounded-full bg-success/10 p-2">
+									<StyledIonicons
+										name="people-outline"
+										size={20}
+										className="text-success"
+									/>
+								</View>
+							</View>
+							<Typography
+								variant="title1"
+								className="font-bold text-foreground"
+							>
+								{totalCustomers}
+							</Typography>
+							<Typography variant="caption" className="text-foreground/60">
+								Total Customers
+							</Typography>
+						</View>
+					</Card>
+
+					{/* Pending Orders */}
+					<Card className="min-w-[45%] flex-1">
+						<View className="p-4">
+							<View className="mb-2 flex-row items-center justify-between">
+								<View className="rounded-full bg-warning/10 p-2">
+									<StyledIonicons
+										name="cart-outline"
+										size={20}
+										className="text-warning"
+									/>
+								</View>
+								{pendingOrders > 0 && (
+									<StyledIonicons
+										name="hourglass-outline"
+										size={16}
+										className="text-warning"
+									/>
+								)}
+							</View>
+							<Typography
+								variant="title1"
+								className="font-bold text-foreground"
+							>
+								{pendingOrders}
+							</Typography>
+							<Typography variant="caption" className="text-foreground/60">
+								Pending Orders
+							</Typography>
+						</View>
+					</Card>
+
+					{/* Low Stock Items */}
+					<Card className="min-w-[45%] flex-1">
+						<View className="p-4">
+							<View className="mb-2 flex-row items-center justify-between">
+								<View
+									className={`rounded-full p-2 ${
+										lowStockCount > 0 ? "bg-danger/10" : "bg-default"
+									}`}
+								>
+									<StyledIonicons
+										name="alert-circle-outline"
+										size={20}
+										className={
+											lowStockCount > 0 ? "text-danger" : "text-foreground/60"
+										}
+									/>
+								</View>
+								{lowStockCount > 0 && (
+									<StyledIonicons
+										name="warning"
+										size={16}
+										className="text-danger"
+									/>
+								)}
+							</View>
+							<Typography
+								variant="title1"
+								className={`font-bold ${
+									lowStockCount > 0 ? "text-danger" : "text-foreground"
+								}`}
+							>
+								{lowStockCount}
+							</Typography>
+							<Typography variant="caption" className="text-foreground/60">
+								Low Stock Alert
 							</Typography>
 						</View>
 					</Card>
