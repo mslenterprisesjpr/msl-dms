@@ -7,6 +7,14 @@ import type {
 	UpdateCustomerDto,
 } from "@/types/customer";
 
+export type {
+	CreateCustomerDto,
+	Customer,
+	CustomersQuery,
+	CustomersResponse,
+	UpdateCustomerDto,
+};
+
 export const customerService = {
 	getAll: async (query: CustomersQuery = {}) => {
 		const params = new URLSearchParams();

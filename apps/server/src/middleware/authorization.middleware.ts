@@ -59,18 +59,21 @@ export function isAdmin(user: User | null): boolean {
 }
 
 /**
- * Check if user owns a resource
+ * Check if user is the resource creator/owner (by user ID)
  */
-export function isOwner(user: User | null, resourceUserId: string): boolean {
+export function isResourceOwner(
+	user: User | null,
+	resourceUserId: string,
+): boolean {
 	return user?.id === resourceUserId;
 }
 
 /**
- * Check if user can access resource (admin or owner)
+ * Check if user can access resource (admin or creator)
  */
 export function canAccessResource(
 	user: User | null,
 	resourceUserId: string,
 ): boolean {
-	return isAdmin(user) || isOwner(user, resourceUserId);
+	return isAdmin(user) || isResourceOwner(user, resourceUserId);
 }

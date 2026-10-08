@@ -7,7 +7,8 @@ import {
 import {
 	type CreateCustomerDto,
 	type Customer,
-	type CustomerQuery,
+	type CustomersQuery,
+	type CustomersResponse,
 	customerService,
 	type UpdateCustomerDto,
 } from "@/services/customer.service";
@@ -16,7 +17,7 @@ import {
 export const customerKeys = {
 	all: ["customers"] as const,
 	lists: () => [...customerKeys.all, "list"] as const,
-	list: (filters?: CustomerQuery) =>
+	list: (filters?: CustomersQuery) =>
 		[...customerKeys.lists(), filters] as const,
 	details: () => [...customerKeys.all, "detail"] as const,
 	detail: (id: string) => [...customerKeys.details(), id] as const,
@@ -24,18 +25,15 @@ export const customerKeys = {
 
 // Queries
 export const useCustomers = (
-	query?: CustomerQuery,
+	query?: CustomersQuery,
 	options?: Omit<
-		UseQueryOptions<
-			Awaited<ReturnType<typeof customerService.getCustomers>>,
-			Error
-		>,
+		UseQueryOptions<CustomersResponse, Error>,
 		"queryKey" | "queryFn"
 	>,
 ) => {
 	return useQuery({
 		queryKey: customerKeys.list(query),
-		queryFn: () => customerService.getCustomers(query),
+		queryFn: () => customerService.getAll(query),
 		...options,
 	});
 };
@@ -49,7 +47,7 @@ export const useCustomer = (
 ) => {
 	return useQuery({
 		queryKey: customerKeys.detail(id),
-		queryFn: () => customerService.getCustomerById(id),
+		queryFn: () => customerService.getById(id),
 		enabled: !!id,
 		...options,
 	});
@@ -60,7 +58,7 @@ export const useCreateCustomer = () => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (dto: CreateCustomerDto) => customerService.createCustomer(dto),
+		mutationFn: (dto: CreateCustomerDto) => customerService.create(dto),
 		onSuccess: () => {
 			// Invalidate all customer lists
 			queryClient.invalidateQueries({ queryKey: customerKeys.lists() });
@@ -73,7 +71,7 @@ export const useUpdateCustomer = () => {
 
 	return useMutation({
 		mutationFn: ({ id, dto }: { id: string; dto: UpdateCustomerDto }) =>
-			customerService.updateCustomer(id, dto),
+			customerService.update(id, dto),
 		onSuccess: (_data, variables) => {
 			// Invalidate specific customer detail
 			queryClient.invalidateQueries({
@@ -89,7 +87,7 @@ export const useDeleteCustomer = () => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (id: string) => customerService.deleteCustomer(id),
+		mutationFn: (id: string) => customerService.delete(id),
 		onSuccess: () => {
 			// Invalidate all customers (lists and details)
 			queryClient.invalidateQueries({ queryKey: customerKeys.all });

@@ -43,7 +43,7 @@ export function createAuth(
 			organization({
 				// Allow all users to create organizations (change to false for admin-only)
 				allowUserToCreateOrganization: true,
-				creatorRole: "owner",
+				creatorRole: "admin",
 			}),
 		],
 	});

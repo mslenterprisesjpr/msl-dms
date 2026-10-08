@@ -626,11 +626,9 @@ export default function OrganizationsScreen() {
 															<Chip
 																size="sm"
 																variant={
-																	invitation.role === "owner"
-																		? "primary"
-																		: invitation.role === "admin"
-																			? "secondary"
-																			: "default"
+																	invitation.role === "admin"
+																		? "secondary"
+																		: "default"
 																}
 															>
 																{invitation.role}
@@ -774,11 +772,9 @@ export default function OrganizationsScreen() {
 														<Chip
 															size="sm"
 															variant={
-																member.role === "owner"
-																	? "primary"
-																	: member.role === "admin"
-																		? "secondary"
-																		: "default"
+																member.role === "admin"
+																	? "secondary"
+																	: "default"
 															}
 														>
 															{member.role}
@@ -1050,10 +1046,6 @@ export default function OrganizationsScreen() {
 								<Select.Item
 									value="admin"
 									label="Admin — Can manage members and settings"
-								/>
-								<Select.Item
-									value="owner"
-									label="Owner — Full control over organization"
 								/>
 							</Select>
 						</TextField>

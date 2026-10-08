@@ -9,9 +9,8 @@ import { useSession } from "@/lib/hooks/use-session";
 export default function SettingsScreen() {
 	const { session } = useSession();
 
-	// Check if user is admin (you can add better role checking)
-	const isAdmin =
-		session?.user?.role === "admin" || session?.user?.role === "owner";
+	// Check if user is admin
+	const isAdmin = session?.user?.role === "admin";
 
 	const settingsOptions = [
 		{

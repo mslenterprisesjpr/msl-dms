@@ -269,7 +269,7 @@ export default function ProfileScreen() {
 	};
 
 	const userInitials = getInitials(user?.name, user?.email);
-	const isAdmin = user?.role === "admin" || user?.role === "owner";
+	const isAdmin = user?.role === "admin";
 
 	return (
 		<Container>

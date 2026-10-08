@@ -45,6 +45,7 @@ app.use(
 app.on(["POST", "GET"], "/api/auth/*", async (c) => auth.handler(c.req.raw));
 
 import customerRoutes from "./routes/customer.routes";
+import dashboardRoutes from "./routes/dashboard.routes";
 import orderRoutes from "./routes/order.routes";
 import paymentRoutes from "./routes/payment.routes";
 // Routes
@@ -56,6 +57,7 @@ import workerStockRoutes from "./routes/worker-stock.routes";
 
 app.route("/api/products", productRoutes);
 app.route("/api/customers", customerRoutes);
+app.route("/api/dashboard", dashboardRoutes);
 app.route("/api/stock", stockRoutes);
 app.route("/api/worker-stock", workerStockRoutes);
 app.route("/api/orders", orderRoutes);
