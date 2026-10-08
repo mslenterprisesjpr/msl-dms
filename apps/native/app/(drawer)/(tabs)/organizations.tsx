@@ -38,6 +38,7 @@ import {
 	type Organization,
 	useOrganizationStore,
 } from "@/lib/stores/organization-store";
+import { organizationService } from "@/services/organization.service";
 
 // ─── Styled Components ────────────────────────────────────────────────────────
 
@@ -322,17 +323,22 @@ export default function OrganizationsScreen() {
 					Alert.alert("Error", "Please enter an email address");
 					return;
 				}
-				const { error } = await authClient.organization.inviteMember({
+				const result = await organizationService.addMember({
 					organizationId: currentOrgId!,
-					email: memberEmail,
-					role: memberRole as any,
+					email: memberEmail.trim(),
+					role: memberRole,
 				});
-				if (error) {
-					Alert.alert("Error", error.message || "Failed to send invite");
-					return;
+
+				if (result?.memberAdded) {
+					Alert.alert(
+						"Success",
+						result.message || "User added directly to organization",
+					);
+					refetchMembers();
+				} else {
+					Alert.alert("Success", result?.message || "Invitation created");
+					refetchInvitations();
 				}
-				Alert.alert("Success", "Invitation sent successfully");
-				refetchInvitations();
 
 				// ── Add existing user directly ────────────────────────────────
 			} else if (memberModalMode === "add-user") {
@@ -345,18 +351,18 @@ export default function OrganizationsScreen() {
 					Alert.alert("Error", "Selected user not found");
 					return;
 				}
-				// Use inviteMember with the user's email — Better Auth
-				// will add them directly if they already exist in the system.
-				const { error } = await authClient.organization.inviteMember({
+				// Call server addMember endpoint directly to immediately add them
+				const result = await organizationService.addMember({
 					organizationId: currentOrgId!,
-					email: user.email,
-					role: memberRole as any,
+					userId: user.id,
+					role: memberRole,
 				});
-				if (error) {
-					Alert.alert("Error", error.message || "Failed to add member");
-					return;
-				}
-				Alert.alert("Success", `${user.name} added to organization`);
+
+				Alert.alert(
+					"Success",
+					result?.message || `${user.name} added to organization directly`,
+				);
+				refetchMembers();
 
 				// ── Change role ───────────────────────────────────────────────
 			} else if (memberModalMode === "role" && selectedMember) {
@@ -374,11 +380,10 @@ export default function OrganizationsScreen() {
 
 			setShowMemberModal(false);
 			refetchMembers();
-		} catch (e) {
-			Alert.alert(
-				"Error",
-				e instanceof Error ? e.message : "Something went wrong",
-			);
+		} catch (e: any) {
+			const errMsg =
+				e?.response?.data?.message || e?.message || "Something went wrong";
+			Alert.alert("Error", errMsg);
 		} finally {
 			setIsSubmitting(false);
 		}

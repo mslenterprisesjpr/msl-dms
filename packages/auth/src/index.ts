@@ -44,6 +44,12 @@ export function createAuth(
 				// Allow all users to create organizations (change to false for admin-only)
 				allowUserToCreateOrganization: true,
 				creatorRole: "admin",
+				requireEmailVerificationOnInvitation: false,
+				async sendInvitationEmail(data) {
+					console.log(
+						`[INVITATION] Organization invitation created for ${data.email} to join ${data.organization.name}`,
+					);
+				},
 			}),
 		],
 	});

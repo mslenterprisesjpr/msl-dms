@@ -28,6 +28,10 @@ import { DialogModal } from "@/components/dialog-modal";
 import { authClient } from "@/lib/auth-client";
 import { useSession } from "@/lib/hooks/use-session";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
+import {
+	organizationService,
+	type UserInvitation,
+} from "@/services/organization.service";
 
 export default function ProfileScreen() {
 	const { session, refetch } = useSession();
@@ -45,6 +49,23 @@ export default function ProfileScreen() {
 
 	// Refresh state
 	const [isRefreshing, setIsRefreshing] = useState(false);
+
+	// Pending invitations state
+	const [userInvitations, setUserInvitations] = useState<UserInvitation[]>([]);
+	const [isProcessingInvite, setIsProcessingInvite] = useState(false);
+
+	const fetchUserInvitations = async () => {
+		try {
+			const invites = await organizationService.getUserInvitations();
+			setUserInvitations(invites || []);
+		} catch (e) {
+			console.error("Failed to fetch user invitations:", e);
+		}
+	};
+
+	React.useEffect(() => {
+		fetchUserInvitations();
+	}, []);
 
 	// Edit Profile Modal
 	const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -68,12 +89,61 @@ export default function ProfileScreen() {
 	const handleRefresh = async () => {
 		setIsRefreshing(true);
 		try {
-			await refetch();
+			await Promise.all([refetch(), fetchUserInvitations()]);
 		} catch (error) {
 			console.error("Failed to refresh session:", error);
 		} finally {
 			setIsRefreshing(false);
 		}
+	};
+
+	// Invitation accept/reject handlers
+	const handleAcceptInvitation = async (inv: UserInvitation) => {
+		setIsProcessingInvite(true);
+		try {
+			await organizationService.acceptInvitation(inv.id);
+			Alert.alert("Success", `You have joined ${inv.organizationName}!`);
+			await fetchUserInvitations();
+			useOrganizationStore.getState().refetch();
+		} catch (e: any) {
+			const msg =
+				e?.response?.data?.message ||
+				e?.message ||
+				"Failed to accept invitation";
+			Alert.alert("Error", msg);
+		} finally {
+			setIsProcessingInvite(false);
+		}
+	};
+
+	const handleRejectInvitation = (inv: UserInvitation) => {
+		Alert.alert(
+			"Decline Invitation",
+			`Decline invitation from ${inv.organizationName}?`,
+			[
+				{ text: "Cancel", style: "cancel" },
+				{
+					text: "Decline",
+					style: "destructive",
+					onPress: async () => {
+						setIsProcessingInvite(true);
+						try {
+							await organizationService.rejectInvitation(inv.id);
+							Alert.alert("Success", "Invitation declined");
+							await fetchUserInvitations();
+						} catch (e: any) {
+							const msg =
+								e?.response?.data?.message ||
+								e?.message ||
+								"Failed to decline invitation";
+							Alert.alert("Error", msg);
+						} finally {
+							setIsProcessingInvite(false);
+						}
+					},
+				},
+			],
+		);
 	};
 
 	// Open Edit Modal
@@ -557,6 +627,87 @@ export default function ProfileScreen() {
 							</View>
 						</Card>
 					</View>
+
+					{/* Invitations Section */}
+					{userInvitations.length > 0 && (
+						<View className="mb-4">
+							<View className="mb-2 ml-1 flex-row items-center justify-between">
+								<Text className="font-bold text-amber-500 text-xs uppercase tracking-wider">
+									Pending Invitations ({userInvitations.length})
+								</Text>
+								<Chip variant="soft" color="warning" size="sm">
+									<Text className="font-medium text-warning text-xs">
+										Action Required
+									</Text>
+								</Chip>
+							</View>
+
+							<Card className="border border-warning/40 bg-warning/5">
+								<View className="divide-y divide-border/60">
+									{userInvitations.map((inv) => (
+										<View key={inv.id} className="p-4">
+											<View className="flex-row items-start justify-between">
+												<View className="flex-1 pr-3">
+													<Typography
+														type="body"
+														className="font-bold text-foreground"
+													>
+														{inv.organizationName}
+													</Typography>
+													<Typography
+														type="body-xs"
+														className="mt-0.5 text-foreground/60"
+													>
+														Invited as {inv.role || "member"}
+													</Typography>
+												</View>
+												<Chip variant="secondary" size="sm">
+													<Text className="text-foreground/70 text-xs uppercase">
+														{inv.role || "member"}
+													</Text>
+												</Chip>
+											</View>
+
+											<View className="mt-3.5 flex-row gap-2">
+												<Button
+													variant="primary"
+													size="sm"
+													className="flex-1 bg-success"
+													onPress={() => handleAcceptInvitation(inv)}
+													disabled={isProcessingInvite}
+												>
+													<Ionicons
+														name="checkmark-circle-outline"
+														size={16}
+														color="#ffffff"
+													/>
+													<Text className="ml-1.5 font-bold text-sm text-white">
+														Accept
+													</Text>
+												</Button>
+												<Button
+													variant="secondary"
+													size="sm"
+													className="flex-1 border border-danger/30"
+													onPress={() => handleRejectInvitation(inv)}
+													disabled={isProcessingInvite}
+												>
+													<Ionicons
+														name="close-circle-outline"
+														size={16}
+														color="#ef4444"
+													/>
+													<Text className="ml-1.5 font-semibold text-danger text-sm">
+														Decline
+													</Text>
+												</Button>
+											</View>
+										</View>
+									))}
+								</View>
+							</Card>
+						</View>
+					)}
 
 					{/* Security & Authentication */}
 					<View className="mb-2">
