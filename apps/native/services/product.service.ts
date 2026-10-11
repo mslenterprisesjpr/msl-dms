@@ -13,6 +13,8 @@ export interface Product {
 	sellingRate: number;
 	minimumStock: number;
 	gstRate: number;
+	cgst?: number; // Central GST
+	sgst?: number; // State GST
 	image?: string;
 	isActive: boolean;
 	stock?: number;
