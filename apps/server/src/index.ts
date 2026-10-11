@@ -76,7 +76,7 @@ app.route("/api/reports", reportRoutes);
 app.route("/api/cloudinary", cloudinaryRoutes);
 
 app.get("/", (c) => {
-	return c.text("OK");
+	return c.text("OK 1.0");
 });
 
 import { serve } from "@hono/node-server";
