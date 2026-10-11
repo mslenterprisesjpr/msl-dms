@@ -35,12 +35,26 @@ export async function resolveOrganizationId(c: Context): Promise<string> {
 	// Validate that user is actually a member of this organization
 	const headerOrgId = c.req.header("x-organization-id")?.trim();
 	if (headerOrgId) {
+		// Better Auth uses 'organizationId' and 'userId' fields in member collection
 		const isMember = await db.collection("member").findOne({
 			organizationId: headerOrgId,
 			userId: user.id,
 		});
 
+		console.log("🔍 Member lookup:", {
+			headerOrgId,
+			userId: user.id,
+			isMember: !!isMember,
+		});
+
 		if (!isMember) {
+			// Debug: Let's see what's actually in the member collection
+			const allMembers = await db
+				.collection("member")
+				.find({ userId: user.id })
+				.toArray();
+			console.log("👥 User's memberships:", allMembers);
+
 			throw new HTTPException(403, {
 				message: "You are not a member of this organization",
 			});
