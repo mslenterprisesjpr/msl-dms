@@ -49,11 +49,37 @@ export async function resolveOrganizationId(c: Context): Promise<string> {
 
 		// If not a member, auto-join them (for organizations they should have access to)
 		if (!isMember) {
-			const org = await db.collection("organization").findOne({
+			let org = await db.collection("organization").findOne({
 				id: headerOrgId,
 			});
 
 			console.log("🏢 Organization:", org ? "found" : "not found");
+
+			// If organization doesn't exist in DB, create it
+			// This happens when Better Auth creates org but doesn't sync to MongoDB
+			if (!org) {
+				console.log("⚠️ Organization missing in DB, creating it...");
+
+				const { generateId } = await import("@msl/id");
+
+				org = {
+					id: headerOrgId,
+					name: "My Organization", // Default name
+					slug: `org-${Date.now()}`,
+					createdBy: user.id,
+					creatorId: user.id,
+					ownerId: user.id,
+					createdAt: new Date(),
+					updatedAt: new Date(),
+				};
+
+				try {
+					await db.collection("organization").insertOne(org);
+					console.log("✅ Organization created in DB");
+				} catch (error: any) {
+					console.error("❌ Failed to create organization:", error.message);
+				}
+			}
 
 			if (org) {
 				// Check various creator fields (Better Auth uses different field names)
@@ -71,12 +97,11 @@ export async function resolveOrganizationId(c: Context): Promise<string> {
 					isCreator,
 				});
 
-				// Auto-join if creator OR if org exists (temporary fix for existing orgs)
-				// In production, you'd want stricter checks
-				if (isCreator || org) {
-					const { generateId } = await import("@msl/id");
-					const role = isCreator ? "owner" : "member";
+				// Auto-join user as owner/member
+				const { generateId } = await import("@msl/id");
+				const role = isCreator ? "owner" : "member";
 
+				try {
 					await db.collection("member").insertOne({
 						id: generateId(),
 						organizationId: headerOrgId,
@@ -87,15 +112,27 @@ export async function resolveOrganizationId(c: Context): Promise<string> {
 
 					console.log(`✅ Auto-joined user as ${role}`);
 					return headerOrgId;
+				} catch (error: any) {
+					console.error("❌ Failed to create membership:", error.message);
 				}
 			}
 
-			// Debug: Let's see what's actually in the member collection
+			// Debug: show database state
+			const allOrgs = await db
+				.collection("organization")
+				.find({})
+				.limit(10)
+				.toArray();
 			const allMembers = await db
 				.collection("member")
-				.find({ userId: user.id })
+				.find({})
+				.limit(10)
 				.toArray();
-			console.log("👥 User's memberships:", allMembers);
+
+			console.log("� Database state:", {
+				totalOrgs: allOrgs.length,
+				totalMembers: allMembers.length,
+			});
 
 			throw new HTTPException(403, {
 				message: "You are not a member of this organization",
