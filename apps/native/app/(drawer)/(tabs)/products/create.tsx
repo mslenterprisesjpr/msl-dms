@@ -234,7 +234,7 @@ export default function CreateProductScreen() {
 										isDisabled={uploading}
 									>
 										<Ionicons name="refresh" size={16} />
-										{" Change"}
+										<Typography variant="caption">Change</Typography>
 									</Button>
 									<Button
 										size="sm"
@@ -243,7 +243,7 @@ export default function CreateProductScreen() {
 										isDisabled={uploading}
 									>
 										<Ionicons name="trash" size={16} />
-										{" Remove"}
+										<Typography variant="caption">Remove</Typography>
 									</Button>
 								</View>
 							</View>
@@ -256,12 +256,12 @@ export default function CreateProductScreen() {
 								{uploading ? (
 									<>
 										<ActivityIndicator size="small" color="#fff" />
-										{" Uploading..."}
+										<Typography variant="caption">Uploading...</Typography>
 									</>
 								) : (
 									<>
 										<Ionicons name="camera" size={18} />
-										{" Upload Image"}
+										<Typography variant="caption">Upload Image</Typography>
 									</>
 								)}
 							</Button>
