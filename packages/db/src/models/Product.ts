@@ -13,7 +13,9 @@ export interface IProduct {
 	purchaseRate: number;
 	sellingRate: number;
 	minimumStock: number;
-	gstRate: number;
+	gstRate: number; // Total GST rate (CGST + SGST)
+	cgst?: number; // Central GST percentage
+	sgst?: number; // State GST percentage
 	stock: number;
 	image?: string;
 	isActive: boolean;
@@ -103,7 +105,23 @@ const ProductSchema = new Schema(
 			default: 0,
 			min: 0,
 			max: 100,
-			// GST percentage (e.g., 18 for 18%)
+			// Total GST percentage (CGST + SGST) - e.g., 18 for 18%
+		},
+
+		cgst: {
+			type: Number,
+			default: 0,
+			min: 0,
+			max: 50,
+			// Central GST percentage - Usually half of total GST
+		},
+
+		sgst: {
+			type: Number,
+			default: 0,
+			min: 0,
+			max: 50,
+			// State GST percentage - Usually half of total GST
 		},
 
 		// Stock tracking in bottles/units (not cases)
@@ -131,6 +149,22 @@ const ProductSchema = new Schema(
 );
 
 ProductSchema.index({ orgId: 1, sku: 1 }, { unique: true });
+
+// Pre-save middleware to validate GST rates
+ProductSchema.pre("save", function () {
+	// If CGST and SGST are provided, ensure they match total GST
+	if (this.cgst !== undefined && this.sgst !== undefined) {
+		const totalGst = this.cgst + this.sgst;
+		if (Math.abs(totalGst - this.gstRate) > 0.01) {
+			// Allow 0.01 difference for rounding
+			this.gstRate = totalGst; // Auto-correct total GST
+		}
+	} else if (this.gstRate > 0 && !this.cgst && !this.sgst) {
+		// If only total GST is provided, split it equally
+		this.cgst = this.gstRate / 2;
+		this.sgst = this.gstRate / 2;
+	}
+});
 
 // Virtual field to get stock in cases
 ProductSchema.virtual("stockInCases").get(function () {

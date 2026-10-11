@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
 	Button,
@@ -10,11 +11,18 @@ import {
 	useToast,
 } from "heroui-native";
 import { useEffect, useState } from "react";
-import { ScrollView, View } from "react-native";
+import {
+	ActivityIndicator,
+	Alert,
+	Image,
+	ScrollView,
+	View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
 import { LoadingScreen } from "@/components/loading-screen";
 import { useProduct, useUpdateProduct } from "@/hooks/queries/use-products";
+import { useImageUpload } from "@/hooks/use-image-upload";
 import type { CreateProductDto } from "@/services/product.service";
 
 const UNITS = ["BOTTLE", "PIECE", "KG", "LITER", "PACKET"] as const;
@@ -23,6 +31,8 @@ export default function EditProductScreen() {
 	const { id } = useLocalSearchParams<{ id: string }>();
 	const router = useRouter();
 	const { toast } = useToast();
+	const { pickImage, takePhoto, uploadToCloudinary, uploading } =
+		useImageUpload();
 
 	const { data: productData, isLoading, error } = useProduct(id!);
 	const updateMutation = useUpdateProduct();
@@ -38,6 +48,8 @@ export default function EditProductScreen() {
 		sellingRate: 0,
 		minimumStock: 0,
 		gstRate: 0,
+		cgst: undefined,
+		sgst: undefined,
 		isActive: true,
 	});
 
@@ -55,13 +67,81 @@ export default function EditProductScreen() {
 				sellingRate: p.sellingRate || 0,
 				minimumStock: p.minimumStock || 0,
 				gstRate: p.gstRate || 0,
+				cgst: p.cgst,
+				sgst: p.sgst,
+				image: p.image,
 				isActive: p.isActive !== false,
 			});
 		}
 	}, [productData]);
 
 	const updateField = (field: keyof CreateProductDto, value: any) => {
-		setFormData((prev) => ({ ...prev, [field]: value }));
+		setFormData((prev) => {
+			const updated = { ...prev, [field]: value };
+
+			// Auto-calculate GST fields based on input
+			if (field === "gstRate" && value > 0) {
+				// If total GST is changed and CGST/SGST are not set, split evenly
+				if (!updated.cgst && !updated.sgst) {
+					updated.cgst = value / 2;
+					updated.sgst = value / 2;
+				}
+			} else if ((field === "cgst" || field === "sgst") && value >= 0) {
+				// If CGST or SGST is changed, auto-calculate total GST
+				const cgst = field === "cgst" ? value : updated.cgst || 0;
+				const sgst = field === "sgst" ? value : updated.sgst || 0;
+				updated.gstRate = cgst + sgst;
+			}
+
+			return updated;
+		});
+	};
+
+	const handleImageUpload = async (source: "gallery" | "camera") => {
+		try {
+			const image =
+				source === "gallery" ? await pickImage() : await takePhoto();
+
+			if (!image) return;
+
+			const imageUrl = await uploadToCloudinary(image.uri);
+
+			if (imageUrl) {
+				updateField("image", imageUrl);
+				toast.show({
+					variant: "success",
+					label: "Image uploaded successfully!",
+				});
+			} else {
+				toast.show({
+					variant: "danger",
+					label: "Failed to upload image",
+				});
+			}
+		} catch (error: any) {
+			console.error("Image upload error:", error);
+			toast.show({
+				variant: "danger",
+				label: "Error uploading image",
+			});
+		}
+	};
+
+	const showImagePickerOptions = () => {
+		Alert.alert("Upload Product Image", "Choose an option", [
+			{
+				text: "Take Photo",
+				onPress: () => handleImageUpload("camera"),
+			},
+			{
+				text: "Choose from Gallery",
+				onPress: () => handleImageUpload("gallery"),
+			},
+			{
+				text: "Cancel",
+				style: "cancel",
+			},
+		]);
 	};
 
 	const handleSubmit = async () => {
@@ -175,6 +255,68 @@ export default function EditProductScreen() {
 
 			<ScrollView contentContainerStyle={{ padding: 16 }}>
 				<Card className="mb-4 p-4">
+					{/* Product Image Upload */}
+					<View className="mb-4">
+						<Typography
+							variant="caption"
+							className="mb-2 font-semibold text-foreground"
+						>
+							Product Image
+						</Typography>
+						{formData.image ? (
+							<View className="items-center">
+								<Image
+									source={{ uri: formData.image }}
+									style={{
+										width: 200,
+										height: 200,
+										borderRadius: 12,
+										marginBottom: 12,
+									}}
+									resizeMode="cover"
+								/>
+								<View className="flex-row gap-2">
+									<Button
+										size="sm"
+										variant="secondary"
+										onPress={showImagePickerOptions}
+										isDisabled={uploading}
+									>
+										<Ionicons name="refresh" size={16} />
+										{" Change"}
+									</Button>
+									<Button
+										size="sm"
+										variant="danger"
+										onPress={() => updateField("image", undefined)}
+										isDisabled={uploading}
+									>
+										<Ionicons name="trash" size={16} />
+										{" Remove"}
+									</Button>
+								</View>
+							</View>
+						) : (
+							<Button
+								variant="outline"
+								onPress={showImagePickerOptions}
+								isDisabled={uploading}
+							>
+								{uploading ? (
+									<>
+										<ActivityIndicator size="small" color="#fff" />
+										{" Uploading..."}
+									</>
+								) : (
+									<>
+										<Ionicons name="camera" size={18} />
+										{" Upload Image"}
+									</>
+								)}
+							</Button>
+						)}
+					</View>
+
 					{/* Product Name */}
 					<View className="mb-4">
 						<TextField>
@@ -317,7 +459,7 @@ export default function EditProductScreen() {
 					{/* GST Rate */}
 					<View className="mb-4">
 						<TextField>
-							<Label>GST Rate (%)</Label>
+							<Label>GST Rate (%) - Total</Label>
 							<Input
 								placeholder="e.g., 18"
 								value={formData.gstRate?.toString() || "0"}
@@ -326,7 +468,48 @@ export default function EditProductScreen() {
 								}
 								keyboardType="numeric"
 							/>
+							<Description>
+								{formData.cgst && formData.sgst
+									? `Auto-calculated: CGST ${formData.cgst}% + SGST ${formData.sgst}%`
+									: "Total GST percentage (will auto-split into CGST/SGST)"}
+							</Description>
 						</TextField>
+					</View>
+
+					{/* CGST & SGST Row */}
+					<View className="mb-4 flex-row gap-2">
+						<View className="flex-1">
+							<TextField>
+								<Label>CGST (%)</Label>
+								<Input
+									placeholder="e.g., 9"
+									value={formData.cgst?.toString() || ""}
+									onChangeText={(text) =>
+										updateField(
+											"cgst",
+											text ? Number.parseFloat(text) : undefined,
+										)
+									}
+									keyboardType="numeric"
+								/>
+							</TextField>
+						</View>
+						<View className="flex-1">
+							<TextField>
+								<Label>SGST (%)</Label>
+								<Input
+									placeholder="e.g., 9"
+									value={formData.sgst?.toString() || ""}
+									onChangeText={(text) =>
+										updateField(
+											"sgst",
+											text ? Number.parseFloat(text) : undefined,
+										)
+									}
+									keyboardType="numeric"
+								/>
+							</TextField>
+						</View>
 					</View>
 
 					{/* Is Active Toggle */}

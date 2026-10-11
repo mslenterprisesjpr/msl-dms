@@ -50,6 +50,7 @@ app.use(
 
 app.on(["POST", "GET"], "/api/auth/*", async (c) => auth.handler(c.req.raw));
 
+import cloudinaryRoutes from "./routes/cloudinary.routes";
 import customerRoutes from "./routes/customer.routes";
 import dashboardRoutes from "./routes/dashboard.routes";
 import orderRoutes from "./routes/order.routes";
@@ -72,6 +73,7 @@ app.route("/api/orders", orderRoutes);
 app.route("/api/sales", saleRoutes);
 app.route("/api/payments", paymentRoutes);
 app.route("/api/reports", reportRoutes);
+app.route("/api/cloudinary", cloudinaryRoutes);
 
 app.get("/", (c) => {
 	return c.text("OK");
