@@ -60,9 +60,7 @@ export async function resolveOrganizationId(c: Context): Promise<string> {
 			if (!org) {
 				console.log("⚠️ Organization missing in DB, creating it...");
 
-				const { generateId } = await import("@msl/id");
-
-				org = {
+				const newOrg = {
 					id: headerOrgId,
 					name: "My Organization", // Default name
 					slug: `org-${Date.now()}`,
@@ -74,7 +72,8 @@ export async function resolveOrganizationId(c: Context): Promise<string> {
 				};
 
 				try {
-					await db.collection("organization").insertOne(org);
+					await db.collection("organization").insertOne(newOrg as any);
+					org = newOrg as any;
 					console.log("✅ Organization created in DB");
 				} catch (error: any) {
 					console.error("❌ Failed to create organization:", error.message);
@@ -108,7 +107,7 @@ export async function resolveOrganizationId(c: Context): Promise<string> {
 						userId: user.id,
 						role: role,
 						createdAt: new Date(),
-					});
+					} as any);
 
 					console.log(`✅ Auto-joined user as ${role}`);
 					return headerOrgId;
@@ -129,7 +128,7 @@ export async function resolveOrganizationId(c: Context): Promise<string> {
 				.limit(10)
 				.toArray();
 
-			console.log("� Database state:", {
+			console.log("📊 Database state:", {
 				totalOrgs: allOrgs.length,
 				totalMembers: allMembers.length,
 			});
