@@ -7,8 +7,11 @@ import { createFsDrain } from "evlog/fs";
 import { type EvlogVariables, evlog } from "evlog/hono";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-
 import { ENV } from "./env.server";
+import {
+	globalErrorHandler,
+	notFoundHandler,
+} from "./middleware/httpException.middleware";
 import { auth } from "./services";
 
 initLogger({
@@ -21,6 +24,9 @@ const identifyUser = createAuthMiddleware(auth as BetterAuthInstance, {
 });
 
 const app = new Hono<EvlogVariables>();
+
+app.onError(globalErrorHandler);
+app.notFound(notFoundHandler);
 
 app.use(
 	evlog({
@@ -36,8 +42,8 @@ app.use(
 	"/*",
 	cors({
 		origin: ENV.CORS_ORIGIN,
-		allowMethods: ["GET", "POST", "OPTIONS"],
-		allowHeaders: ["Content-Type", "Authorization"],
+		allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+		allowHeaders: ["Content-Type", "Authorization", "x-organization-id"],
 		credentials: true,
 	}),
 );

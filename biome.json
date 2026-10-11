@@ -27,7 +27,17 @@
 			"!**/wrangler.jsonc",
 			"!**/.source",
 			"!**/convex/_generated",
-			"!**/packages/ui"
+			"!**/packages/ui",
+			"!**/android/build",
+			"!**/android/.gradle",
+			"!**/android/app/build",
+			"!**/ios/build",
+			"!**/ios/Pods",
+			"!**/.agents",
+			"!**/.kiro",
+			"!**/node_modules",
+			"!**/build",
+			"!**/*.generated.*"
 		]
 	},
 	"formatter": {

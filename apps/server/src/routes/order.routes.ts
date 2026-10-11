@@ -16,7 +16,6 @@ import { HTTPException } from "hono/http-exception";
 
 import { organizationFilter, resolveOrganizationId } from "@/lib/org-context";
 import { requireAuth } from "@/middleware/authentication.middleware";
-import { requireRole, UserRole } from "@/middleware/authorization.middleware";
 import {
 	createOrderBodySchema,
 	deliverOrderBodySchema,
@@ -51,11 +50,10 @@ async function generateOrderNumber(orgId: string): Promise<string> {
 	return `ORD-${year}${month}-${orderNum}`;
 }
 
-// Get all orders with filtering (ADMIN/WORKER)
+// Get all orders with filtering (All authenticated users - filtered by role)
 app.get(
 	"/",
 	requireAuth,
-	requireRole(UserRole.ADMIN, UserRole.WORKER),
 	zValidator("query", getOrdersQuerySchema),
 	async (c) => {
 		const user = c.get("user") as User;
@@ -73,8 +71,8 @@ app.get(
 			filter.customerId = query.customerId;
 		}
 
-		// Workers can only see their own orders
-		if (user.role === UserRole.WORKER) {
+		// Non-admin users can only see their own orders
+		if (user.role !== "admin") {
 			filter.workerId = user.id;
 		} else if (query.workerId) {
 			filter.workerId = query.workerId;
@@ -104,43 +102,37 @@ app.get(
 	},
 );
 
-// Get pending orders (ADMIN/WORKER)
-app.get(
-	"/pending",
-	requireAuth,
-	requireRole(UserRole.ADMIN, UserRole.WORKER),
-	async (c) => {
-		const user = c.get("user") as User;
-		const organizationId = await resolveOrganizationId(c);
-		const orgFilter = organizationFilter(organizationId);
+// Get pending orders (All authenticated users - filtered by role)
+app.get("/pending", requireAuth, async (c) => {
+	const user = c.get("user") as User;
+	const organizationId = await resolveOrganizationId(c);
+	const orgFilter = organizationFilter(organizationId);
 
-		const filter: any = {
-			orgId: orgFilter,
-			status: { $in: ["PENDING", "PARTIAL"] },
-		};
+	const filter: any = {
+		orgId: orgFilter,
+		status: { $in: ["PENDING", "PARTIAL"] },
+	};
 
-		// Workers can only see their own orders
-		if (user.role === UserRole.WORKER) {
-			filter.workerId = user.id;
-		}
+	// Non-admin users can only see their own orders
+	if (user.role !== "admin") {
+		filter.workerId = user.id;
+	}
 
-		const orders = await Order.find(filter)
-			.sort({ orderDate: -1 })
-			.populate("customerId", "name phone address")
-			.limit(50);
+	const orders = await Order.find(filter)
+		.sort({ orderDate: -1 })
+		.populate("customerId", "name phone address")
+		.limit(50);
 
-		return c.json({
-			message: "Pending orders retrieved successfully",
-			data: orders,
-		});
-	},
-);
+	return c.json({
+		message: "Pending orders retrieved successfully",
+		data: orders,
+	});
+});
 
-// Get worker's orders (ADMIN/Own WORKER)
+// Get worker's orders (All authenticated users - own data only)
 app.get(
 	"/worker/:workerId",
 	requireAuth,
-	requireRole(UserRole.ADMIN, UserRole.WORKER),
 	zValidator("param", getWorkerOrdersParamsSchema),
 	async (c) => {
 		const user = c.get("user") as User;
@@ -148,8 +140,8 @@ app.get(
 		const orgFilter = organizationFilter(organizationId);
 		const { workerId } = c.req.valid("param");
 
-		// Workers can only view their own orders
-		if (user.role === UserRole.WORKER && user.id !== workerId) {
+		// Non-admin users can only view their own orders
+		if (user.role !== "admin" && user.id !== workerId) {
 			throw new HTTPException(403, {
 				message: "You can only view your own orders",
 			});
@@ -170,11 +162,10 @@ app.get(
 	},
 );
 
-// Get single order with items (ADMIN/Own WORKER)
+// Get single order with items (All authenticated users - own data only)
 app.get(
 	"/:id",
 	requireAuth,
-	requireRole(UserRole.ADMIN, UserRole.WORKER),
 	zValidator("param", getOrderParamsSchema),
 	async (c) => {
 		const user = c.get("user") as User;
@@ -191,8 +182,8 @@ app.get(
 			throw new HTTPException(404, { message: "Order not found" });
 		}
 
-		// Workers can only view their own orders
-		if (user.role === UserRole.WORKER && order.workerId !== user.id) {
+		// Non-admin users can only view their own orders
+		if (user.role !== "admin" && order.workerId !== user.id) {
 			throw new HTTPException(403, {
 				message: "You can only view your own orders",
 			});
@@ -214,11 +205,10 @@ app.get(
 	},
 );
 
-// Create order (WORKER)
+// Create order (All authenticated users)
 app.post(
 	"/",
 	requireAuth,
-	requireRole(UserRole.WORKER),
 	zValidator("json", createOrderBodySchema),
 	async (c) => {
 		const user = c.get("user") as User;
@@ -314,11 +304,10 @@ app.post(
 	},
 );
 
-// Update order (ADMIN/Own WORKER)
+// Update order (All authenticated users - own data only)
 app.put(
 	"/:id",
 	requireAuth,
-	requireRole(UserRole.ADMIN, UserRole.WORKER),
 	zValidator("param", getOrderParamsSchema),
 	zValidator("json", updateOrderBodySchema),
 	async (c) => {
@@ -335,7 +324,7 @@ app.put(
 		}
 
 		// Workers can only update their own orders
-		if (user.role === UserRole.WORKER && order.workerId !== user.id) {
+		if (user.role !== "admin" && order.workerId !== user.id) {
 			throw new HTTPException(403, {
 				message: "You can only update your own orders",
 			});
@@ -361,11 +350,10 @@ app.put(
 	},
 );
 
-// Update order status (ADMIN/Own WORKER)
+// Update order status (All authenticated users - own data only)
 app.patch(
 	"/:id/status",
 	requireAuth,
-	requireRole(UserRole.ADMIN, UserRole.WORKER),
 	zValidator("param", getOrderParamsSchema),
 	zValidator("json", updateOrderStatusBodySchema),
 	async (c) => {
@@ -382,7 +370,7 @@ app.patch(
 		}
 
 		// Workers can only update their own orders
-		if (user.role === UserRole.WORKER && order.workerId !== user.id) {
+		if (user.role !== "admin" && order.workerId !== user.id) {
 			throw new HTTPException(403, {
 				message: "You can only update your own orders",
 			});
@@ -401,11 +389,10 @@ app.patch(
 	},
 );
 
-// Cancel order (ADMIN/Own WORKER)
+// Cancel order (All authenticated users - own data only)
 app.delete(
 	"/:id",
 	requireAuth,
-	requireRole(UserRole.ADMIN, UserRole.WORKER),
 	zValidator("param", getOrderParamsSchema),
 	async (c) => {
 		const user = c.get("user") as User;
@@ -419,8 +406,8 @@ app.delete(
 			throw new HTTPException(404, { message: "Order not found" });
 		}
 
-		// Workers can only cancel their own orders
-		if (user.role === UserRole.WORKER && order.workerId !== user.id) {
+		// Non-admin users can only cancel their own orders
+		if (user.role !== "admin" && order.workerId !== user.id) {
 			throw new HTTPException(403, {
 				message: "You can only cancel your own orders",
 			});
@@ -440,11 +427,10 @@ app.delete(
 	},
 );
 
-// Deliver order and create sale (WORKER - own orders only)
+// Deliver order and create sale (All authenticated users - own orders only)
 app.post(
 	"/:id/deliver",
 	requireAuth,
-	requireRole(UserRole.WORKER),
 	zValidator("param", getOrderParamsSchema),
 	zValidator("json", deliverOrderBodySchema),
 	async (c) => {
@@ -461,8 +447,8 @@ app.post(
 			throw new HTTPException(404, { message: "Order not found" });
 		}
 
-		// Worker can only deliver own orders
-		if (order.workerId !== user.id) {
+		// Non-admin users can only deliver their own orders
+		if (user.role !== "admin" && order.workerId !== user.id) {
 			throw new HTTPException(403, {
 				message: "You can only deliver your own orders",
 			});
@@ -489,7 +475,7 @@ app.post(
 
 		for (const deliveryItem of body.items) {
 			const orderItem = orderItems.find(
-				(oi) => oi._id === deliveryItem.orderItemId,
+				(oi) => oi._id.toString() === deliveryItem.orderItemId,
 			);
 
 			if (!orderItem) {

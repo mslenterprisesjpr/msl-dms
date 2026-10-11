@@ -7,11 +7,7 @@ import { z } from "zod";
 
 import { organizationFilter, resolveOrganizationId } from "@/lib/org-context";
 import { requireAuth } from "@/middleware/authentication.middleware";
-import {
-	requireAdmin,
-	requireRole,
-	UserRole,
-} from "@/middleware/authorization.middleware";
+import { requireAdmin } from "@/middleware/authorization.middleware";
 import {
 	createCustomerBodySchema,
 	getCustomerParamsSchema,
@@ -26,11 +22,10 @@ type Variables = {
 
 const app = new Hono<{ Variables: Variables }>();
 
-// Get all customers with search and pagination (ADMIN/WORKER)
+// Get all customers with search and pagination (All authenticated users)
 app.get(
 	"/",
 	requireAuth,
-	requireRole(UserRole.ADMIN, UserRole.WORKER),
 	zValidator("query", getCustomersQuerySchema),
 	async (c) => {
 		const organizationId = await resolveOrganizationId(c);
@@ -71,11 +66,10 @@ app.get(
 	},
 );
 
-// Search customers by name or phone (ADMIN/WORKER)
+// Search customers by name or phone (All authenticated users)
 app.get(
 	"/search",
 	requireAuth,
-	requireRole(UserRole.ADMIN, UserRole.WORKER),
 	zValidator(
 		"query",
 		z.object({ q: z.string().min(1, "Search query is required") }),
@@ -100,11 +94,10 @@ app.get(
 	},
 );
 
-// Get single customer (ADMIN/WORKER)
+// Get single customer (All authenticated users)
 app.get(
 	"/:id",
 	requireAuth,
-	requireRole(UserRole.ADMIN, UserRole.WORKER),
 	zValidator("param", getCustomerParamsSchema),
 	async (c) => {
 		const organizationId = await resolveOrganizationId(c);
@@ -124,11 +117,10 @@ app.get(
 	},
 );
 
-// Create customer (ADMIN/WORKER)
+// Create customer (All authenticated users)
 app.post(
 	"/",
 	requireAuth,
-	requireRole(UserRole.ADMIN, UserRole.WORKER),
 	zValidator("json", createCustomerBodySchema),
 	async (c) => {
 		const organizationId = await resolveOrganizationId(c);
@@ -160,11 +152,10 @@ app.post(
 	},
 );
 
-// Update customer (ADMIN/WORKER)
+// Update customer (All authenticated users)
 app.put(
 	"/:id",
 	requireAuth,
-	requireRole(UserRole.ADMIN, UserRole.WORKER),
 	zValidator("param", getCustomerParamsSchema),
 	zValidator("json", updateCustomerBodySchema),
 	async (c) => {

@@ -1,25 +1,23 @@
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 
+import { db } from "@/services";
+
 /**
  * Organization context helpers for multi-tenancy
  *
  * Better Auth automatically validates organization membership!
  * - When user calls setActiveOrganization(), Better Auth checks member table
  * - If session.activeOrganizationId is set, user is GUARANTEED to be a member
- * - No additional membership validation needed in our code
+ * - For x-organization-id header, we validate membership server-side
  */
 
 /**
  * Resolve organization ID from request context
  *
  * Priority:
- * 1. x-organization-id header (for explicit org selection in UI)
+ * 1. x-organization-id header (for explicit org selection in UI) — validated server-side
  * 2. session.activeOrganizationId (validated by Better Auth)
- *
- * Note: Better Auth has already validated membership when setting activeOrganizationId.
- * For header-based selection, we trust the client since they can only select from
- * their member organizations (filtered by organization.list()).
  */
 export async function resolveOrganizationId(c: Context): Promise<string> {
 	const user = c.get("user") as any;
@@ -34,9 +32,20 @@ export async function resolveOrganizationId(c: Context): Promise<string> {
 	}
 
 	// Priority 1: x-organization-id header (explicit org selection from client)
-	// Client can only send org IDs from their organization.list() (already filtered by membership)
+	// Validate that user is actually a member of this organization
 	const headerOrgId = c.req.header("x-organization-id")?.trim();
 	if (headerOrgId) {
+		const isMember = await db.collection("member").findOne({
+			organizationId: headerOrgId,
+			userId: user.id,
+		});
+
+		if (!isMember) {
+			throw new HTTPException(403, {
+				message: "You are not a member of this organization",
+			});
+		}
+
 		return headerOrgId;
 	}
 

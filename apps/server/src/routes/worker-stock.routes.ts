@@ -6,11 +6,7 @@ import { HTTPException } from "hono/http-exception";
 
 import { organizationFilter, resolveOrganizationId } from "@/lib/org-context";
 import { requireAuth } from "@/middleware/authentication.middleware";
-import {
-	requireAdmin,
-	requireRole,
-	UserRole,
-} from "@/middleware/authorization.middleware";
+import { requireAdmin } from "@/middleware/authorization.middleware";
 import {
 	getWorkerProductStockParamsSchema,
 	getWorkerStockParamsSchema,
@@ -76,11 +72,10 @@ app.get("/all", requireAuth, requireAdmin, async (c) => {
 	});
 });
 
-// Get specific worker's stock (Admin can see any, Worker can see only own)
+// Get specific worker's stock (All authenticated users - own data only)
 app.get(
 	"/:workerId",
 	requireAuth,
-	requireRole(UserRole.ADMIN, UserRole.WORKER),
 	zValidator("param", getWorkerStockParamsSchema),
 	async (c) => {
 		const user = c.get("user") as User;
@@ -88,8 +83,8 @@ app.get(
 		const orgFilter = organizationFilter(organizationId);
 		const { workerId } = c.req.valid("param");
 
-		// Workers can only view their own stock
-		if (user.role === UserRole.WORKER && user.id !== workerId) {
+		// Non-admin users can only view their own stock
+		if (user.role !== "admin" && user.id !== workerId) {
 			throw new HTTPException(403, {
 				message: "You can only view your own stock",
 			});
@@ -137,11 +132,10 @@ app.get(
 	},
 );
 
-// Get specific product stock for a worker (Admin can see any, Worker can see only own)
+// Get specific product stock for a worker (All authenticated users - own data only)
 app.get(
 	"/:workerId/:productId",
 	requireAuth,
-	requireRole(UserRole.ADMIN, UserRole.WORKER),
 	zValidator("param", getWorkerProductStockParamsSchema),
 	async (c) => {
 		const user = c.get("user") as User;
@@ -149,8 +143,8 @@ app.get(
 		const orgFilter = organizationFilter(organizationId);
 		const { workerId, productId } = c.req.valid("param");
 
-		// Workers can only view their own stock
-		if (user.role === UserRole.WORKER && user.id !== workerId) {
+		// Non-admin users can only view their own stock
+		if (user.role !== "admin" && user.id !== workerId) {
 			throw new HTTPException(403, {
 				message: "You can only view your own stock",
 			});

@@ -4,7 +4,11 @@ import { HTTPException } from "hono/http-exception";
 
 import { resolveOrganizationId } from "@/lib/org-context";
 import { requireAuth } from "@/middleware/authentication.middleware";
-import { requireAdmin } from "@/middleware/authorization.middleware";
+import {
+	isValidOrganizationRole,
+	OrganizationRole,
+	requireAdmin,
+} from "@/middleware/authorization.middleware";
 import { auth, db } from "@/services";
 
 type Variables = {
@@ -42,7 +46,14 @@ app.post("/add-member", requireAuth, requireAdmin, async (c) => {
 		});
 	}
 
-	const memberRole = (role || "member") as any;
+	const memberRole = role || "member";
+
+	// Validate role
+	if (!isValidOrganizationRole(memberRole)) {
+		throw new HTTPException(400, {
+			message: `Invalid role: ${memberRole}. Valid roles are: ${Object.values(OrganizationRole).join(", ")}`,
+		});
+	}
 
 	try {
 		// Case 1: Direct userId provided

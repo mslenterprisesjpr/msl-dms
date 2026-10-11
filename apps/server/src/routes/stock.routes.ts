@@ -6,11 +6,7 @@ import { HTTPException } from "hono/http-exception";
 
 import { organizationFilter, resolveOrganizationId } from "@/lib/org-context";
 import { requireAuth } from "@/middleware/authentication.middleware";
-import {
-	requireAdmin,
-	requireRole,
-	UserRole,
-} from "@/middleware/authorization.middleware";
+import { requireAdmin } from "@/middleware/authorization.middleware";
 import {
 	adjustStockBodySchema,
 	getTransactionsQuerySchema,
@@ -158,11 +154,10 @@ app.post(
 	},
 );
 
-// Return stock from worker - Transfer from worker back to warehouse (ADMIN/WORKER)
+// Return stock from worker - Transfer from worker back to warehouse (All authenticated users)
 app.post(
 	"/return",
 	requireAuth,
-	requireRole(UserRole.ADMIN, UserRole.WORKER),
 	zValidator("json", returnStockBodySchema),
 	async (c) => {
 		const user = c.get("user") as User;
@@ -183,9 +178,8 @@ app.post(
 		// Calculate total quantity in units
 		const totalQuantity = body.cases * product.unitsPerCase + body.units;
 
-		// Determine worker ID (admin can return any worker's stock, worker can only return own)
-		const workerId =
-			user.role === UserRole.ADMIN ? body.workerId || user.id : user.id;
+		// Determine worker ID (admin can return any worker's stock, others can only return own)
+		const workerId = user.role === "admin" ? body.workerId || user.id : user.id;
 
 		// Check if worker has stock
 		const workerStock = await WorkerStock.findOne({
@@ -299,11 +293,10 @@ app.post(
 	},
 );
 
-// Get stock transaction history (ADMIN/WORKER)
+// Get stock transaction history (All authenticated users - filtered by role)
 app.get(
 	"/transactions",
 	requireAuth,
-	requireRole(UserRole.ADMIN, UserRole.WORKER),
 	zValidator("query", getTransactionsQuerySchema),
 	async (c) => {
 		const user = c.get("user") as User;
@@ -322,8 +315,8 @@ app.get(
 			filter.productId = query.productId;
 		}
 
-		// Workers can only see their own transactions
-		if (user.role === UserRole.WORKER) {
+		// Non-admin users can only see their own transactions
+		if (user.role !== "admin") {
 			filter.workerId = user.id;
 		} else if (query.workerId) {
 			// Admin can filter by worker

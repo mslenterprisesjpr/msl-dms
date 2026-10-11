@@ -14,11 +14,7 @@ import { HTTPException } from "hono/http-exception";
 
 import { organizationFilter, resolveOrganizationId } from "@/lib/org-context";
 import { requireAuth } from "@/middleware/authentication.middleware";
-import {
-	requireAdmin,
-	requireRole,
-	UserRole,
-} from "@/middleware/authorization.middleware";
+import { requireAdmin } from "@/middleware/authorization.middleware";
 import {
 	createSaleBodySchema,
 	getSaleByInvoiceParamsSchema,
@@ -51,11 +47,10 @@ async function generateInvoiceNumber(orgId: string): Promise<string> {
 	return `INV-${year}${month}-${invoiceNum}`;
 }
 
-// Get all sales with filtering (ADMIN/WORKER)
+// Get all sales with filtering (ADMIN/MEMBER)
 app.get(
 	"/",
 	requireAuth,
-	requireRole(UserRole.ADMIN, UserRole.WORKER),
 	zValidator("query", getSalesQuerySchema),
 	async (c) => {
 		const user = c.get("user") as User;
@@ -77,8 +72,8 @@ app.get(
 			filter.customerId = query.customerId;
 		}
 
-		// Workers can only see their own sales
-		if (user.role === UserRole.WORKER) {
+		// Non-admin users can only see their own sales
+		if (user.role !== "admin") {
 			filter.workerId = user.id;
 		} else if (query.workerId) {
 			filter.workerId = query.workerId;
@@ -108,50 +103,41 @@ app.get(
 	},
 );
 
-// Get sales with pending payment (ADMIN/WORKER)
-app.get(
-	"/pending-payment",
-	requireAuth,
-	requireRole(UserRole.ADMIN, UserRole.WORKER),
-	async (c) => {
-		const user = c.get("user") as User;
-		const organizationId = await resolveOrganizationId(c);
-		const orgFilter = organizationFilter(organizationId);
+// Get sales with pending payment (ADMIN/MEMBER)
+app.get("/pending-payment", requireAuth, async (c) => {
+	const user = c.get("user") as User;
+	const organizationId = await resolveOrganizationId(c);
+	const orgFilter = organizationFilter(organizationId);
 
-		const filter: any = {
-			orgId: orgFilter,
-			paymentStatus: { $in: ["PENDING", "PARTIAL"] },
-			status: { $ne: "CANCELLED" },
-		};
+	const filter: any = {
+		orgId: orgFilter,
+		paymentStatus: { $in: ["PENDING", "PARTIAL"] },
+		status: { $ne: "CANCELLED" },
+	};
 
-		// Workers can only see their own sales
-		if (user.role === UserRole.WORKER) {
-			filter.workerId = user.id;
-		}
+	// Non-admin users can only see their own sales
+	if (user.role !== "admin") {
+		filter.workerId = user.id;
+	}
 
-		const sales = await Sale.find(filter)
-			.sort({ createdAt: -1 })
-			.populate("customerId", "name phone address")
-			.limit(50);
+	const sales = await Sale.find(filter)
+		.sort({ createdAt: -1 })
+		.populate("customerId", "name phone address")
+		.limit(50);
 
-		const totalPending = sales.reduce(
-			(sum, sale) => sum + sale.pendingAmount,
-			0,
-		);
+	const totalPending = sales.reduce((sum, sale) => sum + sale.pendingAmount, 0);
 
-		return c.json({
-			message: "Pending sales retrieved successfully",
-			data: sales,
-			totalPending,
-		});
-	},
-);
+	return c.json({
+		message: "Pending sales retrieved successfully",
+		data: sales,
+		totalPending,
+	});
+});
 
-// Get worker's sales (ADMIN/Own WORKER)
+// Get worker's sales (ADMIN/Own Member)
 app.get(
 	"/worker/:workerId",
 	requireAuth,
-	requireRole(UserRole.ADMIN, UserRole.WORKER),
 	zValidator("param", getWorkerSalesParamsSchema),
 	async (c) => {
 		const user = c.get("user") as User;
@@ -159,8 +145,8 @@ app.get(
 		const orgFilter = organizationFilter(organizationId);
 		const { workerId } = c.req.valid("param");
 
-		// Workers can only view their own sales
-		if (user.role === UserRole.WORKER && user.id !== workerId) {
+		// Non-admin users can only view their own sales
+		if (user.role !== "admin" && user.id !== workerId) {
 			throw new HTTPException(403, {
 				message: "You can only view your own sales",
 			});
@@ -181,11 +167,10 @@ app.get(
 	},
 );
 
-// Get sale by invoice number (ADMIN/WORKER)
+// Get sale by invoice number (ADMIN/MEMBER)
 app.get(
 	"/invoice/:invoiceNo",
 	requireAuth,
-	requireRole(UserRole.ADMIN, UserRole.WORKER),
 	zValidator("param", getSaleByInvoiceParamsSchema),
 	async (c) => {
 		const user = c.get("user") as User;
@@ -202,8 +187,8 @@ app.get(
 			throw new HTTPException(404, { message: "Sale not found" });
 		}
 
-		// Workers can only view their own sales
-		if (user.role === UserRole.WORKER && sale.workerId !== user.id) {
+		// Non-admin users can only view their own sales
+		if (user.role !== "admin" && sale.workerId !== user.id) {
 			throw new HTTPException(403, {
 				message: "You can only view your own sales",
 			});
@@ -231,11 +216,10 @@ app.get(
 	},
 );
 
-// Get single sale with items (ADMIN/Own WORKER)
+// Get single sale with items (ADMIN/Own Member)
 app.get(
 	"/:id",
 	requireAuth,
-	requireRole(UserRole.ADMIN, UserRole.WORKER),
 	zValidator("param", getSaleParamsSchema),
 	async (c) => {
 		const user = c.get("user") as User;
@@ -252,8 +236,8 @@ app.get(
 			throw new HTTPException(404, { message: "Sale not found" });
 		}
 
-		// Workers can only view their own sales
-		if (user.role === UserRole.WORKER && sale.workerId !== user.id) {
+		// Non-admin users can only view their own sales
+		if (user.role !== "admin" && sale.workerId !== user.id) {
 			throw new HTTPException(403, {
 				message: "You can only view your own sales",
 			});
@@ -271,18 +255,20 @@ app.get(
 		});
 
 		return c.json({
-			...sale.toObject(),
-			items,
-			payments,
+			message: "Sale retrieved successfully",
+			data: {
+				...sale.toObject(),
+				items,
+				payments,
+			},
 		});
 	},
 );
 
-// Create direct sale (WORKER - without order)
+// Create direct sale (All authenticated users - without order)
 app.post(
 	"/",
 	requireAuth,
-	requireRole(UserRole.WORKER),
 	zValidator("json", createSaleBodySchema),
 	async (c) => {
 		const user = c.get("user") as User;

@@ -6,11 +6,7 @@ import { HTTPException } from "hono/http-exception";
 
 import { organizationFilter, resolveOrganizationId } from "@/lib/org-context";
 import { requireAuth } from "@/middleware/authentication.middleware";
-import {
-	requireAdmin,
-	requireRole,
-	UserRole,
-} from "@/middleware/authorization.middleware";
+import { requireAdmin } from "@/middleware/authorization.middleware";
 import {
 	addPaymentBodySchema,
 	getPaymentsBySaleParamsSchema,
@@ -69,53 +65,47 @@ app.get(
 	},
 );
 
-// Get pending payments summary (ADMIN/WORKER)
-app.get(
-	"/pending",
-	requireAuth,
-	requireRole(UserRole.ADMIN, UserRole.WORKER),
-	async (c) => {
-		const user = c.get("user") as User;
-		const organizationId = await resolveOrganizationId(c);
-		const orgFilter = organizationFilter(organizationId);
+// Get pending payments summary (All authenticated users - filtered by role)
+app.get("/pending", requireAuth, async (c) => {
+	const user = c.get("user") as User;
+	const organizationId = await resolveOrganizationId(c);
+	const orgFilter = organizationFilter(organizationId);
 
-		const saleFilter: any = {
-			orgId: orgFilter,
-			paymentStatus: { $in: ["PENDING", "PARTIAL"] },
-			status: { $ne: "CANCELLED" },
-		};
+	const saleFilter: any = {
+		orgId: orgFilter,
+		paymentStatus: { $in: ["PENDING", "PARTIAL"] },
+		status: { $ne: "CANCELLED" },
+	};
 
-		// Workers can only see their own sales' pending payments
-		if (user.role === UserRole.WORKER) {
-			saleFilter.workerId = user.id;
-		}
+	// Non-admin users can only see their own sales' pending payments
+	if (user.role !== "admin") {
+		saleFilter.workerId = user.id;
+	}
 
-		const sales = await Sale.find(saleFilter)
-			.sort({ createdAt: -1 })
-			.populate("customerId", "name phone address")
-			.limit(50);
+	const sales = await Sale.find(saleFilter)
+		.sort({ createdAt: -1 })
+		.populate("customerId", "name phone address")
+		.limit(50);
 
-		const summary = {
-			totalSales: sales.length,
-			totalPending: sales.reduce((sum, sale) => sum + sale.pendingAmount, 0),
-			totalPartial: sales.filter((s) => s.paymentStatus === "PARTIAL").length,
-			totalFullyPending: sales.filter((s) => s.paymentStatus === "PENDING")
-				.length,
-		};
+	const summary = {
+		totalSales: sales.length,
+		totalPending: sales.reduce((sum, sale) => sum + sale.pendingAmount, 0),
+		totalPartial: sales.filter((s) => s.paymentStatus === "PARTIAL").length,
+		totalFullyPending: sales.filter((s) => s.paymentStatus === "PENDING")
+			.length,
+	};
 
-		return c.json({
-			message: "Pending payments retrieved successfully",
-			data: sales,
-			summary,
-		});
-	},
-);
+	return c.json({
+		message: "Pending payments retrieved successfully",
+		data: sales,
+		summary,
+	});
+});
 
-// Get payments for a specific sale (ADMIN/Own WORKER)
+// Get payments for a specific sale (All authenticated users - own data only)
 app.get(
 	"/sale/:saleId",
 	requireAuth,
-	requireRole(UserRole.ADMIN, UserRole.WORKER),
 	zValidator("param", getPaymentsBySaleParamsSchema),
 	async (c) => {
 		const user = c.get("user") as User;
@@ -130,8 +120,8 @@ app.get(
 			throw new HTTPException(404, { message: "Sale not found" });
 		}
 
-		// Workers can only view payments for their own sales
-		if (user.role === UserRole.WORKER && sale.workerId !== user.id) {
+		// Non-admin users can only view payments for their own sales
+		if (user.role !== "admin" && sale.workerId !== user.id) {
 			throw new HTTPException(403, {
 				message: "You can only view payments for your own sales",
 			});
@@ -154,11 +144,10 @@ app.get(
 	},
 );
 
-// Add payment to a sale (WORKER)
+// Add payment to a sale (All authenticated users - own sales only)
 app.post(
 	"/",
 	requireAuth,
-	requireRole(UserRole.WORKER),
 	zValidator("json", addPaymentBodySchema),
 	async (c) => {
 		const user = c.get("user") as User;
@@ -173,8 +162,8 @@ app.post(
 			throw new HTTPException(404, { message: "Sale not found" });
 		}
 
-		// Workers can only add payments to their own sales
-		if (sale.workerId !== user.id) {
+		// Non-admin users can only add payments to their own sales
+		if (user.role !== "admin" && sale.workerId !== user.id) {
 			throw new HTTPException(403, {
 				message: "You can only add payments to your own sales",
 			});

@@ -5,11 +5,7 @@ import { Hono } from "hono";
 
 import { organizationFilter, resolveOrganizationId } from "@/lib/org-context";
 import { requireAuth } from "@/middleware/authentication.middleware";
-import {
-	requireAdmin,
-	requireRole,
-	UserRole,
-} from "@/middleware/authorization.middleware";
+import { requireAdmin } from "@/middleware/authorization.middleware";
 import { dateRangeQuerySchema } from "@/schemas/report.schema";
 
 type Variables = {
@@ -23,7 +19,7 @@ const app = new Hono<{ Variables: Variables }>();
 function getDateRange(period: string, startDate?: string, endDate?: string) {
 	const now = new Date();
 	let start: Date;
-	const end: Date = endDate ? new Date(endDate) : now;
+	const end: Date = endDate ? new Date(endDate) : new Date();
 
 	if (startDate) {
 		start = new Date(startDate);
@@ -309,80 +305,75 @@ app.get(
 	},
 );
 
-// Pending Payments Report (ADMIN/WORKER)
-app.get(
-	"/pending-payments",
-	requireAuth,
-	requireRole(UserRole.ADMIN, UserRole.WORKER),
-	async (c) => {
-		const user = c.get("user") as User;
-		const organizationId = await resolveOrganizationId(c);
-		const orgFilter = organizationFilter(organizationId);
+// Pending Payments Report (All authenticated users - filtered by role)
+app.get("/pending-payments", requireAuth, async (c) => {
+	const user = c.get("user") as User;
+	const organizationId = await resolveOrganizationId(c);
+	const orgFilter = organizationFilter(organizationId);
 
-		const filter: any = {
-			orgId: orgFilter,
-			paymentStatus: { $in: ["PENDING", "PARTIAL"] },
-			status: { $ne: "CANCELLED" },
-		};
+	const filter: any = {
+		orgId: orgFilter,
+		paymentStatus: { $in: ["PENDING", "PARTIAL"] },
+		status: { $ne: "CANCELLED" },
+	};
 
-		// Workers can only see their own pending payments
-		if (user.role === UserRole.WORKER) {
-			filter.workerId = user.id;
-		}
+	// Non-admin users can only see their own pending payments
+	if (user.role !== "admin") {
+		filter.workerId = user.id;
+	}
 
-		const pendingSales = await Sale.aggregate([
-			{ $match: filter },
-			{
-				$lookup: {
-					from: "customers",
-					localField: "customerId",
-					foreignField: "_id",
-					as: "customer",
-				},
+	const pendingSales = await Sale.aggregate([
+		{ $match: filter },
+		{
+			$lookup: {
+				from: "customers",
+				localField: "customerId",
+				foreignField: "_id",
+				as: "customer",
 			},
-			{ $unwind: "$customer" },
-			{
-				$group: {
-					_id: "$paymentStatus",
-					count: { $sum: 1 },
-					totalPending: { $sum: "$pendingAmount" },
-					sales: {
-						$push: {
-							saleId: "$_id",
-							invoiceNo: "$invoiceNo",
-							customerName: "$customer.name",
-							customerPhone: "$customer.phone",
-							total: "$total",
-							paidAmount: "$paidAmount",
-							pendingAmount: "$pendingAmount",
-							createdAt: "$createdAt",
-						},
+		},
+		{ $unwind: "$customer" },
+		{
+			$group: {
+				_id: "$paymentStatus",
+				count: { $sum: 1 },
+				totalPending: { $sum: "$pendingAmount" },
+				sales: {
+					$push: {
+						saleId: "$_id",
+						invoiceNo: "$invoiceNo",
+						customerName: "$customer.name",
+						customerPhone: "$customer.phone",
+						total: "$total",
+						paidAmount: "$paidAmount",
+						pendingAmount: "$pendingAmount",
+						createdAt: "$createdAt",
 					},
 				},
 			},
-			{ $sort: { _id: 1 } },
-		]);
+		},
+		{ $sort: { _id: 1 } },
+	]);
 
-		const summary = pendingSales.reduce(
-			(acc, item) => {
-				acc.totalCount += item.count;
-				acc.totalPending += item.totalPending;
-				if (item._id === "PENDING") {
-					acc.fullyPending = item.count;
-				} else if (item._id === "PARTIAL") {
-					acc.partiallyPaid = item.count;
-				}
-				return acc;
-			},
-			{ totalCount: 0, totalPending: 0, fullyPending: 0, partiallyPaid: 0 },
-		);
+	const summary = pendingSales.reduce(
+		(acc, item) => {
+			acc.totalCount += item.count;
+			acc.totalPending += item.totalPending;
+			if (item._id === "PENDING") {
+				acc.fullyPending = item.count;
+			} else if (item._id === "PARTIAL") {
+				acc.partiallyPaid = item.count;
+			}
+			return acc;
+		},
+		{ totalCount: 0, totalPending: 0, fullyPending: 0, partiallyPaid: 0 },
+	);
 
-		return c.json({
-			summary,
-			breakdown: pendingSales,
-		});
-	},
-);
+	return c.json({
+		summary,
+		breakdown: pendingSales,
+	});
+});
 
 // Stock Summary Report (ADMIN)
 app.get("/stock-summary", requireAuth, requireAdmin, async (c) => {

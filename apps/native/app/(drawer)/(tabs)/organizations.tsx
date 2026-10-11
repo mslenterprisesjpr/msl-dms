@@ -326,7 +326,7 @@ export default function OrganizationsScreen() {
 				const result = await organizationService.addMember({
 					organizationId: currentOrgId!,
 					email: memberEmail.trim(),
-					role: memberRole,
+					role: memberRole as "admin" | "member",
 				});
 
 				if (result?.memberAdded) {
@@ -355,7 +355,7 @@ export default function OrganizationsScreen() {
 				const result = await organizationService.addMember({
 					organizationId: currentOrgId!,
 					userId: user.id,
-					role: memberRole,
+					role: memberRole as "admin" | "member",
 				});
 
 				Alert.alert(
@@ -368,8 +368,8 @@ export default function OrganizationsScreen() {
 			} else if (memberModalMode === "role" && selectedMember) {
 				const { error } = await authClient.organization.updateMemberRole({
 					organizationId: currentOrgId!,
-					memberIdOrEmail: selectedMember.userId,
-					role: memberRole,
+					memberId: selectedMember.id, // Use member.id, not userId
+					role: memberRole as "admin" | "member",
 				});
 				if (error) {
 					Alert.alert("Error", error.message || "Failed to update role");
@@ -1046,11 +1046,11 @@ export default function OrganizationsScreen() {
 							>
 								<Select.Item
 									value="member"
-									label="Member — Can view and manage assigned tasks"
+									label="Member — Can view and work on assigned tasks"
 								/>
 								<Select.Item
 									value="admin"
-									label="Admin — Can manage members and settings"
+									label="Admin — Can manage members and organization settings"
 								/>
 							</Select>
 						</TextField>

@@ -1,0 +1,75 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build outputs
+dist/
+build/
+.next/
+.turbo/
+out/
+
+# Android build artifacts
+android/build/
+android/.gradle/
+android/app/build/
+**/android/build/
+
+# iOS build artifacts
+ios/build/
+ios/Pods/
+**/ios/build/
+
+# Expo
+.expo/
+.expo-shared/
+
+# Package manager
+.yarn/
+.pnp.*
+.pnpm-store/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Cache
+.cache/
+.parcel-cache/
+
+# Generated files
+*.generated.*
+**/*.generated.*
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Documentation builds
+docs/.vitepress/cache/
+docs/.vitepress/dist/
+
+# Monorepo specific
+.agents/
+.kiro/

@@ -1,5 +1,7 @@
 import { apiClient } from "@/lib/api-client";
 
+export type OrganizationRole = "admin" | "member" | "owner";
+
 export interface UserInvitation {
 	id: string;
 	organizationId: string;
@@ -18,7 +20,7 @@ export const organizationService = {
 		organizationId: string;
 		userId?: string;
 		email?: string;
-		role: string;
+		role: OrganizationRole | string;
 	}) => {
 		const res = await apiClient.post<{
 			success: boolean;
