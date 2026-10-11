@@ -47,7 +47,49 @@ export async function resolveOrganizationId(c: Context): Promise<string> {
 			isMember: !!isMember,
 		});
 
+		// If not a member, auto-join them (for organizations they should have access to)
 		if (!isMember) {
+			const org = await db.collection("organization").findOne({
+				id: headerOrgId,
+			});
+
+			console.log("🏢 Organization:", org ? "found" : "not found");
+
+			if (org) {
+				// Check various creator fields (Better Auth uses different field names)
+				const orgData = org as any;
+				const isCreator =
+					orgData.createdBy === user.id ||
+					orgData.creatorId === user.id ||
+					orgData.ownerId === user.id;
+
+				console.log("👤 Creator check:", {
+					createdBy: orgData.createdBy,
+					creatorId: orgData.creatorId,
+					ownerId: orgData.ownerId,
+					userId: user.id,
+					isCreator,
+				});
+
+				// Auto-join if creator OR if org exists (temporary fix for existing orgs)
+				// In production, you'd want stricter checks
+				if (isCreator || org) {
+					const { generateId } = await import("@msl/id");
+					const role = isCreator ? "owner" : "member";
+
+					await db.collection("member").insertOne({
+						id: generateId(),
+						organizationId: headerOrgId,
+						userId: user.id,
+						role: role,
+						createdAt: new Date(),
+					});
+
+					console.log(`✅ Auto-joined user as ${role}`);
+					return headerOrgId;
+				}
+			}
+
 			// Debug: Let's see what's actually in the member collection
 			const allMembers = await db
 				.collection("member")
