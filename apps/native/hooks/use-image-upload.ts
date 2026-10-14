@@ -62,18 +62,19 @@ export function useImageUpload() {
 
 	const uploadToCloudinary = async (
 		imageUri: string,
+		folder = "products",
 	): Promise<string | null> => {
 		try {
 			setUploading(true);
 			setProgress(0);
 
-			console.log("📤 Starting upload for:", imageUri);
+			console.log("📤 Starting upload for:", imageUri, "folder:", folder);
 
 			// Get upload signature from backend
 			const { data: signatureData } = await apiClient.get<UploadSignature>(
 				"/cloudinary/signature",
 				{
-					params: { folder: "products" },
+					params: { folder },
 				},
 			);
 

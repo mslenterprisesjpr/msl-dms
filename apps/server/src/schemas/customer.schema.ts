@@ -6,6 +6,7 @@ export const createCustomerBodySchema = z.object({
 	phone: z.string().optional(),
 	address: z.string().optional(),
 	gstNumber: z.string().trim().uppercase().optional(),
+	image: z.string().trim().optional(),
 	isActive: z.boolean().default(true),
 });
 

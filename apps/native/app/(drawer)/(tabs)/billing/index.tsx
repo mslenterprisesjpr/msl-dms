@@ -4,6 +4,7 @@ import { Card, Input, useThemeColor } from "heroui-native";
 import React, { useMemo, useState } from "react";
 import {
 	ActivityIndicator,
+	Image,
 	Linking,
 	Pressable,
 	RefreshControl,
@@ -373,28 +374,43 @@ export default function BillingScreen() {
 											className="border border-slate-100 bg-white p-3.5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
 										>
 											<View className="flex-row items-center justify-between">
-												<View className="flex-1 pr-2">
-													<Text className="font-bold text-slate-900 text-sm dark:text-white">
-														{cust.name}
-													</Text>
-													{cust.phone ? (
-														<Text className="text-slate-500 text-xs">
-															📞 {cust.phone}
+												<View className="flex-1 flex-row items-center pr-2">
+													{cust.image ? (
+														<Image
+															source={{ uri: cust.image }}
+															className="mr-3 h-11 w-11 rounded-full bg-slate-100 dark:bg-zinc-800"
+															resizeMode="cover"
+														/>
+													) : (
+														<View className="mr-3 h-11 w-11 items-center justify-center rounded-full bg-slate-100 dark:bg-zinc-800">
+															<Text className="font-bold text-slate-700 text-sm dark:text-zinc-200">
+																{(cust.name || "C").slice(0, 2).toUpperCase()}
+															</Text>
+														</View>
+													)}
+													<View className="flex-1">
+														<Text className="font-bold text-slate-900 text-sm dark:text-white">
+															{cust.name}
 														</Text>
-													) : null}
-													{cust.gstNumber ? (
-														<Text className="mt-0.5 font-semibold text-[#0f274a] text-xs dark:text-sky-400">
-															GST: {cust.gstNumber}
-														</Text>
-													) : null}
-													{cust.address ? (
-														<Text
-															className="mt-0.5 text-slate-400 text-xs"
-															numberOfLines={1}
-														>
-															📍 {cust.address}
-														</Text>
-													) : null}
+														{cust.phone ? (
+															<Text className="text-slate-500 text-xs">
+																📞 {cust.phone}
+															</Text>
+														) : null}
+														{cust.gstNumber ? (
+															<Text className="mt-0.5 font-semibold text-[#0f274a] text-xs dark:text-sky-400">
+																GST: {cust.gstNumber}
+															</Text>
+														) : null}
+														{cust.address ? (
+															<Text
+																className="mt-0.5 text-slate-400 text-xs"
+																numberOfLines={1}
+															>
+																📍 {cust.address}
+															</Text>
+														) : null}
+													</View>
 												</View>
 
 												<View className="flex-row items-center gap-2">

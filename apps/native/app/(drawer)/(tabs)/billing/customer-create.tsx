@@ -8,10 +8,19 @@ import {
 	Label,
 	Switch,
 	Typography,
+	useThemeColor,
 	useToast,
 } from "heroui-native";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, View } from "react-native";
+import {
+	ActivityIndicator,
+	Alert,
+	Image,
+	Pressable,
+	ScrollView,
+	Text,
+	View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Container } from "@/components/container";
@@ -20,9 +29,12 @@ import {
 	useCustomer,
 	useUpdateCustomer,
 } from "@/hooks/use-customers";
+import { useImageUpload } from "@/hooks/use-image-upload";
 import type { CreateCustomerDto } from "@/types/customer";
 
 export default function CustomerFormScreen() {
+	const themeAccent = useThemeColor("accent");
+	const themeColorForeground = useThemeColor("foreground");
 	const router = useRouter();
 	const navigation = useNavigation();
 	const { id } = useLocalSearchParams<{ id?: string }>();
@@ -34,6 +46,8 @@ export default function CustomerFormScreen() {
 		id || "",
 	);
 
+	const { pickImage, takePhoto, uploadToCloudinary, uploading } =
+		useImageUpload();
 	const { toast } = useToast();
 	const insets = useSafeAreaInsets();
 
@@ -42,6 +56,7 @@ export default function CustomerFormScreen() {
 		phone: "",
 		address: "",
 		gstNumber: "",
+		image: "",
 		isActive: true,
 	});
 
@@ -60,6 +75,7 @@ export default function CustomerFormScreen() {
 				phone: existingCustomer.phone || "",
 				address: existingCustomer.address || "",
 				gstNumber: existingCustomer.gstNumber || "",
+				image: existingCustomer.image || "",
 				isActive:
 					existingCustomer.isActive !== undefined
 						? existingCustomer.isActive
@@ -70,9 +86,27 @@ export default function CustomerFormScreen() {
 
 	const updateField = (
 		field: keyof CreateCustomerDto,
-		value: string | boolean,
+		value: string | boolean | undefined,
 	) => {
 		setFormData((prev) => ({ ...prev, [field]: value }));
+	};
+
+	const handlePickImage = async (source: "gallery" | "camera") => {
+		try {
+			const img = source === "gallery" ? await pickImage() : await takePhoto();
+			if (!img) return;
+
+			const url = await uploadToCloudinary(img.uri, "customers");
+			if (url) {
+				updateField("image", url);
+				toast.show({
+					variant: "success",
+					label: "Customer photo uploaded!",
+				});
+			}
+		} catch (error: any) {
+			Alert.alert("Upload Error", error.message || "Failed to upload image");
+		}
 	};
 
 	const handleSubmit = async () => {
@@ -90,6 +124,7 @@ export default function CustomerFormScreen() {
 				phone: formData.phone?.trim() || undefined,
 				address: formData.address?.trim() || undefined,
 				gstNumber: formData.gstNumber?.trim().toUpperCase() || undefined,
+				image: formData.image?.trim() || undefined,
 				isActive: formData.isActive,
 			};
 
@@ -146,6 +181,72 @@ export default function CustomerFormScreen() {
 		<Container>
 			<ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }}>
 				<Card className="border-border bg-surface p-4">
+					{/* Customer Photo (Optional) */}
+					<View className="mb-5 items-center">
+						{formData.image ? (
+							<View className="relative mb-3 items-center">
+								<Image
+									source={{ uri: formData.image }}
+									className="h-28 w-28 rounded-full bg-slate-100 dark:bg-zinc-800"
+									resizeMode="cover"
+								/>
+								<Pressable
+									onPress={() => updateField("image", "")}
+									className="absolute -top-1 -right-1 h-7 w-7 items-center justify-center rounded-full bg-red-500 shadow-md"
+								>
+									<Ionicons name="close" size={16} color="#ffffff" />
+								</Pressable>
+							</View>
+						) : (
+							<View className="mb-3 h-24 w-24 items-center justify-center rounded-full border border-slate-300 border-dashed bg-slate-50 dark:border-zinc-700 dark:bg-zinc-900">
+								<Ionicons name="person-outline" size={36} color={themeAccent} />
+								<Text className="mt-1 font-medium text-[10px] text-slate-400">
+									Optional Photo
+								</Text>
+							</View>
+						)}
+
+						{uploading ? (
+							<View className="flex-row items-center gap-2 py-2">
+								<ActivityIndicator size="small" color="#0d9488" />
+								<Text className="font-medium text-slate-500 text-xs dark:text-zinc-400">
+									Uploading photo...
+								</Text>
+							</View>
+						) : (
+							<View className="flex-row gap-2">
+								<Pressable
+									onPress={() => handlePickImage("gallery")}
+									disabled={uploading}
+									className="flex-row items-center rounded-xl border border-slate-200 bg-white px-3.5 py-2 active:bg-slate-50 dark:border-zinc-800 dark:bg-zinc-900"
+								>
+									<Ionicons
+										name="image-outline"
+										size={16}
+										color={themeColorForeground}
+									/>
+									<Text className="ml-1.5 font-semibold text-slate-700 text-xs dark:text-zinc-300">
+										Gallery
+									</Text>
+								</Pressable>
+								<Pressable
+									onPress={() => handlePickImage("camera")}
+									disabled={uploading}
+									className="flex-row items-center rounded-xl border border-slate-200 bg-white px-3.5 py-2 active:bg-slate-50 dark:border-zinc-800 dark:bg-zinc-900"
+								>
+									<Ionicons
+										name="camera-outline"
+										size={16}
+										color={themeColorForeground}
+									/>
+									<Text className="ml-1.5 font-semibold text-slate-700 text-xs dark:text-zinc-300">
+										Camera
+									</Text>
+								</Pressable>
+							</View>
+						)}
+					</View>
+
 					{/* Name */}
 					<View className="mb-4">
 						<Label className="mb-2 text-foreground">

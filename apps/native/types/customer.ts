@@ -5,6 +5,7 @@ export interface Customer {
 	phone?: string;
 	address?: string;
 	gstNumber?: string;
+	image?: string;
 	isActive: boolean;
 	createdAt: string;
 	updatedAt: string;
@@ -15,6 +16,7 @@ export interface CreateCustomerDto {
 	phone?: string;
 	address?: string;
 	gstNumber?: string;
+	image?: string;
 	isActive?: boolean;
 }
 
