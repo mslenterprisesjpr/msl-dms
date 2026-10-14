@@ -331,7 +331,7 @@ export default function Home() {
 	if (isSessionLoading || (!user && !isSessionLoading)) {
 		return (
 			<SplashScreen
-				message={!user ? "Redirecting to login..." : "Loading MSL DMS..."}
+				message={!user ? "Redirecting to login..." : "Loading MSL..."}
 			/>
 		);
 	}

@@ -1,4 +1,5 @@
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import Constants from "expo-constants";
 import { router } from "expo-router";
 import { Surface, useThemeColor } from "heroui-native";
 import { useEffect, useState } from "react";
@@ -14,6 +15,7 @@ export function CustomDrawerContent(props: any) {
 	const themeColorAccent = useThemeColor("accent");
 	const { user } = useSession();
 	const isSystemAdmin = user?.role === "admin";
+	const appVersion = Constants.expoConfig?.version || "1.0.0";
 
 	// Fetch organizations when drawer mounts
 	const { organizations: orgsFromHook } = useOrganizations();
@@ -360,6 +362,22 @@ export function CustomDrawerContent(props: any) {
 							Settings & Preferences
 						</Text>
 					</Pressable>
+				</View>
+
+				{/* APP FOOTER / VERSION INFO */}
+				<View className="mt-6 items-center border-default-200 border-t px-4 pt-4 pb-8">
+					<Text
+						className="font-bold text-xs tracking-wider"
+						style={{ color: themeColorForeground }}
+					>
+						MSL
+					</Text>
+					<Text
+						className="mt-0.5 font-medium text-[11px] opacity-50"
+						style={{ color: themeColorForeground }}
+					>
+						Version {appVersion}
+					</Text>
 				</View>
 			</View>
 		</ScrollView>

@@ -116,12 +116,7 @@ export function SplashScreen({
 				</View>
 
 				{/* App Title */}
-				<Text style={[styles.title, { color: textColor }]}>MSL DMS</Text>
-
-				{/* Tagline */}
-				<Text style={[styles.tagline, { color: subtitleColor }]}>
-					Distribution Management System
-				</Text>
+				<Text style={[styles.title, { color: textColor }]}>MSL</Text>
 			</Animated.View>
 
 			{/* Bottom Loading Indicator & Status */}
