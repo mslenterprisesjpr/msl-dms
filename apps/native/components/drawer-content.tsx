@@ -3,13 +3,16 @@ import { router } from "expo-router";
 import { Surface, useThemeColor } from "heroui-native";
 import { useEffect, useState } from "react";
 import { Alert, Pressable, ScrollView, Text, View } from "react-native";
-
 import { useOrganizations } from "@/lib/hooks/use-organizations";
+import { useSession } from "@/lib/hooks/use-session";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 
 export function CustomDrawerContent(props: any) {
 	const themeColorForeground = useThemeColor("foreground");
 	const themeColorBackground = useThemeColor("background");
+	const themeColorAccent = useThemeColor("accent");
+	const { user } = useSession();
+	const isSystemAdmin = user?.role === "admin";
 
 	// Fetch organizations when drawer mounts
 	const { organizations: orgsFromHook } = useOrganizations();
@@ -170,53 +173,177 @@ export function CustomDrawerContent(props: any) {
 
 			{/* Navigation Items */}
 			<View className="flex-1 py-2">
-				{/* Tabs */}
+				{/* OPERATIONS SECTION */}
+				<Text
+					className="px-4 pt-2 pb-1 font-bold text-[10px] uppercase tracking-wider opacity-50"
+					style={{ color: themeColorForeground }}
+				>
+					Distribution Operations
+				</Text>
+
+				{/* Tabs Hub */}
 				<Pressable
 					onPress={() => navigateTo("/(drawer)/(tabs)")}
-					className="flex-row items-center px-4 py-3"
+					className="flex-row items-center px-4 py-3 active:bg-default-100"
 				>
 					<MaterialIcons
-						name="border-bottom"
-						size={24}
+						name="storefront"
+						size={22}
 						color={themeColorForeground}
-						style={{ marginRight: 32 }}
+						style={{ marginRight: 20 }}
 					/>
-					<Text className="text-base" style={{ color: themeColorForeground }}>
-						Tabs
+					<Text
+						className="font-medium text-base"
+						style={{ color: themeColorForeground }}
+					>
+						Agency Dashboard & Tabs
 					</Text>
 				</Pressable>
 
-				{/* Profile */}
-				<Pressable
-					onPress={() => navigateTo("/settings/profile")}
-					className="flex-row items-center px-4 py-3"
-				>
-					<Ionicons
-						name="person-outline"
-						size={24}
-						color={themeColorForeground}
-						style={{ marginRight: 32 }}
-					/>
-					<Text className="text-base" style={{ color: themeColorForeground }}>
-						Profile
-					</Text>
-				</Pressable>
+				{/* SYSTEM SUPER ADMIN SECTION (Role Gated) */}
+				{isSystemAdmin && (
+					<View className="mt-4 border-default-200 border-t pt-3">
+						<View className="flex-row items-center justify-between px-4 pb-1">
+							<Text className="font-bold text-[10px] text-accent uppercase tracking-wider">
+								🛡️ System Super Admin
+							</Text>
+							<View className="rounded-full bg-accent/15 px-2 py-0.2">
+								<Text className="font-bold text-[9px] text-accent uppercase">
+									CONSOLE
+								</Text>
+							</View>
+						</View>
 
-				{/* Second */}
-				<Pressable
-					onPress={() => navigateTo("/(drawer)/second")}
-					className="flex-row items-center px-4 py-3"
-				>
-					<Ionicons
-						name="home-outline"
-						size={24}
-						color={themeColorForeground}
-						style={{ marginRight: 32 }}
-					/>
-					<Text className="text-base" style={{ color: themeColorForeground }}>
-						Second
+						{/* Platform Overview */}
+						<Pressable
+							onPress={() => navigateTo("/(drawer)/system-admin")}
+							className="flex-row items-center px-4 py-3 active:bg-default-100"
+						>
+							<Ionicons
+								name="stats-chart"
+								size={20}
+								color={themeColorAccent}
+								style={{ marginRight: 20 }}
+							/>
+							<View className="flex-1">
+								<Text
+									className="font-semibold text-base"
+									style={{ color: themeColorForeground }}
+								>
+									Platform Overview
+								</Text>
+								<Text
+									className="text-xs opacity-60"
+									style={{ color: themeColorForeground }}
+								>
+									Global telemetry & stats
+								</Text>
+							</View>
+						</Pressable>
+
+						{/* Manage Organizations */}
+						<Pressable
+							onPress={() => navigateTo("/(drawer)/(tabs)/organizations")}
+							className="flex-row items-center px-4 py-3 active:bg-default-100"
+						>
+							<Ionicons
+								name="business"
+								size={20}
+								color={themeColorAccent}
+								style={{ marginRight: 20 }}
+							/>
+							<View className="flex-1">
+								<Text
+									className="font-medium text-base"
+									style={{ color: themeColorForeground }}
+								>
+									Organizations & Agencies
+								</Text>
+								<Text
+									className="text-xs opacity-60"
+									style={{ color: themeColorForeground }}
+								>
+									Tenants, invites & members
+								</Text>
+							</View>
+						</Pressable>
+
+						{/* User Management */}
+						<Pressable
+							onPress={() => navigateTo("/settings/users")}
+							className="flex-row items-center px-4 py-3 active:bg-default-100"
+						>
+							<Ionicons
+								name="people"
+								size={20}
+								color={themeColorAccent}
+								style={{ marginRight: 20 }}
+							/>
+							<View className="flex-1">
+								<Text
+									className="font-medium text-base"
+									style={{ color: themeColorForeground }}
+								>
+									Global Users Directory
+								</Text>
+								<Text
+									className="text-xs opacity-60"
+									style={{ color: themeColorForeground }}
+								>
+									Ban, roles & credentials
+								</Text>
+							</View>
+						</Pressable>
+					</View>
+				)}
+
+				{/* ACCOUNT & APP SETTINGS SECTION */}
+				<View className="mt-4 border-default-200 border-t pt-3">
+					<Text
+						className="px-4 pb-1 font-bold text-[10px] uppercase tracking-wider opacity-50"
+						style={{ color: themeColorForeground }}
+					>
+						Account & App
 					</Text>
-				</Pressable>
+
+					{/* Profile */}
+					<Pressable
+						onPress={() => navigateTo("/settings/profile")}
+						className="flex-row items-center px-4 py-3 active:bg-default-100"
+					>
+						<Ionicons
+							name="person-outline"
+							size={20}
+							color={themeColorForeground}
+							style={{ marginRight: 20 }}
+						/>
+						<Text
+							className="font-medium text-base"
+							style={{ color: themeColorForeground }}
+						>
+							My Profile
+						</Text>
+					</Pressable>
+
+					{/* Settings */}
+					<Pressable
+						onPress={() => navigateTo("/(drawer)/(tabs)/settings")}
+						className="flex-row items-center px-4 py-3 active:bg-default-100"
+					>
+						<Ionicons
+							name="settings-outline"
+							size={20}
+							color={themeColorForeground}
+							style={{ marginRight: 20 }}
+						/>
+						<Text
+							className="font-medium text-base"
+							style={{ color: themeColorForeground }}
+						>
+							Settings & Preferences
+						</Text>
+					</Pressable>
+				</View>
 			</View>
 		</ScrollView>
 	);

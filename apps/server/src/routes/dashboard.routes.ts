@@ -12,7 +12,11 @@ import { Hono } from "hono";
 
 import { organizationFilter, resolveOrganizationId } from "@/lib/org-context";
 import { requireAuth } from "@/middleware/authentication.middleware";
-import { requireAdmin } from "@/middleware/authorization.middleware";
+import {
+	requireAdmin,
+	requireRole,
+	SystemRole,
+} from "@/middleware/authorization.middleware";
 
 type Variables = {
 	user: User | null;
@@ -360,5 +364,46 @@ app.get("/worker-stats", requireAuth, async (c) => {
 		lowStockItems,
 	});
 });
+
+// GET /system-stats - Super Admin platform-wide statistics
+app.get(
+	"/system-stats",
+	requireAuth,
+	requireRole(SystemRole.ADMIN),
+	async (c) => {
+		const { db } = await import("@/services");
+
+		const [totalOrgs, totalUsers, salesAggregate, distinctActiveOrgs] =
+			await Promise.all([
+				db.collection("organization").countDocuments(),
+				db.collection("user").countDocuments(),
+				Sale.aggregate([
+					{ $match: { status: { $ne: "CANCELLED" } } },
+					{
+						$group: {
+							_id: null,
+							totalRevenue: { $sum: "$total" },
+							totalBills: { $sum: 1 },
+						},
+					},
+				]),
+				db.collection("member").distinct("organizationId"),
+			]);
+
+		const totalRevenue = salesAggregate[0]?.totalRevenue || 0;
+		const totalBills = salesAggregate[0]?.totalBills || 0;
+
+		return c.json({
+			success: true,
+			totalOrganizations: totalOrgs,
+			activeOrganizations: distinctActiveOrgs.length,
+			totalUsers,
+			totalRevenue,
+			totalBills,
+			systemStatus: "OPTIMAL",
+			timestamp: new Date().toISOString(),
+		});
+	},
+);
 
 export default app;

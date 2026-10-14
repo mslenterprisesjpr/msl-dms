@@ -15,12 +15,10 @@ import { Container } from "@/components/container";
 import { useProducts } from "@/hooks/queries/use-products";
 import { useWorkerStock } from "@/hooks/queries/use-worker-stock";
 import { useSession } from "@/lib/hooks/use-session";
-import { useAppModeStore } from "@/lib/stores/app-mode-store";
 
 export default function StockScreen() {
 	const themeAccent = useThemeColor("accent");
 	const { user } = useSession();
-	const { mode } = useAppModeStore();
 
 	const [activeTab, setActiveTab] = useState<"STOCK" | "LOW_STOCK">("STOCK");
 	const [refreshing, setRefreshing] = useState(false);

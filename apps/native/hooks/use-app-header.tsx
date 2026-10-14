@@ -44,8 +44,7 @@ export function useAppHeader() {
 						// @ts-expect-error - drawer navigation type
 						navigation.openDrawer();
 					} else {
-						// @ts-expect-error - dispatch open drawer
-						navigation.dispatch?.({ type: "OPEN_DRAWER" });
+						(navigation as any).dispatch?.({ type: "OPEN_DRAWER" });
 					}
 				}}
 				className="mr-2 ml-4"

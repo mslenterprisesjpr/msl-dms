@@ -18,7 +18,6 @@ import { useAdminStats, useWorkerStats } from "@/hooks/queries/use-dashboard";
 import { useProducts } from "@/hooks/queries/use-products";
 import { useCreateSale, useSales } from "@/hooks/queries/use-sales";
 import { useSession } from "@/lib/hooks/use-session";
-import { useAppModeStore } from "@/lib/stores/app-mode-store";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 
 // Custom UPI Icon replicating the dual-chevron payment mark
@@ -54,7 +53,6 @@ export default function Home() {
 		refetch: refetchSession,
 	} = useSession();
 	const currentOrg = useOrganizationStore((state) => state.getCurrentOrg());
-	const { mode } = useAppModeStore();
 	const { toast } = useToast();
 
 	const [refreshing, setRefreshing] = useState(false);
@@ -66,8 +64,8 @@ export default function Home() {
 	const [paymentMethod, setPaymentMethod] = useState<"CASH" | "UPI">("CASH");
 	const [isSubmittingBill, setIsSubmittingBill] = useState(false);
 
-	const isAdmin = mode === "admin";
-	const isWorker = mode === "worker";
+	const isAdmin = user?.role === "admin";
+	const isWorker = !isAdmin;
 
 	// Real Data Queries
 	const {

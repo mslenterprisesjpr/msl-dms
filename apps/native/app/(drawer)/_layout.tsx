@@ -65,6 +65,13 @@ function DrawerLayout() {
 					),
 				}}
 			/>
+			<Drawer.Screen
+				name="system-admin"
+				options={{
+					headerShown: false,
+					drawerItemStyle: { display: "none" },
+				}}
+			/>
 		</Drawer>
 	);
 }

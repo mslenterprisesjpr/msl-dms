@@ -7,16 +7,22 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 import { Container } from "@/components/container";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useSession } from "@/lib/hooks/use-session";
-import { useAppModeStore } from "@/lib/stores/app-mode-store";
 
 export default function SettingsScreen() {
 	const themeAccent = useThemeColor("accent");
 	const { session, user } = useSession();
-	const { mode, setMode } = useAppModeStore();
 
 	const isAdminUser = user?.role === "admin";
 
 	const settingsOptions = [
+		{
+			icon: "shield-checkmark-outline" as const,
+			title: "Platform Super Admin Console",
+			description: "Global telemetry, SaaS metrics & tenant overview",
+			route: "/(drawer)/system-admin",
+			color: "#002B66",
+			adminOnly: true,
+		},
 		{
 			icon: "business-outline" as const,
 			title: "Organizations",
@@ -42,7 +48,7 @@ export default function SettingsScreen() {
 	];
 
 	const visibleOptions = settingsOptions.filter(
-		(option) => !option.adminOnly || isAdminUser || mode === "admin",
+		(option) => !option.adminOnly || isAdminUser,
 	);
 
 	return (
@@ -53,7 +59,7 @@ export default function SettingsScreen() {
 				showsVerticalScrollIndicator={false}
 			>
 				{/* User Profile Card */}
-				<Card className="mb-4 border border-slate-100 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+				<Card className="mb-5 border border-slate-100 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
 					<View className="flex-row items-center">
 						<View className="h-14 w-14 items-center justify-center rounded-full bg-accent/10">
 							<Ionicons name="person" size={28} color={themeAccent} />
@@ -73,90 +79,6 @@ export default function SettingsScreen() {
 								</View>
 							</View>
 						</View>
-					</View>
-				</Card>
-
-				{/* MODE SWITCHER CARD (ADMIN ⇄ WORKER) */}
-				<Card className="mb-5 border border-slate-100 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-					<View className="mb-2 flex-row items-center justify-between">
-						<View className="flex-row items-center">
-							<Ionicons name="swap-horizontal" size={20} color={themeAccent} />
-							<Text className="ml-2 font-bold text-base text-slate-900 dark:text-white">
-								App Mode Switcher
-							</Text>
-						</View>
-						<View
-							className={`rounded-full px-2.5 py-0.5 ${
-								mode === "admin"
-									? "bg-amber-100 dark:bg-amber-950/60"
-									: "bg-teal-100 dark:bg-teal-950/60"
-							}`}
-						>
-							<Text
-								className={`font-bold text-xs uppercase ${
-									mode === "admin"
-										? "text-amber-700 dark:text-amber-400"
-										: "text-teal-700 dark:text-teal-300"
-								}`}
-							>
-								{mode === "admin" ? "Admin Mode" : "Worker Mode"}
-							</Text>
-						</View>
-					</View>
-					<Text className="mb-3 text-slate-500 text-xs dark:text-zinc-400">
-						Switch between full Godown/Admin distribution overview and On-field
-						Worker van mode.
-					</Text>
-
-					{/* Mode Selector Toggle */}
-					<View className="flex-row rounded-xl bg-slate-100 p-1 dark:bg-zinc-800">
-						<Pressable
-							onPress={() => setMode("admin")}
-							className={`flex-1 flex-row items-center justify-center rounded-lg py-2.5 ${
-								mode === "admin"
-									? "bg-white shadow-sm dark:bg-zinc-700"
-									: "bg-transparent"
-							}`}
-						>
-							<Ionicons
-								name="shield-checkmark"
-								size={16}
-								color={mode === "admin" ? themeAccent : "#64748b"}
-							/>
-							<Text
-								className={`ml-1.5 font-bold text-xs ${
-									mode === "admin"
-										? "text-accent"
-										: "text-slate-600 dark:text-zinc-400"
-								}`}
-							>
-								Admin Mode
-							</Text>
-						</Pressable>
-
-						<Pressable
-							onPress={() => setMode("worker")}
-							className={`flex-1 flex-row items-center justify-center rounded-lg py-2.5 ${
-								mode === "worker"
-									? "bg-white shadow-sm dark:bg-zinc-700"
-									: "bg-transparent"
-							}`}
-						>
-							<Ionicons
-								name="bicycle"
-								size={16}
-								color={mode === "worker" ? "#0d9488" : "#64748b"}
-							/>
-							<Text
-								className={`ml-1.5 font-bold text-xs ${
-									mode === "worker"
-										? "text-[#0d9488]"
-										: "text-slate-600 dark:text-zinc-400"
-								}`}
-							>
-								Worker Mode
-							</Text>
-						</Pressable>
 					</View>
 				</Card>
 

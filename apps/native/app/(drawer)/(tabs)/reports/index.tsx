@@ -12,30 +12,28 @@ import {
 import { Container } from "@/components/container";
 import { useAdminStats, useWorkerStats } from "@/hooks/queries/use-dashboard";
 import { useSession } from "@/lib/hooks/use-session";
-import { useAppModeStore } from "@/lib/stores/app-mode-store";
-
 export default function ReportsScreen() {
 	const themeAccent = useThemeColor("accent");
 	const { user } = useSession();
-	const { mode } = useAppModeStore();
+	const isAdmin = user?.role === "admin";
 	const [refreshing, setRefreshing] = useState(false);
 
 	const {
 		data: adminStats,
 		refetch: refetchAdminStats,
 		isLoading: isAdminLoading,
-	} = useAdminStats({ enabled: mode === "admin" });
+	} = useAdminStats({ enabled: isAdmin });
 
 	const {
 		data: workerStats,
 		refetch: refetchWorkerStats,
 		isLoading: isWorkerLoading,
-	} = useWorkerStats(user?.id, { enabled: mode === "worker" });
+	} = useWorkerStats(user?.id, { enabled: !isAdmin });
 
 	const onRefresh = async () => {
 		setRefreshing(true);
 		try {
-			if (mode === "admin") {
+			if (isAdmin) {
 				await refetchAdminStats();
 			} else {
 				await refetchWorkerStats();
@@ -45,8 +43,8 @@ export default function ReportsScreen() {
 		}
 	};
 
-	const stats = mode === "admin" ? adminStats : workerStats;
-	const isLoading = mode === "admin" ? isAdminLoading : isWorkerLoading;
+	const stats = isAdmin ? adminStats : workerStats;
+	const isLoading = isAdmin ? isAdminLoading : isWorkerLoading;
 
 	const todaySales = stats?.todaySales ?? 0;
 	const todayCollection = stats?.todayCollection ?? 0;
