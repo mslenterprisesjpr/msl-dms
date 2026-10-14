@@ -22,12 +22,32 @@ export interface StockTransaction {
 	quantity: number;
 	cases: number;
 	units: number;
+	batchNo?: string;
+	mfgDate?: string;
+	expiryDate?: string;
+	purchaseRate?: number;
+	supplier?: string;
 	referenceId?: string;
 	note?: string;
 	createdBy: string;
 	createdAt: string;
 	updatedAt: string;
 	quantityDisplay?: string;
+}
+
+export interface PurchaseStockDto {
+	productId: string;
+	cases?: number;
+	units?: number;
+	quantity?: number;
+	unit?: string;
+	batchNo?: string;
+	mfgDate?: string;
+	expiryDate?: string;
+	purchaseRate?: number;
+	sellingRate?: number;
+	supplier?: string;
+	note?: string;
 }
 
 export interface StockQuery {

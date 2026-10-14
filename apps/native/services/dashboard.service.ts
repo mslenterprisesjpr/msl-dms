@@ -9,6 +9,10 @@ export interface AdminStats {
 	todaySales: number;
 	totalOutstanding: number;
 	todayCollection: number;
+	todayBillsCount?: number;
+	todayCash?: number;
+	todayUpi?: number;
+	growthPercentage?: number;
 }
 
 export interface WorkerStats {
@@ -20,6 +24,10 @@ export interface WorkerStats {
 	totalUnitsInHand: number;
 	issuedToday: number;
 	lowStockItems: number;
+	todayBillsCount?: number;
+	todayCash?: number;
+	todayUpi?: number;
+	growthPercentage?: number;
 }
 
 export const dashboardService = {

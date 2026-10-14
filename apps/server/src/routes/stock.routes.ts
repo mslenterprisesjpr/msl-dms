@@ -45,10 +45,38 @@ app.post(
 		}
 
 		// Calculate total quantity in units
-		const totalQuantity = body.cases * product.unitsPerCase + body.units;
+		let totalQuantity = 0;
+		let numCases = body.cases || 0;
+		let numUnits = body.units || 0;
+
+		if (body.quantity && body.quantity > 0) {
+			if (body.unit === "cases") {
+				numCases = Math.round(body.quantity);
+				numUnits = 0;
+				totalQuantity = numCases * product.unitsPerCase;
+			} else {
+				totalQuantity = Math.round(body.quantity);
+				numCases = Math.floor(totalQuantity / product.unitsPerCase);
+				numUnits = totalQuantity % product.unitsPerCase;
+			}
+		} else {
+			totalQuantity = numCases * product.unitsPerCase + numUnits;
+		}
 
 		// Update product stock
 		product.stock += totalQuantity;
+		if (body.purchaseRate !== undefined && body.purchaseRate >= 0) {
+			product.purchaseRate = body.purchaseRate;
+		}
+		if (body.sellingRate !== undefined && body.sellingRate >= 0) {
+			product.sellingRate = body.sellingRate;
+		}
+		if (body.batchNo) {
+			product.batchNo = body.batchNo;
+		}
+		if (body.expiryDate) {
+			product.expiryDate = new Date(body.expiryDate);
+		}
 		await product.save();
 
 		// Create transaction record
@@ -57,8 +85,13 @@ app.post(
 			productId: body.productId,
 			type: "PURCHASE",
 			quantity: totalQuantity,
-			cases: body.cases,
-			units: body.units,
+			cases: numCases,
+			units: numUnits,
+			batchNo: body.batchNo,
+			mfgDate: body.mfgDate ? new Date(body.mfgDate) : undefined,
+			expiryDate: body.expiryDate ? new Date(body.expiryDate) : undefined,
+			purchaseRate: body.purchaseRate,
+			supplier: body.supplier,
 			note: body.note,
 			createdBy: user.id,
 		});

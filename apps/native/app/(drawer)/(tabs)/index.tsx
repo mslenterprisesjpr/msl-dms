@@ -1,842 +1,655 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import { Button, Card, Typography } from "heroui-native";
-import React from "react";
-import { Pressable, RefreshControl, ScrollView, View } from "react-native";
-import { withUniwind } from "uniwind";
+import { router, useNavigation } from "expo-router";
+import { Input, useToast } from "heroui-native";
+import React, { useMemo, useState } from "react";
+import {
+	ActivityIndicator,
+	Pressable,
+	RefreshControl,
+	ScrollView,
+	Text,
+	View,
+} from "react-native";
 
 import { Container } from "@/components/container";
+import { DialogModal } from "@/components/dialog-modal";
+import { useCustomers } from "@/hooks/queries/use-customers";
 import { useAdminStats, useWorkerStats } from "@/hooks/queries/use-dashboard";
+import { useProducts } from "@/hooks/queries/use-products";
+import { useCreateSale, useSales } from "@/hooks/queries/use-sales";
 import { useSession } from "@/lib/hooks/use-session";
+import { useAppModeStore } from "@/lib/stores/app-mode-store";
+import { useOrganizationStore } from "@/lib/stores/organization-store";
 
-const StyledIonicons = withUniwind(Ionicons);
+// Custom UPI Icon replicating the dual-chevron payment mark
+function UpiBadgeIcon({ size = 18 }: { size?: number }) {
+	return (
+		<View className="flex-row items-center justify-center">
+			<Ionicons
+				name="chevron-forward"
+				size={size}
+				color="#0d9488"
+				style={{ marginRight: -size * 0.45 }}
+			/>
+			<Ionicons name="chevron-forward" size={size} color="#1e293b" />
+		</View>
+	);
+}
+
+// Custom Banknote Icon badge
+function CashBadgeIcon({ size = 18 }: { size?: number }) {
+	return (
+		<View className="flex-row items-center justify-center rounded border border-emerald-500/80 px-1 py-0.5">
+			<Ionicons name="cash-outline" size={size} color="#10b981" />
+		</View>
+	);
+}
 
 export default function Home() {
-	const { session, user, isLoading, refetch: refetchSession } = useSession();
-	const [refreshing, setRefreshing] = React.useState(false);
-	const refetchRef = React.useRef<(() => Promise<void>) | null>(null);
+	const navigation = useNavigation();
+	const {
+		user,
+		isLoading: isSessionLoading,
+		refetch: refetchSession,
+	} = useSession();
+	const currentOrg = useOrganizationStore((state) => state.getCurrentOrg());
+	const { mode } = useAppModeStore();
+	const { toast } = useToast();
 
-	// Determine user role
-	const isAdmin = user?.role === "admin";
-	const isWorker = user?.role === "worker";
+	const [refreshing, setRefreshing] = useState(false);
+	const [createBillModalVisible, setCreateBillModalVisible] = useState(false);
+
+	// New Bill Form State
+	const [selectedCustomerId, setSelectedCustomerId] = useState("");
+	const [billAmount, setBillAmount] = useState("");
+	const [paymentMethod, setPaymentMethod] = useState<"CASH" | "UPI">("CASH");
+	const [isSubmittingBill, setIsSubmittingBill] = useState(false);
+
+	const isAdmin = mode === "admin";
+	const isWorker = mode === "worker";
+
+	// Real Data Queries
+	const {
+		data: adminStats,
+		refetch: refetchAdminStats,
+		isLoading: isAdminLoading,
+	} = useAdminStats({ enabled: isAdmin });
+
+	const {
+		data: workerStats,
+		refetch: refetchWorkerStats,
+		isLoading: isWorkerLoading,
+	} = useWorkerStats(user?.id, { enabled: isWorker });
+
+	const {
+		data: salesResponse,
+		refetch: refetchSales,
+		isLoading: isSalesLoading,
+	} = useSales({ limit: 5 });
+
+	const {
+		data: productsResponse,
+		refetch: refetchProducts,
+		isLoading: isProductsLoading,
+	} = useProducts({ limit: 50, isActive: true });
+
+	const { data: customersResponse } = useCustomers({ limit: 20 });
+	const createSaleMutation = useCreateSale();
+
+	// Update navigation title with real active organization name
+	React.useEffect(() => {
+		const orgTitle = currentOrg?.name || "Campa Distribution";
+		navigation.setOptions({
+			headerTitle: orgTitle,
+		});
+	}, [currentOrg, navigation]);
 
 	const onRefresh = React.useCallback(async () => {
 		setRefreshing(true);
 		try {
-			// Refetch session
-			await refetchSession();
-
-			// Refetch dashboard data if refetch function is provided
-			if (refetchRef.current) {
-				await refetchRef.current();
-			}
+			await Promise.all([
+				refetchSession(),
+				isAdmin ? refetchAdminStats() : refetchWorkerStats(),
+				refetchSales(),
+				refetchProducts(),
+			]);
 		} catch (error) {
 			console.error("Refresh error:", error);
 		} finally {
 			setRefreshing(false);
 		}
-	}, [refetchSession]);
+	}, [
+		refetchSession,
+		isAdmin,
+		refetchAdminStats,
+		refetchWorkerStats,
+		refetchSales,
+		refetchProducts,
+	]);
 
-	if (isLoading) {
-		return (
-			<Container className="flex-1 items-center justify-center p-6">
-				<Typography variant="body" className="text-foreground/60">
-					Loading...
-				</Typography>
-			</Container>
-		);
-	}
+	// REAL KPI Values from backend (no dummy data)
+	const activeStats = isAdmin ? adminStats : workerStats;
 
-	if (!user) {
-		return (
-			<Container className="flex-1 items-center justify-center p-6">
-				<Card className="items-center p-8">
-					<StyledIonicons
-						name="log-in-outline"
-						size={48}
-						className="text-foreground/30"
-					/>
-					<Typography variant="title2" className="mt-4 mb-2 text-foreground">
-						Please Login
-					</Typography>
-					<Typography variant="body" className="text-center text-foreground/60">
-						Login to access the dashboard
-					</Typography>
-				</Card>
-			</Container>
-		);
-	}
+	const todaySales = activeStats?.todaySales ?? 0;
+	const billsCount = activeStats?.todayBillsCount ?? 0;
+	const cashAmount = activeStats?.todayCash ?? 0;
+	const upiAmount = activeStats?.todayUpi ?? 0;
+	const growthPercentage = activeStats?.growthPercentage ?? 0;
+
+	// REAL Low Stock Items from Database
+	const lowStockAlerts = useMemo(() => {
+		const products = productsResponse?.data || [];
+		return products
+			.filter((p) => {
+				const stock = p.stock ?? 0;
+				const min = (p.minimumStock || 0) * (p.unitsPerCase || 1);
+				return stock <= min || stock <= 10;
+			})
+			.slice(0, 5)
+			.map((p) => {
+				const stock = p.stock ?? 0;
+				return {
+					id: p._id,
+					name: `${p.name}${p.packSize ? ` ${p.packSize}` : ""}`.trim(),
+					quantity: `${stock} ${p.unit || "pcs"}`,
+					isCritical: stock <= 3,
+				};
+			});
+	}, [productsResponse?.data]);
+
+	// REAL Recent Bills from Database
+	const recentBills = useMemo(() => {
+		const sales = salesResponse?.data || [];
+		return sales.slice(0, 5).map((sale) => {
+			const timeStr = sale.createdAt
+				? new Date(sale.createdAt).toLocaleTimeString([], {
+						hour: "2-digit",
+						minute: "2-digit",
+					})
+				: "--:--";
+			return {
+				id: sale._id,
+				billNo: sale.invoiceNo
+					? `#${sale.invoiceNo}`
+					: `#BILL-${sale._id.slice(-4).toUpperCase()}`,
+				amount: `₹${(sale.total || 0).toLocaleString("en-IN")}`,
+				time: timeStr,
+			};
+		});
+	}, [salesResponse?.data]);
+
+	// Handle Create Bill Submission (Saves real record to DB)
+	const handleCreateBill = async () => {
+		const numericAmount = Number.parseFloat(billAmount);
+		if (!numericAmount || numericAmount <= 0) {
+			toast.show({
+				variant: "danger",
+				label: "Please enter a valid bill amount",
+			});
+			return;
+		}
+
+		setIsSubmittingBill(true);
+		try {
+			const invoiceNo = `BILL-${Date.now().toString().slice(-4)}`;
+			const customerId =
+				selectedCustomerId ||
+				customersResponse?.data?.[0]?._id ||
+				"WALK_IN_CUSTOMER";
+
+			await createSaleMutation.mutateAsync({
+				invoiceNo,
+				customerId,
+				workerId: user?.id || "DIRECT",
+				total: numericAmount,
+				subtotal: numericAmount,
+				paidAmount: numericAmount,
+				pendingAmount: 0,
+				paymentStatus: "PAID",
+				status: "CONFIRMED",
+				createdBy: user?.id || "DIRECT",
+			});
+
+			toast.show({
+				variant: "success",
+				label: `Bill ${invoiceNo} created successfully!`,
+			});
+			setBillAmount("");
+			setSelectedCustomerId("");
+			setCreateBillModalVisible(false);
+
+			// Refresh dashboard to show the newly created bill and updated sales
+			await onRefresh();
+		} catch (error: any) {
+			console.error("Bill creation error:", error);
+			toast.show({
+				variant: "danger",
+				label: error?.message || "Failed to create bill",
+			});
+		} finally {
+			setIsSubmittingBill(false);
+		}
+	};
+
+	const isLoadingInitial =
+		isSessionLoading || (isAdmin ? isAdminLoading : isWorkerLoading);
 
 	return (
-		<Container className="flex-1" isScrollable={false}>
+		<Container
+			className="flex-1 bg-slate-50 dark:bg-zinc-950"
+			isScrollable={false}
+		>
 			<ScrollView
 				className="flex-1"
-				contentContainerStyle={{ padding: 16 }}
+				contentContainerStyle={{
+					paddingHorizontal: 16,
+					paddingTop: 12,
+					paddingBottom: 24,
+				}}
 				showsVerticalScrollIndicator={false}
 				refreshControl={
 					<RefreshControl
 						refreshing={refreshing}
 						onRefresh={onRefresh}
-						tintColor="#0ea5e9"
-						colors={["#0ea5e9"]}
+						tintColor="#f95a24"
+						colors={["#f95a24"]}
 					/>
 				}
 			>
-				{/* Header */}
-				<View className="mb-6">
-					<Typography variant="title1" className="text-foreground">
-						Dashboard
-					</Typography>
-					<Typography variant="body" className="mt-1 text-foreground/60">
-						Welcome back, {user.name || user.email}
-					</Typography>
-					{isAdmin && (
-						<View className="mt-2">
-							<View className="inline-flex self-start rounded-full bg-accent/10 px-3 py-1">
-								<Typography variant="caption" className="text-accent">
-									Admin Access
-								</Typography>
-							</View>
+				{/* 2x2 STATS CARDS GRID */}
+				{/* ROW 1: Today's Sales & Bills */}
+				<View className="mb-3 flex-row gap-3">
+					{/* Today's Sales */}
+					<View className="flex-1 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+						<View className="flex-row items-center justify-between">
+							<Text className="font-semibold text-slate-800 text-sm dark:text-zinc-200">
+								Today's Sales
+							</Text>
+							<Ionicons name="stats-chart" size={18} color="#0d9488" />
 						</View>
-					)}
-					{isWorker && (
-						<View className="mt-2">
-							<View className="inline-flex self-start rounded-full bg-success/10 px-3 py-1">
-								<Typography variant="caption" className="text-success">
-									Worker
-								</Typography>
-							</View>
+						<Text className="my-1.5 font-black text-2xl text-slate-900 tracking-tight dark:text-white">
+							₹{todaySales.toLocaleString("en-IN")}
+						</Text>
+						<View className="flex-row items-center">
+							<Text
+								className={`font-bold text-xs ${
+									growthPercentage >= 0
+										? "text-emerald-600 dark:text-emerald-400"
+										: "text-red-500"
+								}`}
+							>
+								{growthPercentage >= 0 ? "↑" : "↓"} {Math.abs(growthPercentage)}
+								%
+							</Text>
+							<Text className="ml-1 font-medium text-slate-400 text-xs dark:text-zinc-500">
+								vs yesterday
+							</Text>
 						</View>
-					)}
+					</View>
+
+					{/* Bills */}
+					<View className="flex-1 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+						<View className="flex-row items-center justify-between">
+							<Text className="font-semibold text-slate-800 text-sm dark:text-zinc-200">
+								Bills
+							</Text>
+							<Ionicons name="receipt-outline" size={19} color="#64748b" />
+						</View>
+						<Text className="my-1.5 font-black text-2xl text-slate-900 tracking-tight dark:text-white">
+							{billsCount}
+						</Text>
+						<View className="h-4" />
+					</View>
 				</View>
 
-				{/* Admin Dashboard */}
-				{isAdmin && <AdminDashboard refetchRef={refetchRef} />}
+				{/* ROW 2: Cash & UPI */}
+				<View className="mb-4 flex-row gap-3">
+					{/* Cash */}
+					<View className="flex-1 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+						<View className="flex-row items-center justify-between">
+							<Text className="font-semibold text-slate-800 text-sm dark:text-zinc-200">
+								Cash
+							</Text>
+							<CashBadgeIcon size={16} />
+						</View>
+						<Text className="my-1.5 font-black text-2xl text-slate-900 tracking-tight dark:text-white">
+							₹{cashAmount.toLocaleString("en-IN")}
+						</Text>
+					</View>
 
-				{/* Worker Dashboard */}
-				{isWorker && <WorkerDashboard refetchRef={refetchRef} />}
+					{/* UPI */}
+					<View className="flex-1 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+						<View className="flex-row items-center justify-between">
+							<Text className="font-semibold text-slate-800 text-sm dark:text-zinc-200">
+								UPI
+							</Text>
+							<UpiBadgeIcon size={18} />
+						</View>
+						<Text className="my-1.5 font-black text-2xl text-slate-900 tracking-tight dark:text-white">
+							₹{upiAmount.toLocaleString("en-IN")}
+						</Text>
+					</View>
+				</View>
 
-				{/* Default Dashboard for other roles */}
-				{!isAdmin && !isWorker && <DefaultDashboard />}
+				{/* ACTION BUTTONS (Create Bill & Add Stock) */}
+				<View className="mb-4 flex-row gap-3">
+					{/* Create Bill Button */}
+					<Pressable
+						onPress={() => setCreateBillModalVisible(true)}
+						className="flex-1 flex-row items-center justify-center rounded-2xl bg-[#f95a24] px-4 py-3.5 shadow-sm active:opacity-90"
+					>
+						<Ionicons name="add" size={22} color="#ffffff" />
+						<Text className="ml-1.5 font-bold text-base text-white">
+							Create Bill
+						</Text>
+					</Pressable>
+
+					{/* Add Stock Button */}
+					<Pressable
+						onPress={() => router.push("/stock" as any)}
+						className="flex-1 flex-row items-center justify-center rounded-2xl bg-[#0d9488] px-4 py-3.5 shadow-sm active:opacity-90"
+					>
+						<Ionicons name="cube-outline" size={20} color="#ffffff" />
+						<Text className="ml-1.5 font-bold text-base text-white">
+							Add Stock
+						</Text>
+					</Pressable>
+				</View>
+
+				{/* LOW STOCK ALERTS CARD */}
+				<View className="mb-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+					{/* Card Header */}
+					<View className="flex-row items-center justify-between pb-3">
+						<View className="flex-row items-center">
+							<Ionicons name="warning" size={18} color="#f97316" />
+							<Text className="ml-2 font-bold text-base text-slate-900 dark:text-white">
+								Low Stock Alerts
+							</Text>
+						</View>
+						<Pressable onPress={() => router.push("/stock" as any)} hitSlop={8}>
+							<Text className="font-semibold text-[#0284c7] text-sm dark:text-[#38bdf8]">
+								View All
+							</Text>
+						</Pressable>
+					</View>
+
+					{/* Items List */}
+					<View>
+						{isProductsLoading ? (
+							<View className="items-center py-4">
+								<ActivityIndicator size="small" color="#f97316" />
+							</View>
+						) : lowStockAlerts.length === 0 ? (
+							<View className="items-center py-4">
+								<Ionicons
+									name="checkmark-circle-outline"
+									size={24}
+									color="#10b981"
+								/>
+								<Text className="mt-1 text-slate-500 text-xs dark:text-zinc-400">
+									All inventory stock levels are healthy
+								</Text>
+							</View>
+						) : (
+							lowStockAlerts.map((item, index) => (
+								<View key={item.id}>
+									{index > 0 && (
+										<View className="h-px bg-slate-100 dark:bg-zinc-800" />
+									)}
+									<Pressable
+										onPress={() => router.push("/stock" as any)}
+										className="flex-row items-center justify-between py-3 active:opacity-75"
+									>
+										<Text className="flex-1 pr-2 font-medium text-slate-800 text-sm dark:text-zinc-200">
+											{item.name}
+										</Text>
+										<Text
+											className={`font-bold text-sm ${
+												item.isCritical
+													? "text-red-500 dark:text-red-400"
+													: "text-[#f97316] dark:text-orange-400"
+											}`}
+										>
+											{item.quantity}
+										</Text>
+									</Pressable>
+								</View>
+							))
+						)}
+					</View>
+				</View>
+
+				{/* RECENT BILLS CARD */}
+				<View className="mb-6 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+					{/* Card Header */}
+					<View className="flex-row items-center justify-between pb-3">
+						<Text className="font-bold text-base text-slate-900 dark:text-white">
+							Recent Bills
+						</Text>
+						<Pressable
+							onPress={() => router.push("/billing" as any)}
+							hitSlop={8}
+						>
+							<Text className="font-semibold text-[#0284c7] text-sm dark:text-[#38bdf8]">
+								View All
+							</Text>
+						</Pressable>
+					</View>
+
+					{/* Bills List */}
+					<View>
+						{isSalesLoading ? (
+							<View className="items-center py-4">
+								<ActivityIndicator size="small" color="#0ea5e9" />
+							</View>
+						) : recentBills.length === 0 ? (
+							<View className="items-center py-4">
+								<Ionicons
+									name="document-text-outline"
+									size={24}
+									color="#94a3b8"
+								/>
+								<Text className="mt-1 text-slate-500 text-xs dark:text-zinc-400">
+									No bills created yet today
+								</Text>
+							</View>
+						) : (
+							recentBills.map((bill, index) => (
+								<View key={bill.id}>
+									{index > 0 && (
+										<View className="h-px bg-slate-100 dark:bg-zinc-800" />
+									)}
+									<Pressable
+										onPress={() => router.push("/billing" as any)}
+										className="flex-row items-center justify-between py-3 active:opacity-75"
+									>
+										{/* Bill Number */}
+										<Text className="flex-1 font-semibold text-slate-800 text-sm dark:text-zinc-200">
+											{bill.billNo}
+										</Text>
+
+										{/* Bill Amount */}
+										<Text className="flex-1 text-center font-bold text-slate-900 text-sm dark:text-white">
+											{bill.amount}
+										</Text>
+
+										{/* Time & Chevron */}
+										<View className="flex-row items-center justify-end">
+											<Text className="mr-1.5 text-slate-400 text-xs dark:text-zinc-500">
+												{bill.time}
+											</Text>
+											<Ionicons
+												name="chevron-forward"
+												size={14}
+												color="#94a3b8"
+											/>
+										</View>
+									</Pressable>
+								</View>
+							))
+						)}
+					</View>
+				</View>
 			</ScrollView>
+
+			{/* CREATE BILL DIALOG MODAL */}
+			<DialogModal
+				visible={createBillModalVisible}
+				onClose={() => setCreateBillModalVisible(false)}
+				title="Create New Bill"
+				subtitle="Generate quick bill and record payment"
+				footer={
+					<View className="flex-row gap-3">
+						<Pressable
+							className="flex-1 items-center justify-center rounded-xl border border-slate-200 py-3 dark:border-zinc-800"
+							onPress={() => setCreateBillModalVisible(false)}
+							disabled={isSubmittingBill}
+						>
+							<Text className="font-semibold text-slate-700 dark:text-zinc-300">
+								Cancel
+							</Text>
+						</Pressable>
+						<Pressable
+							className="flex-1 items-center justify-center rounded-xl bg-[#f95a24] py-3 active:opacity-90"
+							onPress={handleCreateBill}
+							disabled={isSubmittingBill}
+						>
+							{isSubmittingBill ? (
+								<ActivityIndicator size="small" color="#ffffff" />
+							) : (
+								<Text className="font-bold text-white">Create Bill</Text>
+							)}
+						</Pressable>
+					</View>
+				}
+			>
+				<View className="gap-4">
+					{/* Bill Amount */}
+					<View>
+						<Text className="mb-1 font-semibold text-slate-800 text-sm dark:text-zinc-200">
+							Bill Amount (₹) *
+						</Text>
+						<Input
+							placeholder="Enter amount (e.g. 1250)"
+							value={billAmount}
+							onChangeText={setBillAmount}
+							keyboardType="numeric"
+						/>
+					</View>
+
+					{/* Payment Method */}
+					<View>
+						<Text className="mb-1.5 font-semibold text-slate-800 text-sm dark:text-zinc-200">
+							Payment Method
+						</Text>
+						<View className="flex-row gap-3">
+							<Pressable
+								onPress={() => setPaymentMethod("CASH")}
+								className={`flex-1 flex-row items-center justify-center rounded-xl border p-3 ${
+									paymentMethod === "CASH"
+										? "border-[#f95a24] bg-[#f95a24]/10"
+										: "border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
+								}`}
+							>
+								<Ionicons
+									name="cash-outline"
+									size={18}
+									color={paymentMethod === "CASH" ? "#f95a24" : "#64748b"}
+								/>
+								<Text
+									className={`ml-2 font-semibold text-sm ${
+										paymentMethod === "CASH"
+											? "text-[#f95a24]"
+											: "text-slate-700 dark:text-zinc-300"
+									}`}
+								>
+									Cash
+								</Text>
+							</Pressable>
+
+							<Pressable
+								onPress={() => setPaymentMethod("UPI")}
+								className={`flex-1 flex-row items-center justify-center rounded-xl border p-3 ${
+									paymentMethod === "UPI"
+										? "border-[#0d9488] bg-[#0d9488]/10"
+										: "border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
+								}`}
+							>
+								<Ionicons
+									name="flash-outline"
+									size={18}
+									color={paymentMethod === "UPI" ? "#0d9488" : "#64748b"}
+								/>
+								<Text
+									className={`ml-2 font-semibold text-sm ${
+										paymentMethod === "UPI"
+											? "text-[#0d9488]"
+											: "text-slate-700 dark:text-zinc-300"
+									}`}
+								>
+									UPI
+								</Text>
+							</Pressable>
+						</View>
+					</View>
+
+					{/* Customer Selection */}
+					<View>
+						<Text className="mb-1.5 font-semibold text-slate-800 text-sm dark:text-zinc-200">
+							Customer
+						</Text>
+						{customersResponse?.data && customersResponse.data.length > 0 ? (
+							<ScrollView horizontal showsHorizontalScrollIndicator={false}>
+								<View className="flex-row gap-2">
+									<Pressable
+										onPress={() => setSelectedCustomerId("")}
+										className={`rounded-lg border px-3 py-1.5 ${
+											!selectedCustomerId
+												? "border-[#f95a24] bg-[#f95a24]/10"
+												: "border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
+										}`}
+									>
+										<Text
+											className={`font-semibold text-xs ${
+												!selectedCustomerId
+													? "text-[#f95a24]"
+													: "text-slate-700 dark:text-zinc-300"
+											}`}
+										>
+											Counter / Walk-in
+										</Text>
+									</Pressable>
+									{customersResponse.data.slice(0, 5).map((cust) => (
+										<Pressable
+											key={cust._id}
+											onPress={() => setSelectedCustomerId(cust._id)}
+											className={`rounded-lg border px-3 py-1.5 ${
+												selectedCustomerId === cust._id
+													? "border-[#f95a24] bg-[#f95a24]/10"
+													: "border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
+											}`}
+										>
+											<Text
+												className={`font-semibold text-xs ${
+													selectedCustomerId === cust._id
+														? "text-[#f95a24]"
+														: "text-slate-700 dark:text-zinc-300"
+												}`}
+											>
+												{cust.name}
+											</Text>
+										</Pressable>
+									))}
+								</View>
+							</ScrollView>
+						) : (
+							<Text className="text-slate-500 text-xs dark:text-zinc-400">
+								Walk-in Counter Customer
+							</Text>
+						)}
+					</View>
+				</View>
+			</DialogModal>
 		</Container>
-	);
-}
-
-// Admin Dashboard Component
-function AdminDashboard({
-	refetchRef,
-}: {
-	refetchRef: React.MutableRefObject<(() => Promise<void>) | null>;
-}) {
-	const { data: stats, refetch: refetchStats } = useAdminStats();
-
-	const totalProducts = stats?.totalProducts ?? 0;
-	const totalCustomers = stats?.totalCustomers ?? 0;
-	const pendingOrders = stats?.pendingOrders ?? 0;
-	const lowStockCount = stats?.lowStockCount ?? 0;
-	const monthlyRevenue = stats?.monthlyRevenue ?? 0;
-	const todaySales = stats?.todaySales ?? 0;
-	const totalOutstanding = stats?.totalOutstanding ?? 0;
-	const todayCollection = stats?.todayCollection ?? 0;
-
-	// Store refetch function in ref
-	React.useEffect(() => {
-		refetchRef.current = async () => {
-			await refetchStats();
-		};
-	}, [refetchStats, refetchRef]);
-
-	const quickActions = [
-		{
-			icon: "cube-outline" as const,
-			title: "Products",
-			description: "Manage products & inventory",
-			route: "/products",
-			color: "text-accent",
-			bg: "bg-accent/10",
-		},
-		{
-			icon: "people-outline" as const,
-			title: "Customers",
-			description: "View & manage customers",
-			route: "/customers",
-			color: "text-success",
-			bg: "bg-success/10",
-		},
-		{
-			icon: "business-outline" as const,
-			title: "Organizations",
-			description: "Manage organizations",
-			route: "/organizations",
-			color: "text-warning",
-			bg: "bg-warning/10",
-		},
-		{
-			icon: "settings-outline" as const,
-			title: "Settings",
-			description: "App settings & preferences",
-			route: "/settings",
-			color: "text-foreground",
-			bg: "bg-default",
-		},
-	];
-
-	return (
-		<View>
-			{/* Sales & Finance Overview */}
-			<View className="mb-6">
-				<Typography variant="title2" className="mb-3 text-foreground">
-					Sales & Finance
-				</Typography>
-				<View className="flex-row flex-wrap gap-3">
-					{/* Monthly Revenue */}
-					<Card className="min-w-[45%] flex-1">
-						<View className="p-4">
-							<View className="mb-2 flex-row items-center justify-between">
-								<View className="rounded-full bg-success/10 p-2">
-									<StyledIonicons
-										name="cash-outline"
-										size={20}
-										className="text-success"
-									/>
-								</View>
-								<StyledIonicons
-									name="trending-up"
-									size={16}
-									className="text-success"
-								/>
-							</View>
-							<Typography
-								variant="title1"
-								className="font-bold text-foreground"
-							>
-								₹{monthlyRevenue.toLocaleString("en-IN")}
-							</Typography>
-							<Typography variant="caption" className="text-foreground/60">
-								Revenue (Month)
-							</Typography>
-						</View>
-					</Card>
-
-					{/* Today's Sales */}
-					<Card className="min-w-[45%] flex-1">
-						<View className="p-4">
-							<View className="mb-2 flex-row items-center justify-between">
-								<View className="rounded-full bg-accent/10 p-2">
-									<StyledIonicons
-										name="trending-up-outline"
-										size={20}
-										className="text-accent"
-									/>
-								</View>
-							</View>
-							<Typography
-								variant="title1"
-								className="font-bold text-foreground"
-							>
-								₹{todaySales.toLocaleString("en-IN")}
-							</Typography>
-							<Typography variant="caption" className="text-foreground/60">
-								Today's Sales
-							</Typography>
-						</View>
-					</Card>
-
-					{/* Market Outstanding */}
-					<Card className="min-w-[45%] flex-1">
-						<View className="p-4">
-							<View className="mb-2 flex-row items-center justify-between">
-								<View className="rounded-full bg-danger/10 p-2">
-									<StyledIonicons
-										name="time-outline"
-										size={20}
-										className="text-danger"
-									/>
-								</View>
-								{totalOutstanding > 0 && (
-									<StyledIonicons
-										name="alert-circle"
-										size={16}
-										className="text-danger"
-									/>
-								)}
-							</View>
-							<Typography variant="title1" className="font-bold text-danger">
-								₹{totalOutstanding.toLocaleString("en-IN")}
-							</Typography>
-							<Typography variant="caption" className="text-foreground/60">
-								Market Outstanding
-							</Typography>
-						</View>
-					</Card>
-
-					{/* Today's Collection */}
-					<Card className="min-w-[45%] flex-1">
-						<View className="p-4">
-							<View className="mb-2 flex-row items-center justify-between">
-								<View className="rounded-full bg-primary/10 p-2">
-									<StyledIonicons
-										name="wallet-outline"
-										size={20}
-										className="text-primary"
-									/>
-								</View>
-								<StyledIonicons
-									name="checkmark-circle"
-									size={16}
-									className="text-success"
-								/>
-							</View>
-							<Typography
-								variant="title1"
-								className="font-bold text-foreground"
-							>
-								₹{todayCollection.toLocaleString("en-IN")}
-							</Typography>
-							<Typography variant="caption" className="text-foreground/60">
-								Today's Collection
-							</Typography>
-						</View>
-					</Card>
-				</View>
-			</View>
-
-			{/* Inventory & Operations */}
-			<View className="mb-6">
-				<Typography variant="title2" className="mb-3 text-foreground">
-					Inventory & Orders
-				</Typography>
-				<View className="flex-row flex-wrap gap-3">
-					{/* Total Products */}
-					<Card className="min-w-[45%] flex-1">
-						<View className="p-4">
-							<View className="mb-2 flex-row items-center justify-between">
-								<View className="rounded-full bg-accent/10 p-2">
-									<StyledIonicons
-										name="cube-outline"
-										size={20}
-										className="text-accent"
-									/>
-								</View>
-							</View>
-							<Typography
-								variant="title1"
-								className="font-bold text-foreground"
-							>
-								{totalProducts}
-							</Typography>
-							<Typography variant="caption" className="text-foreground/60">
-								Total Products
-							</Typography>
-						</View>
-					</Card>
-
-					{/* Total Customers */}
-					<Card className="min-w-[45%] flex-1">
-						<View className="p-4">
-							<View className="mb-2 flex-row items-center justify-between">
-								<View className="rounded-full bg-success/10 p-2">
-									<StyledIonicons
-										name="people-outline"
-										size={20}
-										className="text-success"
-									/>
-								</View>
-							</View>
-							<Typography
-								variant="title1"
-								className="font-bold text-foreground"
-							>
-								{totalCustomers}
-							</Typography>
-							<Typography variant="caption" className="text-foreground/60">
-								Total Customers
-							</Typography>
-						</View>
-					</Card>
-
-					{/* Pending Orders */}
-					<Card className="min-w-[45%] flex-1">
-						<View className="p-4">
-							<View className="mb-2 flex-row items-center justify-between">
-								<View className="rounded-full bg-warning/10 p-2">
-									<StyledIonicons
-										name="cart-outline"
-										size={20}
-										className="text-warning"
-									/>
-								</View>
-								{pendingOrders > 0 && (
-									<StyledIonicons
-										name="hourglass-outline"
-										size={16}
-										className="text-warning"
-									/>
-								)}
-							</View>
-							<Typography
-								variant="title1"
-								className="font-bold text-foreground"
-							>
-								{pendingOrders}
-							</Typography>
-							<Typography variant="caption" className="text-foreground/60">
-								Pending Orders
-							</Typography>
-						</View>
-					</Card>
-
-					{/* Low Stock Items */}
-					<Card className="min-w-[45%] flex-1">
-						<View className="p-4">
-							<View className="mb-2 flex-row items-center justify-between">
-								<View
-									className={`rounded-full p-2 ${
-										lowStockCount > 0 ? "bg-danger/10" : "bg-default"
-									}`}
-								>
-									<StyledIonicons
-										name="alert-circle-outline"
-										size={20}
-										className={
-											lowStockCount > 0 ? "text-danger" : "text-foreground/60"
-										}
-									/>
-								</View>
-								{lowStockCount > 0 && (
-									<StyledIonicons
-										name="warning"
-										size={16}
-										className="text-danger"
-									/>
-								)}
-							</View>
-							<Typography
-								variant="title1"
-								className={`font-bold ${
-									lowStockCount > 0 ? "text-danger" : "text-foreground"
-								}`}
-							>
-								{lowStockCount}
-							</Typography>
-							<Typography variant="caption" className="text-foreground/60">
-								Low Stock Alert
-							</Typography>
-						</View>
-					</Card>
-				</View>
-			</View>
-
-			{/* Quick Actions */}
-			<View>
-				<Typography variant="title2" className="mb-4 text-foreground">
-					Quick Actions
-				</Typography>
-				<View className="gap-3">
-					{quickActions.map((action) => (
-						<Pressable
-							key={action.route}
-							onPress={() => router.push(action.route as any)}
-						>
-							<Card>
-								<View className="flex-row items-center p-4">
-									<View className={`mr-4 rounded-full p-3 ${action.bg}`}>
-										<StyledIonicons
-											name={action.icon}
-											size={24}
-											className={action.color}
-										/>
-									</View>
-									<View className="flex-1">
-										<Typography
-											variant="body"
-											className="font-semibold text-foreground"
-										>
-											{action.title}
-										</Typography>
-										<Typography
-											variant="caption"
-											className="mt-1 text-foreground/60"
-										>
-											{action.description}
-										</Typography>
-									</View>
-									<StyledIonicons
-										name="chevron-forward"
-										size={20}
-										className="text-foreground/40"
-									/>
-								</View>
-							</Card>
-						</Pressable>
-					))}
-				</View>
-			</View>
-		</View>
-	);
-}
-
-// Worker Dashboard Component
-function WorkerDashboard({
-	refetchRef,
-}: {
-	refetchRef: React.MutableRefObject<(() => Promise<void>) | null>;
-}) {
-	const { data: stats, refetch: refetchStats } = useWorkerStats();
-
-	const todaySales = stats?.todaySales ?? 0;
-	const todayOrders = stats?.todayOrders ?? 0;
-	const todayCollection = stats?.todayCollection ?? 0;
-	const monthlySales = stats?.monthlySales ?? 0;
-	const totalStockItems = stats?.totalStockItems ?? 0;
-	const totalUnitsInHand = stats?.totalUnitsInHand ?? 0;
-	const issuedToday = stats?.issuedToday ?? 0;
-	const lowStockItems = stats?.lowStockItems ?? 0;
-
-	// Store refetch function in ref
-	React.useEffect(() => {
-		refetchRef.current = async () => {
-			await refetchStats();
-		};
-	}, [refetchStats, refetchRef]);
-
-	const workerActions = [
-		{
-			icon: "cube-outline" as const,
-			title: "My Stock",
-			description: "View assigned stock",
-			route: "/worker-stock",
-			color: "text-accent",
-			bg: "bg-accent/10",
-		},
-		{
-			icon: "add-circle-outline" as const,
-			title: "Issue Stock",
-			description: "Issue stock to customers",
-			route: "/worker-stock/issue",
-			color: "text-warning",
-			bg: "bg-warning/10",
-		},
-		{
-			icon: "return-down-back-outline" as const,
-			title: "Return Stock",
-			description: "Return stock to inventory",
-			route: "/worker-stock/return",
-			color: "text-success",
-			bg: "bg-success/10",
-		},
-		{
-			icon: "person-outline" as const,
-			title: "Profile",
-			description: "View your profile",
-			route: "/settings/profile",
-			color: "text-foreground",
-			bg: "bg-default",
-		},
-	];
-
-	return (
-		<View>
-			{/* Field Work & Sales */}
-			<View className="mb-6">
-				<Typography variant="title2" className="mb-3 text-foreground">
-					Today's Field Work
-				</Typography>
-				<View className="flex-row flex-wrap gap-3">
-					{/* Today's Sales */}
-					<Card className="min-w-[45%] flex-1">
-						<View className="p-4">
-							<View className="mb-2 flex-row items-center justify-between">
-								<View className="rounded-full bg-success/10 p-2">
-									<StyledIonicons
-										name="cash-outline"
-										size={20}
-										className="text-success"
-									/>
-								</View>
-								<StyledIonicons
-									name="trending-up"
-									size={16}
-									className="text-success"
-								/>
-							</View>
-							<Typography
-								variant="title1"
-								className="font-bold text-foreground"
-							>
-								₹{todaySales.toLocaleString("en-IN")}
-							</Typography>
-							<Typography variant="caption" className="text-foreground/60">
-								Today's Sales
-							</Typography>
-						</View>
-					</Card>
-
-					{/* Cash in Hand / Collection */}
-					<Card className="min-w-[45%] flex-1">
-						<View className="p-4">
-							<View className="mb-2 flex-row items-center justify-between">
-								<View className="rounded-full bg-primary/10 p-2">
-									<StyledIonicons
-										name="wallet-outline"
-										size={20}
-										className="text-primary"
-									/>
-								</View>
-								<StyledIonicons
-									name="checkmark-circle"
-									size={16}
-									className="text-success"
-								/>
-							</View>
-							<Typography
-								variant="title1"
-								className="font-bold text-foreground"
-							>
-								₹{todayCollection.toLocaleString("en-IN")}
-							</Typography>
-							<Typography variant="caption" className="text-foreground/60">
-								Cash Collected
-							</Typography>
-						</View>
-					</Card>
-
-					{/* Orders Booked */}
-					<Card className="min-w-[45%] flex-1">
-						<View className="p-4">
-							<View className="mb-2 flex-row items-center justify-between">
-								<View className="rounded-full bg-warning/10 p-2">
-									<StyledIonicons
-										name="cart-outline"
-										size={20}
-										className="text-warning"
-									/>
-								</View>
-							</View>
-							<Typography
-								variant="title1"
-								className="font-bold text-foreground"
-							>
-								{todayOrders}
-							</Typography>
-							<Typography variant="caption" className="text-foreground/60">
-								Orders Booked
-							</Typography>
-						</View>
-					</Card>
-
-					{/* Month's Sales */}
-					<Card className="min-w-[45%] flex-1">
-						<View className="p-4">
-							<View className="mb-2 flex-row items-center justify-between">
-								<View className="rounded-full bg-accent/10 p-2">
-									<StyledIonicons
-										name="trophy-outline"
-										size={20}
-										className="text-accent"
-									/>
-								</View>
-							</View>
-							<Typography
-								variant="title1"
-								className="font-bold text-foreground"
-							>
-								₹{monthlySales.toLocaleString("en-IN")}
-							</Typography>
-							<Typography variant="caption" className="text-foreground/60">
-								Month's Sales
-							</Typography>
-						</View>
-					</Card>
-				</View>
-			</View>
-
-			{/* Van / Bag Stock */}
-			<View className="mb-6">
-				<Typography variant="title2" className="mb-3 text-foreground">
-					My Stock & Inventory
-				</Typography>
-				<View className="flex-row flex-wrap gap-3">
-					{/* Stock Items (SKUs) */}
-					<Card className="min-w-[45%] flex-1">
-						<View className="p-4">
-							<View className="mb-2 flex-row items-center justify-between">
-								<View className="rounded-full bg-accent/10 p-2">
-									<StyledIonicons
-										name="cube-outline"
-										size={20}
-										className="text-accent"
-									/>
-								</View>
-							</View>
-							<Typography
-								variant="title1"
-								className="font-bold text-foreground"
-							>
-								{totalStockItems}
-							</Typography>
-							<Typography variant="caption" className="text-foreground/60">
-								Stock Items (SKUs)
-							</Typography>
-						</View>
-					</Card>
-
-					{/* Total Units in Hand */}
-					<Card className="min-w-[45%] flex-1">
-						<View className="p-4">
-							<View className="mb-2 flex-row items-center justify-between">
-								<View className="rounded-full bg-success/10 p-2">
-									<StyledIonicons
-										name="layers-outline"
-										size={20}
-										className="text-success"
-									/>
-								</View>
-							</View>
-							<Typography
-								variant="title1"
-								className="font-bold text-foreground"
-							>
-								{totalUnitsInHand}
-							</Typography>
-							<Typography variant="caption" className="text-foreground/60">
-								Total Units in Hand
-							</Typography>
-						</View>
-					</Card>
-
-					{/* Issued Today */}
-					<Card className="min-w-[45%] flex-1">
-						<View className="p-4">
-							<View className="mb-2 flex-row items-center justify-between">
-								<View className="rounded-full bg-default p-2">
-									<StyledIonicons
-										name="arrow-down-circle-outline"
-										size={20}
-										className="text-foreground/70"
-									/>
-								</View>
-							</View>
-							<Typography
-								variant="title1"
-								className="font-bold text-foreground"
-							>
-								{issuedToday}
-							</Typography>
-							<Typography variant="caption" className="text-foreground/60">
-								Issued Today
-							</Typography>
-						</View>
-					</Card>
-
-					{/* Low Stock Items */}
-					<Card className="min-w-[45%] flex-1">
-						<View className="p-4">
-							<View className="mb-2 flex-row items-center justify-between">
-								<View
-									className={`rounded-full p-2 ${
-										lowStockItems > 0 ? "bg-danger/10" : "bg-default"
-									}`}
-								>
-									<StyledIonicons
-										name="alert-circle-outline"
-										size={20}
-										className={
-											lowStockItems > 0 ? "text-danger" : "text-foreground/60"
-										}
-									/>
-								</View>
-								{lowStockItems > 0 && (
-									<StyledIonicons
-										name="warning"
-										size={16}
-										className="text-danger"
-									/>
-								)}
-							</View>
-							<Typography
-								variant="title1"
-								className={`font-bold ${
-									lowStockItems > 0 ? "text-danger" : "text-foreground"
-								}`}
-							>
-								{lowStockItems}
-							</Typography>
-							<Typography variant="caption" className="text-foreground/60">
-								Low Stock Alert
-							</Typography>
-						</View>
-					</Card>
-				</View>
-			</View>
-
-			{/* Quick Actions */}
-			<View>
-				<Typography variant="title2" className="mb-4 text-foreground">
-					Quick Actions
-				</Typography>
-				<View className="gap-3">
-					{workerActions.map((action) => (
-						<Pressable
-							key={action.route}
-							onPress={() => router.push(action.route as any)}
-						>
-							<Card>
-								<View className="flex-row items-center p-4">
-									<View className={`mr-4 rounded-full p-3 ${action.bg}`}>
-										<StyledIonicons
-											name={action.icon}
-											size={24}
-											className={action.color}
-										/>
-									</View>
-									<View className="flex-1">
-										<Typography
-											variant="body"
-											className="font-semibold text-foreground"
-										>
-											{action.title}
-										</Typography>
-										<Typography
-											variant="caption"
-											className="mt-1 text-foreground/60"
-										>
-											{action.description}
-										</Typography>
-									</View>
-									<StyledIonicons
-										name="chevron-forward"
-										size={20}
-										className="text-foreground/40"
-									/>
-								</View>
-							</Card>
-						</Pressable>
-					))}
-				</View>
-			</View>
-		</View>
-	);
-}
-
-// Default Dashboard for other roles
-function DefaultDashboard() {
-	return (
-		<View className="flex-1 items-center justify-center py-12">
-			<Card className="items-center p-8">
-				<StyledIonicons
-					name="information-circle-outline"
-					size={48}
-					className="text-foreground/30"
-				/>
-				<Typography variant="title2" className="mt-4 mb-2 text-foreground">
-					Welcome
-				</Typography>
-				<Typography variant="body" className="text-center text-foreground/60">
-					Your dashboard will appear here based on your role
-				</Typography>
-			</Card>
-		</View>
 	);
 }

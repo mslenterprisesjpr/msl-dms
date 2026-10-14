@@ -34,6 +34,12 @@ app.get("/admin-stats", requireAuth, requireAdmin, async (c) => {
 		now.getDate(),
 	);
 
+	const startOfYesterday = new Date(
+		now.getFullYear(),
+		now.getMonth(),
+		now.getDate() - 1,
+	);
+
 	const [
 		totalProducts,
 		totalCustomers,
@@ -41,8 +47,11 @@ app.get("/admin-stats", requireAuth, requireAdmin, async (c) => {
 		lowStockCount,
 		monthlyRevenueResult,
 		todaySalesResult,
+		yesterdaySalesResult,
+		todayBillsCount,
 		outstandingResult,
 		todayCollectionResult,
+		todayPaymentsByMethod,
 	] = await Promise.all([
 		Product.countDocuments({ orgId: orgFilter, isActive: true }),
 		Customer.countDocuments({ orgId: orgFilter, isActive: true }),
@@ -92,6 +101,26 @@ app.get("/admin-stats", requireAuth, requireAdmin, async (c) => {
 				$match: {
 					orgId: orgFilter,
 					status: { $ne: "CANCELLED" },
+					createdAt: { $gte: startOfYesterday, $lt: startOfToday },
+				},
+			},
+			{
+				$group: {
+					_id: null,
+					total: { $sum: "$total" },
+				},
+			},
+		]),
+		Sale.countDocuments({
+			orgId: orgFilter,
+			status: { $ne: "CANCELLED" },
+			createdAt: { $gte: startOfToday },
+		}),
+		Sale.aggregate([
+			{
+				$match: {
+					orgId: orgFilter,
+					status: { $ne: "CANCELLED" },
 					pendingAmount: { $gt: 0 },
 				},
 			},
@@ -116,12 +145,38 @@ app.get("/admin-stats", requireAuth, requireAdmin, async (c) => {
 				},
 			},
 		]),
+		Payment.aggregate([
+			{
+				$match: {
+					orgId: orgFilter,
+					createdAt: { $gte: startOfToday },
+				},
+			},
+			{
+				$group: {
+					_id: "$paymentMethod",
+					total: { $sum: "$amount" },
+				},
+			},
+		]),
 	]);
 
 	const monthlyRevenue = monthlyRevenueResult[0]?.total || 0;
 	const todaySales = todaySalesResult[0]?.total || 0;
+	const yesterdaySales = yesterdaySalesResult[0]?.total || 0;
 	const totalOutstanding = outstandingResult[0]?.total || 0;
 	const todayCollection = todayCollectionResult[0]?.total || 0;
+
+	const todayCash =
+		todayPaymentsByMethod.find((p: any) => p._id === "CASH")?.total || 0;
+	const todayUpi =
+		todayPaymentsByMethod.find((p: any) => p._id === "UPI")?.total || 0;
+	const growthPercentage =
+		yesterdaySales > 0
+			? Math.round(((todaySales - yesterdaySales) / yesterdaySales) * 100)
+			: todaySales > 0
+				? 100
+				: 0;
 
 	return c.json({
 		totalProducts,
@@ -132,6 +187,10 @@ app.get("/admin-stats", requireAuth, requireAdmin, async (c) => {
 		todaySales,
 		totalOutstanding,
 		todayCollection,
+		todayBillsCount,
+		todayCash,
+		todayUpi,
+		growthPercentage,
 	});
 });
 
@@ -163,6 +222,7 @@ app.get("/worker-stats", requireAuth, async (c) => {
 		totalUnitsResult,
 		issuedTodayResult,
 		lowStockItems,
+		paymentMethodsResult,
 	] = await Promise.all([
 		Sale.aggregate([
 			{
@@ -256,6 +316,21 @@ app.get("/worker-stats", requireAuth, async (c) => {
 			workerId,
 			quantity: { $gt: 0, $lte: 5 },
 		}),
+		Payment.aggregate([
+			{
+				$match: {
+					orgId: orgFilter,
+					createdBy: workerId,
+					createdAt: { $gte: startOfToday },
+				},
+			},
+			{
+				$group: {
+					_id: "$paymentMethod",
+					total: { $sum: "$amount" },
+				},
+			},
+		]),
 	]);
 
 	const todaySales = todaySalesResult[0]?.total || 0;
@@ -264,9 +339,19 @@ app.get("/worker-stats", requireAuth, async (c) => {
 	const totalUnitsInHand = totalUnitsResult[0]?.totalUnits || 0;
 	const issuedToday = issuedTodayResult[0]?.total || 0;
 
+	const todayPaymentsByMethod = paymentMethodsResult || [];
+	const todayCash =
+		todayPaymentsByMethod.find((p: any) => p._id === "CASH")?.total || 0;
+	const todayUpi =
+		todayPaymentsByMethod.find((p: any) => p._id === "UPI")?.total || 0;
+
 	return c.json({
 		todaySales,
 		todayOrders,
+		todayBillsCount: todayOrders,
+		todayCash,
+		todayUpi,
+		growthPercentage: 0,
 		todayCollection,
 		monthlySales,
 		totalStockItems,

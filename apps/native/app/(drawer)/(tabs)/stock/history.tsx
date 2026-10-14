@@ -196,10 +196,7 @@ export default function StockScreen() {
 				<Typography variant="title1" className="text-foreground">
 					Stock History
 				</Typography>
-				<Button
-					size="sm"
-					onPress={() => router.push("/(drawer)/(tabs)/products/stock-entry")}
-				>
+				<Button size="sm" onPress={() => router.push("/stock/entry" as any)}>
 					<Ionicons name="add" size={18} />
 					<Typography variant="caption" className="ml-1">
 						Entry

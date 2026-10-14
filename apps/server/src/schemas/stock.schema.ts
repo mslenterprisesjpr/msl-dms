@@ -6,14 +6,24 @@ export const purchaseStockBodySchema = z
 		productId: z.string().min(1, "Product ID is required"),
 		cases: z.number().int().min(0, "Cases must be non-negative").default(0),
 		units: z.number().int().min(0, "Units must be non-negative").default(0),
+		quantity: z.number().min(0).optional(),
+		unit: z.string().optional(),
+		batchNo: z.string().optional(),
+		mfgDate: z.string().optional(),
+		expiryDate: z.string().optional(),
+		purchaseRate: z.number().min(0).optional(),
+		sellingRate: z.number().min(0).optional(),
+		supplier: z.string().optional(),
 		note: z.string().optional(),
 	})
 	.refine(
-		(data: { cases: number; units: number }) =>
-			data.cases > 0 || data.units > 0,
+		(data) =>
+			(data.cases || 0) > 0 ||
+			(data.units || 0) > 0 ||
+			(data.quantity || 0) > 0,
 		{
-			message: "At least one of cases or units must be greater than 0",
-			path: ["cases"],
+			message: "Quantity must be greater than 0",
+			path: ["units"],
 		},
 	);
 

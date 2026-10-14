@@ -18,6 +18,8 @@ export interface Product {
 	image?: string;
 	isActive: boolean;
 	stock?: number;
+	batchNo?: string;
+	expiryDate?: string;
 	stockDisplay?: string;
 	stockInCases?: number;
 	createdAt: string;

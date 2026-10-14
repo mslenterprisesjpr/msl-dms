@@ -6,7 +6,6 @@ import { Pressable } from "react-native";
 export default function TabLayout() {
 	const themeColorForeground = useThemeColor("foreground");
 	const themeColorBackground = useThemeColor("background");
-	const themeColorAccent = useThemeColor("accent");
 	const themeColorMuted = useThemeColor("muted");
 	const navigation = useNavigation();
 
@@ -16,16 +15,26 @@ export default function TabLayout() {
 				headerShown: true,
 				headerStyle: {
 					backgroundColor: themeColorBackground,
+					elevation: 0,
+					shadowOpacity: 0,
 				},
 				headerTintColor: themeColorForeground,
 				headerTitleStyle: {
 					color: themeColorForeground,
-					fontWeight: "600",
+					fontWeight: "700",
+					fontSize: 18,
 				},
-				tabBarActiveTintColor: themeColorAccent,
+				headerTitleAlign: "left",
+				tabBarActiveTintColor: "#f95a24",
 				tabBarInactiveTintColor: themeColorMuted,
 				tabBarStyle: {
 					backgroundColor: themeColorBackground,
+					borderTopColor: "rgba(0,0,0,0.06)",
+					paddingTop: 4,
+				},
+				tabBarLabelStyle: {
+					fontSize: 11,
+					fontWeight: "600",
 				},
 				headerLeft: () => (
 					<Pressable
@@ -33,9 +42,25 @@ export default function TabLayout() {
 							// @ts-expect-error - drawer navigation type
 							navigation.openDrawer?.();
 						}}
-						className="ml-4"
+						className="mr-2 ml-4"
+						hitSlop={8}
 					>
 						<Ionicons name="menu" size={24} color={themeColorForeground} />
+					</Pressable>
+				),
+				headerRight: () => (
+					<Pressable
+						onPress={() => {
+							// Notification bell press
+						}}
+						className="mr-4 p-1"
+						hitSlop={8}
+					>
+						<Ionicons
+							name="notifications-outline"
+							size={22}
+							color={themeColorForeground}
+						/>
 					</Pressable>
 				),
 			}}
@@ -44,42 +69,55 @@ export default function TabLayout() {
 				name="index"
 				options={{
 					title: "Home",
-					headerTitle: "Home",
-					tabBarIcon: ({ color, size }) => (
-						<Ionicons name="home" size={size} color={color} />
+					headerTitle: "Campa Distribution",
+					tabBarIcon: ({ color, size, focused }) => (
+						<Ionicons
+							name={focused ? "home" : "home-outline"}
+							size={size}
+							color={color}
+						/>
 					),
 				}}
 			/>
 			<Tabs.Screen
-				name="products"
+				name="billing"
 				options={{
-					title: "Products",
-					headerTitle: "Products",
+					title: "Billing",
 					headerShown: false,
-					tabBarIcon: ({ color, size }) => (
-						<Ionicons name="cube" size={size} color={color} />
+					tabBarIcon: ({ color, size, focused }) => (
+						<Ionicons
+							name={focused ? "document-text" : "document-text-outline"}
+							size={size}
+							color={color}
+						/>
 					),
 				}}
 			/>
 			<Tabs.Screen
-				name="customers"
+				name="stock"
 				options={{
-					title: "Customers",
-					headerTitle: "Customers",
+					title: "Stock",
 					headerShown: false,
-					tabBarIcon: ({ color, size }) => (
-						<Ionicons name="people" size={size} color={color} />
+					tabBarIcon: ({ color, size, focused }) => (
+						<Ionicons
+							name={focused ? "cube" : "cube-outline"}
+							size={size}
+							color={color}
+						/>
 					),
 				}}
 			/>
 			<Tabs.Screen
-				name="worker-stock"
+				name="reports"
 				options={{
-					title: "My Stock",
-					headerTitle: "Worker Stock",
+					title: "Reports",
 					headerShown: false,
-					tabBarIcon: ({ color, size }) => (
-						<Ionicons name="briefcase" size={size} color={color} />
+					tabBarIcon: ({ color, size, focused }) => (
+						<Ionicons
+							name={focused ? "stats-chart" : "stats-chart-outline"}
+							size={size}
+							color={color}
+						/>
 					),
 				}}
 			/>
@@ -87,37 +125,26 @@ export default function TabLayout() {
 				name="settings"
 				options={{
 					title: "Settings",
-					headerTitle: "Settings",
 					headerShown: false,
-					tabBarIcon: ({ color, size }) => (
-						<Ionicons name="settings" size={size} color={color} />
+					tabBarIcon: ({ color, size, focused }) => (
+						<Ionicons
+							name={focused ? "settings" : "settings-outline"}
+							size={size}
+							color={color}
+						/>
 					),
 				}}
 			/>
 			<Tabs.Screen
 				name="organizations"
 				options={{
-					href: null, // Hide from tabs, accessible via settings
-				}}
-			/>
-			<Tabs.Screen
-				name="settings/profile"
-				options={{
-					href: null, // Hide from tabs, accessible via settings
-					headerShown: false,
-				}}
-			/>
-			<Tabs.Screen
-				name="settings/users"
-				options={{
-					href: null, // Hide from tabs, accessible via settings
-					headerShown: false,
+					href: null,
 				}}
 			/>
 			<Tabs.Screen
 				name="test-auth"
 				options={{
-					href: null, // Hide from tabs
+					href: null,
 				}}
 			/>
 		</Tabs>

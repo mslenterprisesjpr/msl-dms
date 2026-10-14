@@ -96,10 +96,10 @@ export default function IssueStockScreen() {
 		const totalUnits = casesNum * unitsPerCase + unitsNum;
 
 		// Check warehouse stock
-		if (totalUnits > selectedProduct.stock) {
+		if (totalUnits > (selectedProduct.stock || 0)) {
 			toast.show({
 				variant: "danger",
-				label: `Insufficient stock (Available: ${selectedProduct.stock} units)`,
+				label: `Insufficient stock (Available: ${selectedProduct.stock || 0} units)`,
 			});
 			return;
 		}

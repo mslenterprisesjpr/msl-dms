@@ -10,6 +10,11 @@ export interface IStockTransaction {
 	quantity: number;
 	cases: number;
 	units: number;
+	batchNo?: string;
+	mfgDate?: Date;
+	expiryDate?: Date;
+	purchaseRate?: number;
+	supplier?: string;
 	referenceId?: string;
 	note?: string;
 	createdBy: string;
@@ -69,6 +74,31 @@ const StockTransactionSchema = new Schema(
 			default: 0,
 			min: 0,
 			// Remaining units entered by user (e.g., 8 bottles)
+		},
+
+		batchNo: {
+			type: String,
+			trim: true,
+			index: true,
+		},
+
+		mfgDate: {
+			type: Date,
+		},
+
+		expiryDate: {
+			type: Date,
+			index: true,
+		},
+
+		purchaseRate: {
+			type: Number,
+			min: 0,
+		},
+
+		supplier: {
+			type: String,
+			trim: true,
 		},
 
 		referenceId: {

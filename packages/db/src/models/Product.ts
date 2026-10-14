@@ -17,6 +17,8 @@ export interface IProduct {
 	cgst?: number; // Central GST percentage
 	sgst?: number; // State GST percentage
 	stock: number;
+	batchNo?: string;
+	expiryDate?: Date;
 	image?: string;
 	isActive: boolean;
 	createdAt: Date;
@@ -130,6 +132,15 @@ const ProductSchema = new Schema(
 			default: 0,
 			min: 0,
 			// Total stock in individual units (bottles)
+		},
+
+		batchNo: {
+			type: String,
+			trim: true,
+		},
+
+		expiryDate: {
+			type: Date,
 		},
 
 		image: {
