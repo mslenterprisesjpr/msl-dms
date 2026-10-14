@@ -406,42 +406,36 @@ export default function OrganizationsScreen() {
 	// ── Render ─────────────────────────────────────────────────────────────────
 	return (
 		<Container className="flex-1">
-			{/* ── Header ── */}
-			<View className="border-border border-b bg-surface p-4">
-				<View className="flex-row items-center justify-between">
-					<View className="flex-1">
-						<Typography variant="title1" className="text-foreground">
-							Organizations
-						</Typography>
-						<Typography variant="caption" className="mt-1 text-foreground/60">
-							Manage organizations & members
-						</Typography>
-					</View>
-					<View className="flex-row gap-2">
-						<Button size="sm" variant="secondary" onPress={refetch}>
-							<StyledIonicons
-								name="refresh"
-								size={18}
-								className="text-foreground"
-							/>
-						</Button>
-						<Button size="sm" variant="primary" onPress={handleCreateOrg}>
-							<StyledIonicons
-								name="add"
-								size={18}
-								className="text-foreground"
-							/>
-						</Button>
-					</View>
-				</View>
-			</View>
-
 			{/* ── Scrollable content ── */}
 			<ScrollView
 				className="flex-1"
 				contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
 				showsVerticalScrollIndicator={false}
 			>
+				{/* Top Action Bar */}
+				<View className="mb-4 flex-row items-center justify-between">
+					<Text className="font-bold text-slate-400 text-xs uppercase tracking-wider dark:text-zinc-500">
+						Agencies & Tenants
+					</Text>
+					<View className="flex-row items-center gap-2">
+						<Pressable
+							onPress={refetch}
+							className="h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
+							hitSlop={8}
+						>
+							<Ionicons name="refresh" size={16} color={themeForeground} />
+						</Pressable>
+						<Pressable
+							onPress={handleCreateOrg}
+							className="flex-row items-center rounded-xl bg-accent px-3 py-2 shadow-sm active:opacity-90"
+						>
+							<Ionicons name="add" size={16} color="#ffffff" />
+							<Text className="ml-1 font-bold text-accent-foreground text-xs">
+								New Agency
+							</Text>
+						</Pressable>
+					</View>
+				</View>
 				{/* ── Organizations list ── */}
 				{organizations.length === 0 ? (
 					<View className="items-center justify-center py-12">

@@ -209,29 +209,20 @@ export default function IssueStockScreen() {
 
 	return (
 		<Container className="flex-1">
-			{/* Header */}
-			<View
-				className="border-border border-b bg-surface p-4"
-				style={{ paddingTop: insets.top + 16 }}
-			>
-				<View className="flex-row items-center gap-3">
-					<Button size="sm" variant="outline" onPress={() => router.back()}>
-						← Back
-					</Button>
-					<View className="flex-1">
-						<Typography variant="title1" className="text-foreground">
-							Issue Stock
-						</Typography>
-					</View>
-					{cart.length > 0 && (
-						<Chip variant="accent" size="sm">
-							{cart.length} items
-						</Chip>
-					)}
-				</View>
-			</View>
-
 			<ScrollView contentContainerStyle={{ padding: 16 }}>
+				{cart.length > 0 && (
+					<View className="mb-4 flex-row items-center justify-between rounded-xl bg-accent/10 p-3">
+						<Text className="font-semibold text-accent text-sm">
+							Cart Items
+						</Text>
+						<View className="rounded-full bg-accent px-2.5 py-0.5">
+							<Text className="font-bold text-accent-foreground text-xs">
+								{cart.length} product{cart.length > 1 ? "s" : ""}
+							</Text>
+						</View>
+					</View>
+				)}
+
 				{/* Step 1: Select Worker */}
 				<Card className="mb-4 p-4">
 					<Typography variant="title3" className="mb-3 text-foreground">

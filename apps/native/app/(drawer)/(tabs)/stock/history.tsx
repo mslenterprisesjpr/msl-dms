@@ -192,23 +192,27 @@ export default function StockScreen() {
 
 	return (
 		<Container className="flex-1" isScrollable={false}>
-			<View className="flex-row items-center justify-between border-border border-b bg-surface p-4">
-				<Typography variant="title1" className="text-foreground">
-					Stock History
-				</Typography>
-				<Button size="sm" onPress={() => router.push("/stock/entry" as any)}>
-					<Ionicons name="add" size={18} />
-					<Typography variant="caption" className="ml-1">
-						Entry
-					</Typography>
-				</Button>
-			</View>
-
 			<FlatList
 				data={transactions}
 				renderItem={renderTransaction}
 				keyExtractor={(item) => item._id}
 				contentContainerStyle={{ padding: 16 }}
+				ListHeaderComponent={
+					<View className="mb-3 flex-row items-center justify-between">
+						<Text className="font-semibold text-slate-500 text-xs uppercase tracking-wider dark:text-zinc-400">
+							Recent Stock Activity
+						</Text>
+						<Pressable
+							onPress={() => router.push("/stock/entry" as any)}
+							className="flex-row items-center rounded-lg bg-accent px-3 py-1.5 shadow-sm active:opacity-90"
+						>
+							<Ionicons name="add" size={16} color="#ffffff" />
+							<Text className="ml-1 font-bold text-accent-foreground text-xs">
+								New Entry
+							</Text>
+						</Pressable>
+					</View>
+				}
 				refreshControl={
 					<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
 				}

@@ -47,7 +47,7 @@ export function useAppHeader() {
 						(navigation as any).dispatch?.({ type: "OPEN_DRAWER" });
 					}
 				}}
-				className="mr-2 ml-4"
+				className="p-1"
 				hitSlop={12}
 			>
 				<Ionicons name="menu" size={24} color={themeColorForeground} />
@@ -58,7 +58,7 @@ export function useAppHeader() {
 				onPress={() => {
 					// Notification handler
 				}}
-				className="mr-4 p-1"
+				className="p-1"
 				hitSlop={12}
 			>
 				<Ionicons
@@ -77,11 +77,7 @@ export function useAppHeader() {
 		...commonScreenOptions,
 		headerTitle: title,
 		headerLeft: () => (
-			<Pressable
-				onPress={() => router.back()}
-				className="mr-2 ml-4"
-				hitSlop={12}
-			>
+			<Pressable onPress={() => router.back()} className="p-1" hitSlop={12}>
 				<Ionicons name="arrow-back" size={24} color={themeColorForeground} />
 			</Pressable>
 		),

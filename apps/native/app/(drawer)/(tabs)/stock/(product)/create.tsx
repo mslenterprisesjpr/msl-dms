@@ -183,28 +183,7 @@ export default function CreateOrEditProductScreen() {
 		<KeyboardAvoidingView
 			behavior={Platform.OS === "ios" ? "padding" : undefined}
 			className="flex-1 bg-white dark:bg-zinc-950"
-			style={{ paddingTop: insets.top }}
 		>
-			{/* Top Header */}
-			<View className="flex-row items-center justify-between border-slate-100 border-b bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
-				<View className="flex-row items-center">
-					<Pressable
-						onPress={() => router.back()}
-						hitSlop={12}
-						className="mr-3 h-9 w-9 items-center justify-center rounded-full bg-slate-50 active:bg-slate-100 dark:bg-zinc-900"
-					>
-						<Ionicons
-							name="arrow-back"
-							size={20}
-							color={themeColorForeground}
-						/>
-					</Pressable>
-					<Text className="font-bold text-lg text-slate-900 dark:text-white">
-						{isEditing ? "Edit Product" : "Create Product"}
-					</Text>
-				</View>
-			</View>
-
 			<ScrollView
 				className="flex-1"
 				contentContainerStyle={{

@@ -331,25 +331,6 @@ export default function UserManagementScreen() {
 	return (
 		<Container>
 			<View className="flex-1 p-4">
-				{/* Header */}
-				<View className="mb-6 flex-row items-center gap-3">
-					<Pressable
-						onPress={() => router.back()}
-						className="h-10 w-10 items-center justify-center rounded-full bg-default-100 active:opacity-70"
-						hitSlop={8}
-					>
-						<Ionicons name="arrow-back" size={20} className="text-foreground" />
-					</Pressable>
-					<View className="flex-1">
-						<Typography variant="title2" className="font-bold text-foreground">
-							User Management
-						</Typography>
-						<Typography variant="caption" className="mt-0.5 text-foreground/60">
-							Create and manage system users
-						</Typography>
-					</View>
-				</View>
-
 				{/* Search Bar */}
 				<View className="mb-4 flex-row gap-2">
 					<View className="flex-1">

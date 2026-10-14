@@ -284,43 +284,11 @@ export default function StockListScreen() {
 	};
 
 	return (
-		<View
-			className="flex-1 bg-white dark:bg-zinc-950"
-			style={{ paddingTop: insets.top }}
-		>
-			{/* Top Header */}
-			<View className="flex-row items-center justify-between border-slate-100 border-b bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
-				<View className="flex-row items-center">
-					<Pressable
-						onPress={() => router.back()}
-						hitSlop={12}
-						className="mr-3 h-9 w-9 items-center justify-center rounded-full bg-slate-50 active:bg-slate-100 dark:bg-zinc-900"
-					>
-						<Ionicons
-							name="arrow-back"
-							size={20}
-							color={themeColorForeground}
-						/>
-					</Pressable>
-					<Text className="font-bold text-lg text-slate-900 dark:text-white">
-						Stock List
-					</Text>
-				</View>
-				<Pressable
-					onPress={() => router.push("/stock/create" as any)}
-					className="flex-row items-center rounded-xl bg-accent px-3 py-1.5 shadow-sm active:opacity-90"
-				>
-					<Ionicons name="add" size={16} color="#ffffff" />
-					<Text className="ml-1 font-bold text-accent-foreground text-xs">
-						Add Product
-					</Text>
-				</Pressable>
-			</View>
-
-			{/* Search Bar & Filter Button */}
+		<View className="flex-1 bg-white dark:bg-zinc-950">
+			{/* Search Bar, Filter & Add Button */}
 			<View className="flex-row items-center px-4 pt-3 pb-2">
 				{/* Search Input Box */}
-				<View className="mr-2.5 flex-1 flex-row items-center rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900">
+				<View className="mr-2 flex-1 flex-row items-center rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900">
 					<Ionicons name="search" size={18} color="#94a3b8" />
 					<TextInput
 						value={searchQuery}
@@ -354,6 +322,15 @@ export default function StockListScreen() {
 								: "#334155"
 						}
 					/>
+				</Pressable>
+
+				{/* Add Product Button */}
+				<Pressable
+					onPress={() => router.push("/stock/create" as any)}
+					className="ml-2 h-10 w-10 items-center justify-center rounded-xl bg-accent shadow-sm active:opacity-90"
+					hitSlop={8}
+				>
+					<Ionicons name="add" size={22} color="#ffffff" />
 				</Pressable>
 			</View>
 

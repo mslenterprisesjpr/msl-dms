@@ -117,21 +117,6 @@ export default function ReturnStockScreen() {
 
 	return (
 		<Container className="flex-1">
-			{/* Header */}
-			<View
-				className="border-border border-b bg-surface p-4"
-				style={{ paddingTop: insets.top + 16 }}
-			>
-				<View className="flex-row items-center gap-3">
-					<Button size="sm" variant="outline" onPress={() => router.back()}>
-						← Back
-					</Button>
-					<Typography variant="title1" className="text-foreground">
-						Return Stock
-					</Typography>
-				</View>
-			</View>
-
 			<ScrollView contentContainerStyle={{ padding: 16 }}>
 				<Card className="mb-4 p-4">
 					{/* Product Selection */}

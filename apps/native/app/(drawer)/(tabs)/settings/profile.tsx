@@ -344,41 +344,6 @@ export default function ProfileScreen() {
 	return (
 		<Container>
 			<View className="flex-1">
-				{/* Top App Bar with Back Button */}
-				<View className="border-border border-b bg-surface px-4 py-3">
-					<View className="flex-row items-center justify-between">
-						<View className="flex-row items-center gap-3">
-							<Pressable
-								onPress={() => router.back()}
-								className="h-10 w-10 items-center justify-center rounded-full bg-default-100 active:opacity-70"
-								hitSlop={8}
-							>
-								<Ionicons name="arrow-back" size={20} color={themeForeground} />
-							</Pressable>
-							<View>
-								<Typography type="h3" className="font-bold text-foreground">
-									My Profile
-								</Typography>
-								<Typography type="body-xs" className="text-foreground/60">
-									Account settings & details
-								</Typography>
-							</View>
-						</View>
-
-						<Pressable
-							onPress={handleRefresh}
-							className="h-10 w-10 items-center justify-center rounded-full bg-default-100 active:opacity-70"
-							hitSlop={8}
-						>
-							<Ionicons
-								name="refresh-outline"
-								size={20}
-								color={themeForeground}
-							/>
-						</Pressable>
-					</View>
-				</View>
-
 				{/* Scrollable Content */}
 				<ScrollView
 					className="flex-1"

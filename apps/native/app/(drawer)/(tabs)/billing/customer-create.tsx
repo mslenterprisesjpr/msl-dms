@@ -77,24 +77,7 @@ export default function CreateCustomerScreen() {
 
 	return (
 		<Container>
-			<View
-				className="mb-4 flex-row items-center pt-4"
-				style={{ paddingTop: insets.top + 16 }}
-			>
-				<Button
-					variant="ghost"
-					size="sm"
-					onPress={() => router.back()}
-					className="mr-2"
-				>
-					<Ionicons name="arrow-back" size={24} color="#888" />
-				</Button>
-				<Typography variant="title1" className="text-foreground">
-					Add Customer
-				</Typography>
-			</View>
-
-			<ScrollView className="flex-1">
+			<ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }}>
 				<Card className="border-border bg-surface p-4">
 					{/* Name */}
 					<View className="mb-4">

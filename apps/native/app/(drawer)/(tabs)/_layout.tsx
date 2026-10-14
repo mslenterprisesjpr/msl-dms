@@ -1,33 +1,21 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Tabs, useNavigation } from "expo-router";
+import { Tabs } from "expo-router";
 import { useThemeColor } from "heroui-native";
-import { Pressable } from "react-native";
+
+export const unstable_settings = {
+	initialRouteName: "(home)",
+};
 
 export default function TabLayout() {
 	const themeColorForeground = useThemeColor("foreground");
 	const themeColorBackground = useThemeColor("background");
 	const themeColorMuted = useThemeColor("muted");
 	const themeColorAccent = useThemeColor("accent");
-	const navigation = useNavigation();
 
 	return (
 		<Tabs
 			screenOptions={{
-				headerShown: true,
-				headerStyle: {
-					backgroundColor: themeColorBackground,
-					elevation: 0,
-					shadowOpacity: 0,
-					borderBottomWidth: 1,
-					borderBottomColor: "rgba(0,0,0,0.06)",
-				},
-				headerTintColor: themeColorForeground,
-				headerTitleStyle: {
-					color: themeColorForeground,
-					fontWeight: "700",
-					fontSize: 18,
-				},
-				headerTitleAlign: "left",
+				headerShown: false, // All headers are rendered consistently by each tab's Stack
 				tabBarActiveTintColor: themeColorAccent,
 				tabBarInactiveTintColor: themeColorMuted,
 				tabBarStyle: {
@@ -39,40 +27,12 @@ export default function TabLayout() {
 					fontSize: 11,
 					fontWeight: "600",
 				},
-				headerLeft: () => (
-					<Pressable
-						onPress={() => {
-							// @ts-expect-error - drawer navigation type
-							navigation.openDrawer?.();
-						}}
-						className="mr-2 ml-4"
-						hitSlop={12}
-					>
-						<Ionicons name="menu" size={24} color={themeColorForeground} />
-					</Pressable>
-				),
-				headerRight: () => (
-					<Pressable
-						onPress={() => {
-							// Notification bell press
-						}}
-						className="mr-4 p-1"
-						hitSlop={12}
-					>
-						<Ionicons
-							name="notifications-outline"
-							size={22}
-							color={themeColorForeground}
-						/>
-					</Pressable>
-				),
 			}}
 		>
 			<Tabs.Screen
-				name="index"
+				name="(home)"
 				options={{
 					title: "Home",
-					headerTitle: "MSL Enterprises",
 					tabBarIcon: ({ color, size, focused }) => (
 						<Ionicons
 							name={focused ? "home" : "home-outline"}
@@ -86,7 +46,6 @@ export default function TabLayout() {
 				name="billing"
 				options={{
 					title: "Billing",
-					headerShown: false,
 					tabBarIcon: ({ color, size, focused }) => (
 						<Ionicons
 							name={focused ? "document-text" : "document-text-outline"}
@@ -100,7 +59,6 @@ export default function TabLayout() {
 				name="stock"
 				options={{
 					title: "Stock",
-					headerShown: false,
 					tabBarIcon: ({ color, size, focused }) => (
 						<Ionicons
 							name={focused ? "cube" : "cube-outline"}
@@ -114,7 +72,6 @@ export default function TabLayout() {
 				name="reports"
 				options={{
 					title: "Reports",
-					headerShown: false,
 					tabBarIcon: ({ color, size, focused }) => (
 						<Ionicons
 							name={focused ? "stats-chart" : "stats-chart-outline"}
@@ -128,7 +85,6 @@ export default function TabLayout() {
 				name="settings"
 				options={{
 					title: "Settings",
-					headerShown: false,
 					tabBarIcon: ({ color, size, focused }) => (
 						<Ionicons
 							name={focused ? "settings" : "settings-outline"}

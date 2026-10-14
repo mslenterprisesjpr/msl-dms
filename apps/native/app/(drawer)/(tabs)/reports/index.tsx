@@ -174,7 +174,7 @@ export default function ReportsScreen() {
 							</Card>
 
 							{/* Market Outstanding (Admin only) */}
-							{mode === "admin" && (
+							{isAdmin && (
 								<Card className="border border-slate-100 bg-white p-3.5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
 									<View className="flex-row items-center justify-between">
 										<View className="flex-row items-center">

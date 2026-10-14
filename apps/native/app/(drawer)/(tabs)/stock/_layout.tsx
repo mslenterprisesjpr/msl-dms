@@ -12,39 +12,32 @@ export default function StockLayout() {
 			/>
 			<Stack.Screen
 				name="entry"
-				options={{
-					headerShown: false,
-				}}
+				options={detailHeaderOptions("Add Stock Entry")}
 			/>
 			<Stack.Screen
 				name="(product)/list"
-				options={{
-					headerShown: false,
-				}}
+				options={detailHeaderOptions("Product Catalog")}
 			/>
 			<Stack.Screen
 				name="(product)/create"
-				options={{
-					headerShown: false,
-				}}
+				options={detailHeaderOptions("Add / Edit Product")}
 			/>
 			<Stack.Screen
 				name="(product)/edit"
-				options={{
-					headerShown: false,
-				}}
+				options={detailHeaderOptions("Edit Product")}
 			/>
 			<Stack.Screen
 				name="(product)/[id]"
-				options={{
-					headerShown: false,
-				}}
+				options={detailHeaderOptions("Product Details")}
 			/>
 			<Stack.Screen
 				name="history"
 				options={detailHeaderOptions("Stock History")}
 			/>
-			<Stack.Screen name="issue" options={detailHeaderOptions("Issue Stock")} />
+			<Stack.Screen
+				name="issue"
+				options={detailHeaderOptions("Issue Stock to Worker")}
+			/>
 			<Stack.Screen
 				name="return"
 				options={detailHeaderOptions("Return Stock")}

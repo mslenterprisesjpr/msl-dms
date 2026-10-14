@@ -51,44 +51,7 @@ export default function ProductDetailsScreen() {
 	const isLowStock = !isOutOfStock && stock <= minThreshold;
 
 	return (
-		<View
-			className="flex-1 bg-white dark:bg-zinc-950"
-			style={{ paddingTop: insets.top }}
-		>
-			{/* Top Header */}
-			<View className="flex-row items-center justify-between border-slate-100 border-b bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
-				<View className="flex-row items-center">
-					<Pressable
-						onPress={() => router.back()}
-						hitSlop={12}
-						className="mr-3 h-9 w-9 items-center justify-center rounded-full bg-slate-50 active:bg-slate-100 dark:bg-zinc-900"
-					>
-						<Ionicons
-							name="arrow-back"
-							size={20}
-							color={themeColorForeground}
-						/>
-					</Pressable>
-					<Text className="font-bold text-lg text-slate-900 dark:text-white">
-						Product Details
-					</Text>
-				</View>
-
-				{/* Quick Edit Icon */}
-				<Pressable
-					onPress={() =>
-						router.push({
-							pathname: "/stock/(product)/create" as any,
-							params: { id: product._id },
-						})
-					}
-					className="flex-row items-center rounded-xl bg-accent/10 px-3 py-1.5"
-				>
-					<Ionicons name="create-outline" size={16} color={themeAccent} />
-					<Text className="ml-1 font-bold text-accent text-xs">Edit</Text>
-				</Pressable>
-			</View>
-
+		<View className="flex-1 bg-white dark:bg-zinc-950">
 			<ScrollView
 				className="flex-1"
 				contentContainerStyle={{
@@ -98,7 +61,21 @@ export default function ProductDetailsScreen() {
 				showsVerticalScrollIndicator={false}
 			>
 				{/* 1. HERO PRODUCT CARD */}
-				<View className="mb-4 items-center rounded-2xl border border-slate-100 bg-slate-50/60 p-5 dark:border-zinc-800 dark:bg-zinc-900">
+				<View className="relative mb-4 items-center rounded-2xl border border-slate-100 bg-slate-50/60 p-5 dark:border-zinc-800 dark:bg-zinc-900">
+					{/* Quick Edit Icon */}
+					<Pressable
+						onPress={() =>
+							router.push({
+								pathname: "/stock/(product)/create" as any,
+								params: { id: product._id },
+							})
+						}
+						className="absolute top-3 right-3 flex-row items-center rounded-xl bg-accent/10 px-3 py-1.5"
+					>
+						<Ionicons name="create-outline" size={16} color={themeAccent} />
+						<Text className="ml-1 font-bold text-accent text-xs">Edit</Text>
+					</Pressable>
+
 					{product.image ? (
 						<Image
 							source={{ uri: product.image }}
