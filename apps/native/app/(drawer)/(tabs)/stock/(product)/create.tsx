@@ -224,7 +224,11 @@ export default function CreateOrEditProductScreen() {
 							disabled={uploading}
 							className="flex-row items-center rounded-xl border border-slate-200 bg-white px-3.5 py-2 active:bg-slate-50 dark:border-zinc-800 dark:bg-zinc-900"
 						>
-							<Ionicons name="image-outline" size={16} color="#475569" />
+							<Ionicons
+								name="image-outline"
+								size={16}
+								color={themeColorForeground}
+							/>
 							<Text className="ml-1.5 font-semibold text-slate-700 text-xs dark:text-zinc-300">
 								Gallery
 							</Text>
@@ -234,7 +238,11 @@ export default function CreateOrEditProductScreen() {
 							disabled={uploading}
 							className="flex-row items-center rounded-xl border border-slate-200 bg-white px-3.5 py-2 active:bg-slate-50 dark:border-zinc-800 dark:bg-zinc-900"
 						>
-							<Ionicons name="camera-outline" size={16} color="#475569" />
+							<Ionicons
+								name="camera-outline"
+								size={16}
+								color={themeColorForeground}
+							/>
 							<Text className="ml-1.5 font-semibold text-slate-700 text-xs dark:text-zinc-300">
 								Camera
 							</Text>

@@ -18,11 +18,7 @@ function Modal() {
 				<Surface variant="secondary" className="w-full max-w-sm rounded-lg p-5">
 					<View className="items-center">
 						<View className="mb-3 h-12 w-12 items-center justify-center rounded-lg bg-accent">
-							<Ionicons
-								name="checkmark"
-								size={24}
-								color={accentForegroundColor}
-							/>
+							<Ionicons name="checkmark" size={24} color="#ffffff" />
 						</View>
 						<Text className="mb-1 font-medium text-foreground text-lg">
 							Modal Screen

@@ -18,6 +18,7 @@ import { useSession } from "@/lib/hooks/use-session";
 
 export default function StockScreen() {
 	const themeAccent = useThemeColor("accent");
+	const themeColorForeground = useThemeColor("foreground");
 	const { user } = useSession();
 
 	const [activeTab, setActiveTab] = useState<"STOCK" | "LOW_STOCK">("STOCK");
@@ -419,7 +420,7 @@ export default function StockScreen() {
 									<Ionicons
 										name="document-text-outline"
 										size={22}
-										color="#1e293b"
+										color={themeColorForeground}
 									/>
 									<Text className="mt-1 font-bold text-slate-800 text-xs dark:text-zinc-200">
 										Stock Report

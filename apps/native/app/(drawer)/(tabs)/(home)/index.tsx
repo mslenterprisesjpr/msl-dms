@@ -8,6 +8,7 @@ import {
 	RefreshControl,
 	ScrollView,
 	Text,
+	useColorScheme,
 	View,
 } from "react-native";
 import Svg, { Path, Rect } from "react-native-svg";
@@ -23,6 +24,7 @@ import { useOrganizationStore } from "@/lib/stores/organization-store";
 
 // Custom UPI Icon replicating the dual-chevron payment mark
 function UpiBadgeIcon({ size = 18 }: { size?: number }) {
+	const isDark = useColorScheme() === "dark";
 	return (
 		<View className="flex-row items-center justify-center">
 			<Ionicons
@@ -31,7 +33,11 @@ function UpiBadgeIcon({ size = 18 }: { size?: number }) {
 				color="#0d9488"
 				style={{ marginRight: -size * 0.45 }}
 			/>
-			<Ionicons name="chevron-forward" size={size} color="#1e293b" />
+			<Ionicons
+				name="chevron-forward"
+				size={size}
+				color={isDark ? "#94a3b8" : "#1e293b"}
+			/>
 		</View>
 	);
 }
@@ -45,7 +51,7 @@ function CashBadgeIcon({ size = 18 }: { size?: number }) {
 	);
 }
 
-// Quick Action Custom SVG Icons
+// Quick Action Custom SVG Icons with Dark Mode Support
 function AddBillIcon() {
 	return (
 		<Svg width={28} height={28} viewBox="0 0 32 32" fill="none">
@@ -65,17 +71,20 @@ function AddBillIcon() {
 }
 
 function AddStockIcon() {
+	const isDark = useColorScheme() === "dark";
+	const iconColor = isDark ? "#38bdf8" : "#0f274a";
+	const innerColor = isDark ? "#0f274a" : "#ffffff";
 	return (
 		<Svg width={28} height={28} viewBox="0 0 32 32" fill="none">
-			<Rect x={13} y={2} width={6} height={3} rx={1} fill="#0f274a" />
-			<Rect x={14} y={5} width={4} height={3} fill="#0f274a" />
+			<Rect x={13} y={2} width={6} height={3} rx={1} fill={iconColor} />
+			<Rect x={14} y={5} width={4} height={3} fill={iconColor} />
 			<Path
 				d="M 9 9 C 9 8, 9.8 8, 11 8 L 21 8 C 22.2 8, 23 8, 23 9 L 24 27 C 24 28.5, 23 29.5, 21.5 29.5 L 10.5 29.5 C 9 29.5, 8 28.5, 8 27 Z"
-				fill="#0f274a"
+				fill={iconColor}
 			/>
 			<Path
 				d="M 16 14 L 16 22 M 12 18 L 20 18"
-				stroke="#ffffff"
+				stroke={innerColor}
 				strokeWidth={2.5}
 				strokeLinecap="round"
 			/>
@@ -84,17 +93,20 @@ function AddStockIcon() {
 }
 
 function StockReportIcon() {
+	const isDark = useColorScheme() === "dark";
+	const iconColor = isDark ? "#38bdf8" : "#0f274a";
+	const innerColor = isDark ? "#0f274a" : "#ffffff";
 	return (
 		<Svg width={28} height={28} viewBox="0 0 32 32" fill="none">
-			<Rect x={13} y={2} width={6} height={3} rx={1} fill="#0f274a" />
-			<Rect x={14} y={5} width={4} height={3} fill="#0f274a" />
+			<Rect x={13} y={2} width={6} height={3} rx={1} fill={iconColor} />
+			<Rect x={14} y={5} width={4} height={3} fill={iconColor} />
 			<Path
 				d="M 9 9 C 9 8, 9.8 8, 11 8 L 21 8 C 22.2 8, 23 8, 23 9 L 24 27 C 24 28.5, 23 29.5, 21.5 29.5 L 10.5 29.5 C 9 29.5, 8 28.5, 8 27 Z"
-				fill="#0f274a"
+				fill={iconColor}
 			/>
 			<Path
 				d="M 12 15 L 20 15 M 12 19 L 20 19 M 12 23 L 18 23"
-				stroke="#ffffff"
+				stroke={innerColor}
 				strokeWidth={2}
 				strokeLinecap="round"
 			/>
@@ -103,16 +115,20 @@ function StockReportIcon() {
 }
 
 function SalesReportIcon() {
+	const isDark = useColorScheme() === "dark";
+	const iconColor = isDark ? "#38bdf8" : "#0f274a";
+	const cornerColor = isDark ? "#0284c7" : "#1e3a8a";
+	const innerColor = isDark ? "#0f274a" : "#ffffff";
 	return (
 		<Svg width={28} height={28} viewBox="0 0 32 32" fill="none">
 			<Path
 				d="M 6 4 C 6 2.8, 6.8 2, 8 2 L 19 2 L 26 9 L 26 28 C 26 29.2, 25.2 30, 24 30 L 8 30 C 6.8 30, 6 29.2, 6 28 Z"
-				fill="#0f274a"
+				fill={iconColor}
 			/>
-			<Path d="M 19 2 L 19 9 L 26 9 Z" fill="#1e3a8a" />
-			<Rect x={10} y={20} width={3} height={6} rx={0.5} fill="#ffffff" />
-			<Rect x={14.5} y={16} width={3} height={10} rx={0.5} fill="#ffffff" />
-			<Rect x={19} y={12} width={3} height={14} rx={0.5} fill="#ffffff" />
+			<Path d="M 19 2 L 19 9 L 26 9 Z" fill={cornerColor} />
+			<Rect x={10} y={20} width={3} height={6} rx={0.5} fill={innerColor} />
+			<Rect x={14.5} y={16} width={3} height={10} rx={0.5} fill={innerColor} />
+			<Rect x={19} y={12} width={3} height={14} rx={0.5} fill={innerColor} />
 		</Svg>
 	);
 }

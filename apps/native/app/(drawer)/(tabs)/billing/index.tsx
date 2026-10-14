@@ -18,6 +18,7 @@ import { useSales } from "@/hooks/queries/use-sales";
 
 export default function BillingScreen() {
 	const themeAccent = useThemeColor("accent");
+	const themeColorForeground = useThemeColor("foreground");
 	const [activeSection, setActiveSection] = useState<"INVOICES" | "CUSTOMERS">(
 		"INVOICES",
 	);
@@ -417,7 +418,11 @@ export default function BillingScreen() {
 														}
 														className="h-9 w-9 items-center justify-center rounded-full bg-slate-100 active:bg-slate-200 dark:bg-zinc-800"
 													>
-														<Ionicons name="pencil" size={16} color="#0f274a" />
+														<Ionicons
+															name="pencil"
+															size={16}
+															color={themeColorForeground}
+														/>
 													</Pressable>
 												</View>
 											</View>

@@ -226,7 +226,11 @@ export default function ProductDetailsScreen() {
 						}
 						className="flex-row items-center justify-center rounded-2xl border border-slate-200 bg-white py-3.5 active:bg-slate-50 dark:border-zinc-800 dark:bg-zinc-800"
 					>
-						<Ionicons name="create-outline" size={18} color="#334155" />
+						<Ionicons
+							name="create-outline"
+							size={18}
+							color={themeColorForeground}
+						/>
 						<Text className="ml-2 font-bold text-slate-800 text-sm dark:text-zinc-200">
 							Edit Product Master
 						</Text>

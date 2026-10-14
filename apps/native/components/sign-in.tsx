@@ -8,6 +8,7 @@ import {
 	Pressable,
 	Text,
 	TextInput,
+	useColorScheme,
 	View,
 } from "react-native";
 import z from "zod";
@@ -62,6 +63,8 @@ interface SignInProps {
 function SignIn({ onSwitchToSignUp, onForgotPassword }: SignInProps) {
 	const passwordInputRef = useRef<TextInput>(null);
 	const { toast } = useToast();
+	const colorScheme = useColorScheme();
+	const isDark = colorScheme === "dark";
 	const [showPassword, setShowPassword] = useState(false);
 	const [rememberMe, setRememberMe] = useState(true);
 
@@ -240,7 +243,9 @@ function SignIn({ onSwitchToSignUp, onForgotPassword }: SignInProps) {
 									<Ionicons
 										name={rememberMe ? "checkbox" : "square-outline"}
 										size={18}
-										color={rememberMe ? "#0f274a" : "#94a3b8"}
+										color={
+											rememberMe ? (isDark ? "#f59e0b" : "#0f274a") : "#94a3b8"
+										}
 										style={{ marginRight: 6 }}
 									/>
 									<Text className="text-slate-600 text-xs dark:text-slate-300">
