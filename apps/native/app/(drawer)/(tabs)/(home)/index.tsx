@@ -10,6 +10,7 @@ import {
 	Text,
 	View,
 } from "react-native";
+import Svg, { Path, Rect } from "react-native-svg";
 
 import { Container } from "@/components/container";
 import { DialogModal } from "@/components/dialog-modal";
@@ -41,6 +42,78 @@ function CashBadgeIcon({ size = 18 }: { size?: number }) {
 		<View className="flex-row items-center justify-center rounded border border-emerald-500/80 px-1 py-0.5">
 			<Ionicons name="cash-outline" size={size} color="#10b981" />
 		</View>
+	);
+}
+
+// Quick Action Custom SVG Icons
+function AddBillIcon() {
+	return (
+		<Svg width={28} height={28} viewBox="0 0 32 32" fill="none">
+			<Path
+				d="M 6 4 C 6 2.8, 6.8 2, 8 2 L 19 2 L 26 9 L 26 28 C 26 29.2, 25.2 30, 24 30 L 8 30 C 6.8 30, 6 29.2, 6 28 Z"
+				fill="#f59e0b"
+			/>
+			<Path d="M 19 2 L 19 9 L 26 9 Z" fill="#d97706" />
+			<Path
+				d="M 16 12 L 16 22 M 11 17 L 21 17"
+				stroke="#0f274a"
+				strokeWidth={3}
+				strokeLinecap="round"
+			/>
+		</Svg>
+	);
+}
+
+function AddStockIcon() {
+	return (
+		<Svg width={28} height={28} viewBox="0 0 32 32" fill="none">
+			<Rect x={13} y={2} width={6} height={3} rx={1} fill="#0f274a" />
+			<Rect x={14} y={5} width={4} height={3} fill="#0f274a" />
+			<Path
+				d="M 9 9 C 9 8, 9.8 8, 11 8 L 21 8 C 22.2 8, 23 8, 23 9 L 24 27 C 24 28.5, 23 29.5, 21.5 29.5 L 10.5 29.5 C 9 29.5, 8 28.5, 8 27 Z"
+				fill="#0f274a"
+			/>
+			<Path
+				d="M 16 14 L 16 22 M 12 18 L 20 18"
+				stroke="#ffffff"
+				strokeWidth={2.5}
+				strokeLinecap="round"
+			/>
+		</Svg>
+	);
+}
+
+function StockReportIcon() {
+	return (
+		<Svg width={28} height={28} viewBox="0 0 32 32" fill="none">
+			<Rect x={13} y={2} width={6} height={3} rx={1} fill="#0f274a" />
+			<Rect x={14} y={5} width={4} height={3} fill="#0f274a" />
+			<Path
+				d="M 9 9 C 9 8, 9.8 8, 11 8 L 21 8 C 22.2 8, 23 8, 23 9 L 24 27 C 24 28.5, 23 29.5, 21.5 29.5 L 10.5 29.5 C 9 29.5, 8 28.5, 8 27 Z"
+				fill="#0f274a"
+			/>
+			<Path
+				d="M 12 15 L 20 15 M 12 19 L 20 19 M 12 23 L 18 23"
+				stroke="#ffffff"
+				strokeWidth={2}
+				strokeLinecap="round"
+			/>
+		</Svg>
+	);
+}
+
+function SalesReportIcon() {
+	return (
+		<Svg width={28} height={28} viewBox="0 0 32 32" fill="none">
+			<Path
+				d="M 6 4 C 6 2.8, 6.8 2, 8 2 L 19 2 L 26 9 L 26 28 C 26 29.2, 25.2 30, 24 30 L 8 30 C 6.8 30, 6 29.2, 6 28 Z"
+				fill="#0f274a"
+			/>
+			<Path d="M 19 2 L 19 9 L 26 9 Z" fill="#1e3a8a" />
+			<Rect x={10} y={20} width={3} height={6} rx={0.5} fill="#ffffff" />
+			<Rect x={14.5} y={16} width={3} height={10} rx={0.5} fill="#ffffff" />
+			<Rect x={19} y={12} width={3} height={14} rx={0.5} fill="#ffffff" />
+		</Svg>
 	);
 }
 
@@ -330,29 +403,61 @@ export default function Home() {
 					</View>
 				</View>
 
-				{/* ACTION BUTTONS (Create Bill & Add Stock) */}
-				<View className="mb-4 flex-row gap-3">
-					{/* Create Bill Button */}
-					<Pressable
-						onPress={() => setCreateBillModalVisible(true)}
-						className="flex-1 flex-row items-center justify-center rounded-2xl bg-accent px-4 py-3.5 shadow-sm active:opacity-90"
-					>
-						<Ionicons name="add" size={22} color="#ffffff" />
-						<Text className="ml-1.5 font-bold text-accent-foreground text-base">
-							Create Bill
-						</Text>
-					</Pressable>
+				{/* QUICK ACTIONS SECTION (Matches reference design) */}
+				<View className="mb-4">
+					<Text className="mb-2.5 font-bold text-[#0f274a] text-base dark:text-white">
+						Quick Actions
+					</Text>
 
-					{/* Add Stock Button */}
-					<Pressable
-						onPress={() => router.push("/stock" as any)}
-						className="flex-1 flex-row items-center justify-center rounded-2xl bg-[#0d9488] px-4 py-3.5 shadow-sm active:opacity-90"
-					>
-						<Ionicons name="cube-outline" size={20} color="#ffffff" />
-						<Text className="ml-1.5 font-bold text-base text-white">
-							Add Stock
-						</Text>
-					</Pressable>
+					<View className="mb-2.5 flex-row gap-3">
+						{/* Add Bill */}
+						<Pressable
+							onPress={() => setCreateBillModalVisible(true)}
+							className="flex-1 flex-row items-center gap-2.5 rounded-2xl border border-sky-100/80 bg-[#f0f7ff] p-3 shadow-xs active:opacity-80 dark:border-zinc-800 dark:bg-zinc-900"
+						>
+							<AddBillIcon />
+							<Text className="font-bold text-[#0f274a] text-sm dark:text-white">
+								Add Bill
+							</Text>
+						</Pressable>
+
+						{/* Add Stock */}
+						<Pressable
+							onPress={() => router.push("/(drawer)/(tabs)/stock/entry" as any)}
+							className="flex-1 flex-row items-center gap-2.5 rounded-2xl border border-sky-100/80 bg-[#f0f7ff] p-3 shadow-xs active:opacity-80 dark:border-zinc-800 dark:bg-zinc-900"
+						>
+							<AddStockIcon />
+							<Text className="font-bold text-[#0f274a] text-sm dark:text-white">
+								Add Stock
+							</Text>
+						</Pressable>
+					</View>
+
+					<View className="flex-row gap-3">
+						{/* Stock Report */}
+						<Pressable
+							onPress={() =>
+								router.push("/(drawer)/(tabs)/stock/history" as any)
+							}
+							className="flex-1 flex-row items-center gap-2.5 rounded-2xl border border-sky-100/80 bg-[#f0f7ff] p-3 shadow-xs active:opacity-80 dark:border-zinc-800 dark:bg-zinc-900"
+						>
+							<StockReportIcon />
+							<Text className="font-bold text-[#0f274a] text-sm dark:text-white">
+								Stock Report
+							</Text>
+						</Pressable>
+
+						{/* Sales Report */}
+						<Pressable
+							onPress={() => router.push("/(drawer)/(tabs)/reports" as any)}
+							className="flex-1 flex-row items-center gap-2.5 rounded-2xl border border-sky-100/80 bg-[#f0f7ff] p-3 shadow-xs active:opacity-80 dark:border-zinc-800 dark:bg-zinc-900"
+						>
+							<SalesReportIcon />
+							<Text className="font-bold text-[#0f274a] text-sm dark:text-white">
+								Sales Report
+							</Text>
+						</Pressable>
+					</View>
 				</View>
 
 				{/* LOW STOCK ALERTS CARD */}

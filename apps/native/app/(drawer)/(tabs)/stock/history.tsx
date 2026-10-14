@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { Button, Card, Chip, Typography } from "heroui-native";
+import { Button, Card, Chip } from "heroui-native";
 import React, { useState } from "react";
-import { FlatList, RefreshControl, View } from "react-native";
+import { FlatList, Pressable, RefreshControl, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
 import { Container } from "@/components/container";
 import { LoadingScreen } from "@/components/loading-screen";
 import { useStockTransactions } from "@/hooks/queries/use-stock";
@@ -11,7 +12,7 @@ import { authClient } from "@/lib/auth-client";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 import type { StockTransaction } from "@/services/stock.service";
 
-export default function StockScreen() {
+export default function StockHistoryScreen() {
 	const router = useRouter();
 	const [refreshing, setRefreshing] = useState(false);
 
@@ -26,39 +27,48 @@ export default function StockScreen() {
 		{ enabled: !!session && !!currentOrg },
 	);
 
-	// Debug logging
-	React.useEffect(() => {
-		console.log("📊 Stock History Debug:", {
-			hasSession: !!session,
-			hasOrg: !!currentOrg,
-			orgId: currentOrgId,
-			isLoading,
-			hasData: !!data,
-			dataCount: data?.data?.length || 0,
-			error: error?.message,
-		});
-	}, [session, currentOrg, currentOrgId, isLoading, data, error]);
-
 	const handleRefresh = async () => {
 		setRefreshing(true);
-		await refetch();
-		setRefreshing(false);
+		try {
+			await refetch();
+		} catch (err) {
+			console.error("Refresh error:", err);
+		} finally {
+			setRefreshing(false);
+		}
 	};
 
-	// Flatten paginated data
 	const transactions = data?.data || [];
+
+	const getTransactionColor = (type: string) => {
+		switch (type) {
+			case "PURCHASE":
+			case "RETURN":
+				return "text-success";
+			case "SALE":
+			case "ISSUE":
+				return "text-warning";
+			case "ADJUSTMENT":
+				return "text-primary";
+			default:
+				return "text-foreground";
+		}
+	};
 
 	const renderTransaction = ({ item }: { item: StockTransaction }) => {
 		const isAddition = item.type === "PURCHASE" || item.type === "RETURN";
-		const color = isAddition ? "text-success" : "text-danger";
-
-		// Handle populated productId (can be object or string)
-		const product = typeof item.productId === "object" ? item.productId : null;
-		const productName = product?.name || "Unknown Product";
-		const _productId =
-			typeof item.productId === "string"
-				? item.productId
-				: product?.id || item.productId?._id;
+		const color = getTransactionColor(item.type);
+		const itemAny = item as any;
+		const productIdStr =
+			typeof itemAny.productId === "string"
+				? itemAny.productId
+				: itemAny.productId?._id || item._id;
+		const productName =
+			typeof itemAny.product === "object"
+				? itemAny.product?.name
+				: itemAny.productName || `Product #${productIdStr.slice(-4)}`;
+		const product =
+			typeof itemAny.product === "object" ? itemAny.product : null;
 
 		return (
 			<Card className="mb-3 p-4">
@@ -69,32 +79,29 @@ export default function StockScreen() {
 							size={20}
 							className={color}
 						/>
-						<Typography
-							variant="body"
-							className="ml-2 font-bold text-foreground"
-						>
+						<Text className="ml-2 font-bold text-base text-foreground">
 							{item.type}
-						</Typography>
+						</Text>
 					</View>
-					<Typography variant="caption" className="text-foreground/50">
+					<Text className="text-foreground/50 text-xs">
 						{new Date(item.createdAt).toLocaleDateString()}
-					</Typography>
+					</Text>
 				</View>
 
-				<Typography variant="title3" className="mb-1 text-foreground">
+				<Text className="mb-1 font-semibold text-foreground text-sm">
 					{productName}
-				</Typography>
+				</Text>
 				{product?.sku && (
-					<Typography variant="caption" className="mb-2 text-foreground/50">
+					<Text className="mb-2 text-foreground/50 text-xs">
 						SKU: {product.sku}
-					</Typography>
+					</Text>
 				)}
 
 				<View className="mt-2 flex-row items-center justify-between">
-					<Typography variant="body" className={`${color} font-semibold`}>
+					<Text className={`${color} font-semibold text-sm`}>
 						{isAddition ? "+" : "-"}{" "}
 						{item.quantityDisplay || `${item.quantity} Units`}
-					</Typography>
+					</Text>
 
 					{(item.cases > 0 || item.units > 0) && (
 						<Chip size="sm" variant="secondary">
@@ -104,12 +111,9 @@ export default function StockScreen() {
 				</View>
 
 				{item.note && (
-					<Typography
-						variant="caption"
-						className="mt-2 text-foreground/60 italic"
-					>
+					<Text className="mt-2 text-foreground/60 text-xs italic">
 						Note: {item.note}
-					</Typography>
+					</Text>
 				)}
 			</Card>
 		);
@@ -126,10 +130,9 @@ export default function StockScreen() {
 					padding: 24,
 				}}
 			>
-				<Ionicons name="lock-closed" size={48} className="text-foreground/30" />
-				<Typography variant="title2" className="mt-4 mb-2 text-foreground">
+				<Text className="mt-4 mb-2 font-bold text-foreground text-lg">
 					Please Login
-				</Typography>
+				</Text>
 			</SafeAreaView>
 		);
 	}
@@ -145,9 +148,9 @@ export default function StockScreen() {
 					padding: 24,
 				}}
 			>
-				<Typography variant="title2" className="text-foreground">
+				<Text className="font-bold text-foreground text-lg">
 					Select Organization
-				</Typography>
+				</Text>
 				<Button onPress={() => router.push("/(drawer)/(tabs)/organizations")}>
 					Go to Organizations
 				</Button>
@@ -176,15 +179,12 @@ export default function StockScreen() {
 				}}
 			>
 				<Ionicons name="alert-circle" size={48} className="text-danger" />
-				<Typography variant="title2" className="mt-4 mb-2 text-danger">
+				<Text className="mt-4 mb-2 font-bold text-danger text-lg">
 					Error Loading Stock History
-				</Typography>
-				<Typography
-					variant="body"
-					className="mb-4 text-center text-foreground/60"
-				>
+				</Text>
+				<Text className="mb-4 text-center text-foreground/60 text-sm">
 					{error?.message || "Failed to load stock transactions"}
-				</Typography>
+				</Text>
 				<Button onPress={() => refetch()}>Try Again</Button>
 			</SafeAreaView>
 		);
@@ -223,12 +223,12 @@ export default function StockScreen() {
 							size={64}
 							className="text-foreground/20"
 						/>
-						<Typography variant="body" className="mt-4 text-foreground/60">
+						<Text className="mt-4 font-medium text-foreground/60 text-sm">
 							No stock transactions yet
-						</Typography>
-						<Typography variant="caption" className="mt-2 text-foreground/50">
+						</Text>
+						<Text className="mt-2 text-foreground/50 text-xs">
 							Add stock using the Entry button above
-						</Typography>
+						</Text>
 					</View>
 				}
 			/>

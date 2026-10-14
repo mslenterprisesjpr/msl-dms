@@ -27,6 +27,7 @@ export default function CreateCustomerScreen() {
 		name: "",
 		phone: "",
 		address: "",
+		gstNumber: "",
 		isActive: true,
 	});
 
@@ -47,7 +48,14 @@ export default function CreateCustomerScreen() {
 		}
 
 		try {
-			await createMutation.mutateAsync(formData);
+			const payload: CreateCustomerDto = {
+				name: formData.name.trim(),
+				phone: formData.phone?.trim() || undefined,
+				address: formData.address?.trim() || undefined,
+				gstNumber: formData.gstNumber?.trim().toUpperCase() || undefined,
+				isActive: formData.isActive,
+			};
+			await createMutation.mutateAsync(payload);
 			toast.show({
 				variant: "success",
 				label: "Customer created successfully",
@@ -112,6 +120,26 @@ export default function CreateCustomerScreen() {
 						</Description>
 					</View>
 
+					{/* GST Number (Optional) */}
+					<View className="mb-4">
+						<Label className="mb-2 text-foreground">
+							GST Number (Optional)
+						</Label>
+						<Input
+							placeholder="e.g. 08AAAAA0000A1Z5"
+							value={formData.gstNumber}
+							onChangeText={(text) =>
+								updateField("gstNumber", text.toUpperCase().trim())
+							}
+							autoCapitalize="characters"
+							maxLength={15}
+							className="border-border bg-surface text-foreground"
+						/>
+						<Description className="mt-1 text-foreground/60">
+							15-digit GSTIN for billing & tax credit
+						</Description>
+					</View>
+
 					{/* Address */}
 					<View className="mb-4">
 						<Label className="mb-2 text-foreground">Address</Label>
@@ -145,8 +173,6 @@ export default function CreateCustomerScreen() {
 
 				<View className="mt-4 mb-6 gap-3">
 					<Button
-						variant="solid"
-						color="accent"
 						size="lg"
 						onPress={handleSubmit}
 						isDisabled={createMutation.isPending}

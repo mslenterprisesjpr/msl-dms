@@ -7,6 +7,7 @@ export interface ICustomer {
 	name: string;
 	phone?: string;
 	address?: string;
+	gstNumber?: string;
 	isActive: boolean;
 	createdAt: Date;
 	updatedAt: Date;
@@ -39,6 +40,12 @@ const CustomerSchema = new Schema(
 		address: {
 			type: String,
 			trim: true,
+		},
+
+		gstNumber: {
+			type: String,
+			trim: true,
+			uppercase: true,
 		},
 
 		isActive: {

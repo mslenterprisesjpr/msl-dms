@@ -72,7 +72,8 @@ export default function BillingScreen() {
 			(c) =>
 				!search ||
 				c.name?.toLowerCase().includes(search.toLowerCase()) ||
-				c.phone?.includes(search),
+				c.phone?.includes(search) ||
+				c.gstNumber?.toLowerCase().includes(search.toLowerCase()),
 		);
 	}, [customers, search]);
 
@@ -378,6 +379,11 @@ export default function BillingScreen() {
 													{cust.phone ? (
 														<Text className="text-slate-500 text-xs">
 															📞 {cust.phone}
+														</Text>
+													) : null}
+													{cust.gstNumber ? (
+														<Text className="mt-0.5 font-semibold text-[#0f274a] text-xs dark:text-sky-400">
+															GST: {cust.gstNumber}
 														</Text>
 													) : null}
 													{cust.address ? (

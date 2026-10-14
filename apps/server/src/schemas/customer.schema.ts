@@ -5,6 +5,7 @@ export const createCustomerBodySchema = z.object({
 	name: z.string().min(1, "Name is required"),
 	phone: z.string().optional(),
 	address: z.string().optional(),
+	gstNumber: z.string().trim().uppercase().optional(),
 	isActive: z.boolean().default(true),
 });
 

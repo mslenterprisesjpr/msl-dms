@@ -4,6 +4,7 @@ export interface Customer {
 	name: string;
 	phone?: string;
 	address?: string;
+	gstNumber?: string;
 	isActive: boolean;
 	createdAt: string;
 	updatedAt: string;
@@ -13,6 +14,7 @@ export interface CreateCustomerDto {
 	name: string;
 	phone?: string;
 	address?: string;
+	gstNumber?: string;
 	isActive?: boolean;
 }
 

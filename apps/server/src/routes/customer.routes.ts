@@ -39,6 +39,7 @@ app.get(
 			filter.$or = [
 				{ name: { $regex: query.search, $options: "i" } },
 				{ phone: { $regex: query.search, $options: "i" } },
+				{ gstNumber: { $regex: query.search, $options: "i" } },
 			];
 		}
 
@@ -85,6 +86,7 @@ app.get(
 			$or: [
 				{ name: { $regex: q, $options: "i" } },
 				{ phone: { $regex: q, $options: "i" } },
+				{ gstNumber: { $regex: q, $options: "i" } },
 			],
 		})
 			.limit(20)
