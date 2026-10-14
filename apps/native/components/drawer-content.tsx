@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { Surface, useThemeColor } from "heroui-native";
 import { useEffect, useState } from "react";
 import { Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { MslLogo } from "@/components/msl-logo";
 import { useOrganizations } from "@/lib/hooks/use-organizations";
 import { useSession } from "@/lib/hooks/use-session";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
@@ -64,8 +65,24 @@ export function CustomDrawerContent(props: any) {
 			style={{ backgroundColor: themeColorBackground, flex: 1 }}
 			contentContainerStyle={{ flexGrow: 1 }}
 		>
+			{/* Drawer Top Official Branding */}
+			<View className="flex-row items-center border-default-200 border-b px-4 pt-5 pb-3">
+				<MslLogo size="sm" dimension={42} />
+				<View className="ml-3">
+					<Text
+						className="font-extrabold text-base tracking-wide"
+						style={{ color: themeColorForeground }}
+					>
+						MSL ENTERPRISES
+					</Text>
+					<Text className="font-medium text-[11px] text-slate-500">
+						Distribution Management
+					</Text>
+				</View>
+			</View>
+
 			{/* Organization Selector */}
-			<View className="mb-2 border-default-200 border-b px-4 py-6">
+			<View className="mb-2 border-default-200 border-b px-4 py-5">
 				<Text
 					className="mb-3 font-medium text-xs opacity-60"
 					style={{ color: themeColorForeground }}

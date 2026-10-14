@@ -15,6 +15,7 @@ import Svg, { Path, Rect } from "react-native-svg";
 
 import { Container } from "@/components/container";
 import { DialogModal } from "@/components/dialog-modal";
+import { SplashScreen } from "@/components/splash-screen";
 import { useCustomers } from "@/hooks/queries/use-customers";
 import { useAdminStats, useWorkerStats } from "@/hooks/queries/use-dashboard";
 import { useProducts } from "@/hooks/queries/use-products";
@@ -319,8 +320,21 @@ export default function Home() {
 		}
 	};
 
-	const isLoadingInitial =
-		isSessionLoading || (isAdmin ? isAdminLoading : isWorkerLoading);
+	// Auth protection: redirect to login if not logged in
+	React.useEffect(() => {
+		if (!isSessionLoading && !user) {
+			router.replace("/(drawer)/auth" as any);
+		}
+	}, [isSessionLoading, user]);
+
+	// Show elegant branded Splash Screen during initial boot / auth check
+	if (isSessionLoading || (!user && !isSessionLoading)) {
+		return (
+			<SplashScreen
+				message={!user ? "Redirecting to login..." : "Loading MSL DMS..."}
+			/>
+		);
+	}
 
 	return (
 		<Container

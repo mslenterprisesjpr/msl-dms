@@ -7,6 +7,7 @@ import { AuthWaveFooter } from "@/components/auth-wave-footer";
 import { Container } from "@/components/container";
 import { SignIn } from "@/components/sign-in";
 import { SignUp } from "@/components/sign-up";
+import { SplashScreen } from "@/components/splash-screen";
 import { authClient } from "@/lib/auth-client";
 
 export default function AuthScreen() {
@@ -21,12 +22,14 @@ export default function AuthScreen() {
 		}
 	}, [session?.user]);
 
-	// While checking session or if already logged in, show clean minimal loader
+	// While checking session or if already logged in, show animated Splash Screen
 	if (isPending || session?.user) {
 		return (
-			<View className="flex-1 items-center justify-center bg-white dark:bg-zinc-950">
-				<ActivityIndicator size="large" color="#f59e0b" />
-			</View>
+			<SplashScreen
+				message={
+					session?.user ? "Welcome back! Opening app..." : "Authenticating..."
+				}
+			/>
 		);
 	}
 
