@@ -1,17 +1,14 @@
 import { Stack } from "expo-router";
+import { useAppHeader } from "@/hooks/use-app-header";
 
 export default function ReportsLayout() {
+	const { rootTabHeaderOptions } = useAppHeader();
+
 	return (
-		<Stack
-			screenOptions={{
-				headerShown: true,
-			}}
-		>
+		<Stack>
 			<Stack.Screen
 				name="index"
-				options={{
-					headerTitle: "Reports & Analytics",
-				}}
+				options={rootTabHeaderOptions("Reports & Analytics")}
 			/>
 		</Stack>
 	);

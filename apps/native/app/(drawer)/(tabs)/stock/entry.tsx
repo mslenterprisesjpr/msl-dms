@@ -53,6 +53,7 @@ function formatDateDisplay(date: Date): string {
 
 export default function AddStockScreen() {
 	const themeAccent = useThemeColor("accent");
+	const themeColorForeground = useThemeColor("foreground");
 	const router = useRouter();
 	const insets = useSafeAreaInsets();
 	const { toast } = useToast();
@@ -256,7 +257,7 @@ export default function AddStockScreen() {
 					hitSlop={12}
 					className="mr-3 h-9 w-9 items-center justify-center rounded-full bg-slate-50 active:bg-slate-100 dark:bg-zinc-900"
 				>
-					<Ionicons name="arrow-back" size={20} color="#1e293b" />
+					<Ionicons name="arrow-back" size={20} color={themeColorForeground} />
 				</Pressable>
 				<Text className="font-bold text-lg text-slate-900 dark:text-white">
 					Add Stock

@@ -18,6 +18,8 @@ export default function TabLayout() {
 					backgroundColor: themeColorBackground,
 					elevation: 0,
 					shadowOpacity: 0,
+					borderBottomWidth: 1,
+					borderBottomColor: "rgba(0,0,0,0.06)",
 				},
 				headerTintColor: themeColorForeground,
 				headerTitleStyle: {
@@ -44,7 +46,7 @@ export default function TabLayout() {
 							navigation.openDrawer?.();
 						}}
 						className="mr-2 ml-4"
-						hitSlop={8}
+						hitSlop={12}
 					>
 						<Ionicons name="menu" size={24} color={themeColorForeground} />
 					</Pressable>
@@ -55,7 +57,7 @@ export default function TabLayout() {
 							// Notification bell press
 						}}
 						className="mr-4 p-1"
-						hitSlop={8}
+						hitSlop={12}
 					>
 						<Ionicons
 							name="notifications-outline"

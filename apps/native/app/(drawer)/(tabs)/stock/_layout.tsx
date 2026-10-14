@@ -1,17 +1,14 @@
 import { Stack } from "expo-router";
+import { useAppHeader } from "@/hooks/use-app-header";
 
 export default function StockLayout() {
+	const { rootTabHeaderOptions, detailHeaderOptions } = useAppHeader();
+
 	return (
-		<Stack
-			screenOptions={{
-				headerShown: true,
-			}}
-		>
+		<Stack>
 			<Stack.Screen
 				name="index"
-				options={{
-					headerTitle: "Inventory Stock",
-				}}
+				options={rootTabHeaderOptions("Inventory Stock")}
 			/>
 			<Stack.Screen
 				name="entry"
@@ -45,21 +42,12 @@ export default function StockLayout() {
 			/>
 			<Stack.Screen
 				name="history"
-				options={{
-					headerTitle: "Stock History",
-				}}
+				options={detailHeaderOptions("Stock History")}
 			/>
-			<Stack.Screen
-				name="issue"
-				options={{
-					headerTitle: "Issue Stock",
-				}}
-			/>
+			<Stack.Screen name="issue" options={detailHeaderOptions("Issue Stock")} />
 			<Stack.Screen
 				name="return"
-				options={{
-					headerTitle: "Return Stock",
-				}}
+				options={detailHeaderOptions("Return Stock")}
 			/>
 		</Stack>
 	);

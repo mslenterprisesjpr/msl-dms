@@ -1,23 +1,22 @@
 import { Stack } from "expo-router";
+import { useAppHeader } from "@/hooks/use-app-header";
 
 export default function BillingLayout() {
+	const { rootTabHeaderOptions, detailHeaderOptions } = useAppHeader();
+
 	return (
-		<Stack
-			screenOptions={{
-				headerShown: true,
-			}}
-		>
+		<Stack>
 			<Stack.Screen
 				name="index"
-				options={{
-					headerTitle: "Billing & Invoices",
-				}}
+				options={rootTabHeaderOptions("Billing & Invoices")}
 			/>
 			<Stack.Screen
 				name="create"
-				options={{
-					headerTitle: "Create New Bill",
-				}}
+				options={detailHeaderOptions("Create New Bill")}
+			/>
+			<Stack.Screen
+				name="customer-create"
+				options={detailHeaderOptions("Add Customer")}
 			/>
 		</Stack>
 	);
