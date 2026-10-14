@@ -100,12 +100,6 @@ export default function TabLayout() {
 					href: null,
 				}}
 			/>
-			<Tabs.Screen
-				name="test-auth"
-				options={{
-					href: null,
-				}}
-			/>
 		</Tabs>
 	);
 }
