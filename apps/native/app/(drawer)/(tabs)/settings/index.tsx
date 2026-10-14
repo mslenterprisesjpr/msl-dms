@@ -1,16 +1,17 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { Card, Typography, useThemeColor } from "heroui-native";
+import { Card, Switch, Typography, useThemeColor } from "heroui-native";
 import React from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
 import { Container } from "@/components/container";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { useAppTheme } from "@/contexts/app-theme-context";
 import { useSession } from "@/lib/hooks/use-session";
 
 export default function SettingsScreen() {
 	const themeAccent = useThemeColor("accent");
 	const { session, user } = useSession();
+	const { isDark, toggleTheme } = useAppTheme();
 
 	const isAdminUser = user?.role === "admin";
 
@@ -123,12 +124,29 @@ export default function SettingsScreen() {
 				<Card className="border border-slate-100 bg-white p-3.5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
 					<View className="flex-row items-center justify-between">
 						<View className="flex-row items-center">
-							<Ionicons name="moon-outline" size={20} color="#64748b" />
-							<Text className="ml-2.5 font-semibold text-slate-800 text-sm dark:text-zinc-200">
-								Dark Theme
-							</Text>
+							<View
+								className="mr-3 h-10 w-10 items-center justify-center rounded-xl"
+								style={{ backgroundColor: isDark ? "#38bdf815" : "#0f274a10" }}
+							>
+								<Ionicons
+									name={isDark ? "moon" : "moon-outline"}
+									size={20}
+									color={isDark ? "#38bdf8" : "#0f274a"}
+								/>
+							</View>
+							<View>
+								<Text className="font-semibold text-slate-900 text-sm dark:text-white">
+									Dark Theme
+								</Text>
+								<Text className="text-slate-500 text-xs dark:text-zinc-400">
+									{isDark ? "Dark theme active" : "Light theme active"}
+								</Text>
+							</View>
 						</View>
-						<ThemeToggle />
+						<Switch
+							isSelected={isDark}
+							onSelectedChange={() => toggleTheme()}
+						/>
 					</View>
 				</Card>
 			</ScrollView>
