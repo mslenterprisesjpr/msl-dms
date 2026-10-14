@@ -7,6 +7,7 @@ export default function TabLayout() {
 	const themeColorForeground = useThemeColor("foreground");
 	const themeColorBackground = useThemeColor("background");
 	const themeColorMuted = useThemeColor("muted");
+	const themeColorAccent = useThemeColor("accent");
 	const navigation = useNavigation();
 
 	return (
@@ -25,7 +26,7 @@ export default function TabLayout() {
 					fontSize: 18,
 				},
 				headerTitleAlign: "left",
-				tabBarActiveTintColor: "#f95a24",
+				tabBarActiveTintColor: themeColorAccent,
 				tabBarInactiveTintColor: themeColorMuted,
 				tabBarStyle: {
 					backgroundColor: themeColorBackground,
@@ -69,7 +70,7 @@ export default function TabLayout() {
 				name="index"
 				options={{
 					title: "Home",
-					headerTitle: "Campa Distribution",
+					headerTitle: "MSL Enterprises",
 					tabBarIcon: ({ color, size, focused }) => (
 						<Ionicons
 							name={focused ? "home" : "home-outline"}

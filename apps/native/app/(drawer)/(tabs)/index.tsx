@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useNavigation } from "expo-router";
-import { Input, useToast } from "heroui-native";
+import { Input, useThemeColor, useToast } from "heroui-native";
 import React, { useMemo, useState } from "react";
 import {
 	ActivityIndicator,
@@ -46,6 +46,7 @@ function CashBadgeIcon({ size = 18 }: { size?: number }) {
 }
 
 export default function Home() {
+	const themeAccent = useThemeColor("accent");
 	const navigation = useNavigation();
 	const {
 		user,
@@ -98,7 +99,7 @@ export default function Home() {
 
 	// Update navigation title with real active organization name
 	React.useEffect(() => {
-		const orgTitle = currentOrg?.name || "Campa Distribution";
+		const orgTitle = currentOrg?.name || "MSL Enterprises";
 		navigation.setOptions({
 			headerTitle: orgTitle,
 		});
@@ -251,8 +252,8 @@ export default function Home() {
 					<RefreshControl
 						refreshing={refreshing}
 						onRefresh={onRefresh}
-						tintColor="#f95a24"
-						colors={["#f95a24"]}
+						tintColor={themeAccent}
+						colors={[themeAccent]}
 					/>
 				}
 			>
@@ -336,10 +337,10 @@ export default function Home() {
 					{/* Create Bill Button */}
 					<Pressable
 						onPress={() => setCreateBillModalVisible(true)}
-						className="flex-1 flex-row items-center justify-center rounded-2xl bg-[#f95a24] px-4 py-3.5 shadow-sm active:opacity-90"
+						className="flex-1 flex-row items-center justify-center rounded-2xl bg-accent px-4 py-3.5 shadow-sm active:opacity-90"
 					>
 						<Ionicons name="add" size={22} color="#ffffff" />
-						<Text className="ml-1.5 font-bold text-base text-white">
+						<Text className="ml-1.5 font-bold text-accent-foreground text-base">
 							Create Bill
 						</Text>
 					</Pressable>
@@ -510,14 +511,16 @@ export default function Home() {
 							</Text>
 						</Pressable>
 						<Pressable
-							className="flex-1 items-center justify-center rounded-xl bg-[#f95a24] py-3 active:opacity-90"
+							className="flex-1 items-center justify-center rounded-xl bg-accent py-3 active:opacity-90"
 							onPress={handleCreateBill}
 							disabled={isSubmittingBill}
 						>
 							{isSubmittingBill ? (
 								<ActivityIndicator size="small" color="#ffffff" />
 							) : (
-								<Text className="font-bold text-white">Create Bill</Text>
+								<Text className="font-bold text-accent-foreground">
+									Create Bill
+								</Text>
 							)}
 						</Pressable>
 					</View>
@@ -547,19 +550,19 @@ export default function Home() {
 								onPress={() => setPaymentMethod("CASH")}
 								className={`flex-1 flex-row items-center justify-center rounded-xl border p-3 ${
 									paymentMethod === "CASH"
-										? "border-[#f95a24] bg-[#f95a24]/10"
+										? "border-accent bg-accent/10"
 										: "border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
 								}`}
 							>
 								<Ionicons
 									name="cash-outline"
 									size={18}
-									color={paymentMethod === "CASH" ? "#f95a24" : "#64748b"}
+									color={paymentMethod === "CASH" ? themeAccent : "#64748b"}
 								/>
 								<Text
 									className={`ml-2 font-semibold text-sm ${
 										paymentMethod === "CASH"
-											? "text-[#f95a24]"
+											? "text-accent"
 											: "text-slate-700 dark:text-zinc-300"
 									}`}
 								>
@@ -605,14 +608,14 @@ export default function Home() {
 										onPress={() => setSelectedCustomerId("")}
 										className={`rounded-lg border px-3 py-1.5 ${
 											!selectedCustomerId
-												? "border-[#f95a24] bg-[#f95a24]/10"
+												? "border-accent bg-accent/10"
 												: "border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
 										}`}
 									>
 										<Text
 											className={`font-semibold text-xs ${
 												!selectedCustomerId
-													? "text-[#f95a24]"
+													? "text-accent"
 													: "text-slate-700 dark:text-zinc-300"
 											}`}
 										>
@@ -625,14 +628,14 @@ export default function Home() {
 											onPress={() => setSelectedCustomerId(cust._id)}
 											className={`rounded-lg border px-3 py-1.5 ${
 												selectedCustomerId === cust._id
-													? "border-[#f95a24] bg-[#f95a24]/10"
+													? "border-accent bg-accent/10"
 													: "border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
 											}`}
 										>
 											<Text
 												className={`font-semibold text-xs ${
 													selectedCustomerId === cust._id
-														? "text-[#f95a24]"
+														? "text-accent"
 														: "text-slate-700 dark:text-zinc-300"
 												}`}
 											>

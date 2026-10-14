@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useThemeColor } from "heroui-native";
 import { useMemo } from "react";
 import {
 	ActivityIndicator,
@@ -13,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useProduct } from "@/hooks/queries/use-products";
 
 export default function ProductDetailsScreen() {
+	const themeAccent = useThemeColor("accent");
 	const router = useRouter();
 	const insets = useSafeAreaInsets();
 	const { id } = useLocalSearchParams<{ id?: string }>();
@@ -33,7 +35,7 @@ export default function ProductDetailsScreen() {
 	if (isLoading || !product) {
 		return (
 			<View className="flex-1 items-center justify-center bg-white dark:bg-zinc-950">
-				<ActivityIndicator size="large" color="#f95a24" />
+				<ActivityIndicator size="large" color={themeAccent} />
 				<Text className="mt-3 font-semibold text-slate-400 text-xs">
 					Loading product details...
 				</Text>
@@ -75,10 +77,10 @@ export default function ProductDetailsScreen() {
 							params: { id: product._id },
 						})
 					}
-					className="flex-row items-center rounded-xl bg-orange-50 px-3 py-1.5 dark:bg-orange-950/40"
+					className="flex-row items-center rounded-xl bg-accent/10 px-3 py-1.5"
 				>
-					<Ionicons name="create-outline" size={16} color="#f95a24" />
-					<Text className="ml-1 font-bold text-[#f95a24] text-xs">Edit</Text>
+					<Ionicons name="create-outline" size={16} color={themeAccent} />
+					<Text className="ml-1 font-bold text-accent text-xs">Edit</Text>
 				</Pressable>
 			</View>
 
@@ -99,8 +101,8 @@ export default function ProductDetailsScreen() {
 							resizeMode="contain"
 						/>
 					) : (
-						<View className="h-24 w-24 items-center justify-center rounded-2xl bg-orange-100 dark:bg-orange-950/50">
-							<Ionicons name="wine" size={44} color="#f95a24" />
+						<View className="h-24 w-24 items-center justify-center rounded-2xl bg-accent/10">
+							<Ionicons name="wine" size={44} color={themeAccent} />
 						</View>
 					)}
 
@@ -225,10 +227,10 @@ export default function ProductDetailsScreen() {
 				<View className="gap-2.5">
 					<Pressable
 						onPress={() => router.push("/stock/entry" as any)}
-						className="flex-row items-center justify-center rounded-2xl bg-[#f95a24] py-3.5 active:opacity-90"
+						className="flex-row items-center justify-center rounded-2xl bg-accent py-3.5 active:opacity-90"
 					>
 						<Ionicons name="add-circle" size={18} color="#ffffff" />
-						<Text className="ml-2 font-bold text-sm text-white">
+						<Text className="ml-2 font-bold text-accent-foreground text-sm">
 							+ Add / Purchase Stock
 						</Text>
 					</Pressable>

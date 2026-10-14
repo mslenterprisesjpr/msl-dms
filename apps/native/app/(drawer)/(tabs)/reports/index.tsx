@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Card } from "heroui-native";
+import { Card, useThemeColor } from "heroui-native";
 import React, { useState } from "react";
 import {
 	ActivityIndicator,
@@ -15,6 +15,7 @@ import { useSession } from "@/lib/hooks/use-session";
 import { useAppModeStore } from "@/lib/stores/app-mode-store";
 
 export default function ReportsScreen() {
+	const themeAccent = useThemeColor("accent");
 	const { user } = useSession();
 	const { mode } = useAppModeStore();
 	const [refreshing, setRefreshing] = useState(false);
@@ -65,13 +66,13 @@ export default function ReportsScreen() {
 					<RefreshControl
 						refreshing={refreshing}
 						onRefresh={onRefresh}
-						tintColor="#f95a24"
+						tintColor={themeAccent}
 					/>
 				}
 			>
 				{isLoading ? (
 					<View className="items-center py-20">
-						<ActivityIndicator size="small" color="#f95a24" />
+						<ActivityIndicator size="small" color={themeAccent} />
 					</View>
 				) : (
 					<>
@@ -126,8 +127,12 @@ export default function ReportsScreen() {
 							<Card className="border border-slate-100 bg-white p-3.5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
 								<View className="flex-row items-center justify-between">
 									<View className="flex-row items-center">
-										<View className="mr-3 h-10 w-10 items-center justify-center rounded-xl bg-[#f95a24]/10">
-											<Ionicons name="trending-up" size={20} color="#f95a24" />
+										<View className="mr-3 h-10 w-10 items-center justify-center rounded-xl bg-accent/10">
+											<Ionicons
+												name="trending-up"
+												size={20}
+												color={themeAccent}
+											/>
 										</View>
 										<View>
 											<Text className="font-semibold text-slate-900 text-sm dark:text-white">

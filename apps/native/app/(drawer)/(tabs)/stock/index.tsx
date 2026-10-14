@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { Card } from "heroui-native";
+import { Card, useThemeColor } from "heroui-native";
 import React, { useMemo, useState } from "react";
 import {
 	ActivityIndicator,
@@ -18,6 +18,7 @@ import { useSession } from "@/lib/hooks/use-session";
 import { useAppModeStore } from "@/lib/stores/app-mode-store";
 
 export default function StockScreen() {
+	const themeAccent = useThemeColor("accent");
 	const { user } = useSession();
 	const { mode } = useAppModeStore();
 
@@ -137,7 +138,7 @@ export default function StockScreen() {
 					<RefreshControl
 						refreshing={refreshing}
 						onRefresh={onRefresh}
-						tintColor="#f95a24"
+						tintColor={themeAccent}
 					/>
 				}
 			>
@@ -148,14 +149,14 @@ export default function StockScreen() {
 						onPress={() => setActiveTab("STOCK")}
 						className={`flex-1 items-center justify-center rounded-2xl py-3 shadow-sm ${
 							activeTab === "STOCK"
-								? "bg-[#f95a24]"
+								? "bg-accent"
 								: "border border-slate-200/60 bg-slate-100 dark:border-zinc-800 dark:bg-zinc-900"
 						}`}
 					>
 						<Text
 							className={`font-bold text-sm ${
 								activeTab === "STOCK"
-									? "text-white"
+									? "text-accent-foreground"
 									: "text-slate-600 dark:text-zinc-300"
 							}`}
 						>
@@ -168,14 +169,14 @@ export default function StockScreen() {
 						onPress={() => setActiveTab("LOW_STOCK")}
 						className={`flex-1 items-center justify-center rounded-2xl py-3 ${
 							activeTab === "LOW_STOCK"
-								? "bg-[#f95a24] shadow-sm"
+								? "bg-accent shadow-sm"
 								: "border border-slate-200/60 bg-slate-100 dark:border-zinc-800 dark:bg-zinc-900"
 						}`}
 					>
 						<Text
 							className={`font-bold text-sm ${
 								activeTab === "LOW_STOCK"
-									? "text-white"
+									? "text-accent-foreground"
 									: "text-slate-600 dark:text-zinc-300"
 							}`}
 						>
@@ -297,7 +298,7 @@ export default function StockScreen() {
 							{/* Header */}
 							<View className="mb-4 flex-row items-center justify-between">
 								<View className="flex-row items-center">
-									<Ionicons name="stats-chart" size={18} color="#f95a24" />
+									<Ionicons name="stats-chart" size={18} color={themeAccent} />
 									<Text className="ml-2 font-bold text-base text-slate-900 dark:text-white">
 										Stock Value Trend
 									</Text>
@@ -354,7 +355,7 @@ export default function StockScreen() {
 												style={{ width: 28 }}
 											>
 												<View
-													className="w-4 rounded-t-md bg-[#f95a24]"
+													className="w-4 rounded-t-md bg-accent"
 													style={{ height: `${item.heightPct}%` }}
 												/>
 											</View>
@@ -390,13 +391,13 @@ export default function StockScreen() {
 
 							{/* 3 Buttons Grid */}
 							<View className="flex-row gap-3">
-								{/* Button 1: Add Stock (Orange) */}
+								{/* Button 1: Add Stock */}
 								<Pressable
 									onPress={() => router.push("/stock/entry" as any)}
-									className="flex-1 items-center justify-center rounded-2xl bg-[#f95a24] px-2 py-4 shadow-sm active:opacity-90"
+									className="flex-1 items-center justify-center rounded-2xl bg-accent px-2 py-4 shadow-sm active:opacity-90"
 								>
 									<Ionicons name="add" size={24} color="#ffffff" />
-									<Text className="mt-1 font-bold text-white text-xs">
+									<Text className="mt-1 font-bold text-accent-foreground text-xs">
 										Add Stock
 									</Text>
 								</Pressable>
@@ -443,7 +444,7 @@ export default function StockScreen() {
 
 						{isProductsLoading ? (
 							<View className="items-center py-12">
-								<ActivityIndicator size="small" color="#f95a24" />
+								<ActivityIndicator size="small" color={themeAccent} />
 							</View>
 						) : stats.lowStockList.length === 0 ? (
 							<View className="items-center rounded-2xl border border-slate-100 bg-white p-6 py-12 dark:border-zinc-800 dark:bg-zinc-900">
@@ -480,9 +481,9 @@ export default function StockScreen() {
 												</Text>
 												<Pressable
 													onPress={() => router.push("/stock/entry" as any)}
-													className="mt-1 rounded-md bg-[#f95a24] px-2 py-0.5"
+													className="mt-1 rounded-md bg-accent px-2 py-0.5"
 												>
-													<Text className="font-bold text-[10px] text-white">
+													<Text className="font-bold text-[10px] text-accent-foreground">
 														+ Reorder
 													</Text>
 												</Pressable>

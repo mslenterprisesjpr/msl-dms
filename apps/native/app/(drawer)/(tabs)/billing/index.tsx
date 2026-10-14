@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { Card, Input } from "heroui-native";
+import { Card, Input, useThemeColor } from "heroui-native";
 import React, { useMemo, useState } from "react";
 import {
 	ActivityIndicator,
@@ -17,6 +17,7 @@ import { useCustomers } from "@/hooks/queries/use-customers";
 import { useSales } from "@/hooks/queries/use-sales";
 
 export default function BillingScreen() {
+	const themeAccent = useThemeColor("accent");
 	const [activeSection, setActiveSection] = useState<"INVOICES" | "CUSTOMERS">(
 		"INVOICES",
 	);
@@ -106,12 +107,12 @@ export default function BillingScreen() {
 						<Ionicons
 							name="document-text"
 							size={16}
-							color={activeSection === "INVOICES" ? "#f95a24" : "#64748b"}
+							color={activeSection === "INVOICES" ? themeAccent : "#64748b"}
 						/>
 						<Text
 							className={`ml-1.5 font-bold text-xs ${
 								activeSection === "INVOICES"
-									? "text-[#f95a24]"
+									? "text-accent"
 									: "text-slate-600 dark:text-zinc-400"
 							}`}
 						>
@@ -148,10 +149,10 @@ export default function BillingScreen() {
 				<View className="mb-3 flex-row gap-2.5">
 					<Pressable
 						onPress={() => router.push("/billing/create" as any)}
-						className="flex-1 flex-row items-center justify-center rounded-2xl bg-[#f95a24] px-3 py-3 shadow-sm active:opacity-90"
+						className="flex-1 flex-row items-center justify-center rounded-2xl bg-accent px-3 py-3 shadow-sm active:opacity-90"
 					>
 						<Ionicons name="add" size={18} color="#ffffff" />
-						<Text className="ml-1 font-bold text-white text-xs">
+						<Text className="ml-1 font-bold text-accent-foreground text-xs">
 							Create Bill
 						</Text>
 					</Pressable>
@@ -220,14 +221,14 @@ export default function BillingScreen() {
 										onPress={() => setStatusFilter(filter)}
 										className={`rounded-full border px-3 py-1 ${
 											statusFilter === filter
-												? "border-[#f95a24] bg-[#f95a24]/10"
+												? "border-accent bg-accent/10"
 												: "border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
 										}`}
 									>
 										<Text
 											className={`font-semibold text-xs ${
 												statusFilter === filter
-													? "text-[#f95a24]"
+													? "text-accent"
 													: "text-slate-600 dark:text-zinc-400"
 											}`}
 										>
@@ -246,13 +247,13 @@ export default function BillingScreen() {
 								<RefreshControl
 									refreshing={refreshing}
 									onRefresh={onRefresh}
-									tintColor="#f95a24"
+									tintColor={themeAccent}
 								/>
 							}
 						>
 							{isSalesLoading ? (
 								<View className="items-center py-12">
-									<ActivityIndicator size="small" color="#f95a24" />
+									<ActivityIndicator size="small" color={themeAccent} />
 								</View>
 							) : filteredSales.length === 0 ? (
 								<View className="items-center py-16">

@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { Card, Typography } from "heroui-native";
+import { Card, Typography, useThemeColor } from "heroui-native";
 import React from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
@@ -10,6 +10,7 @@ import { useSession } from "@/lib/hooks/use-session";
 import { useAppModeStore } from "@/lib/stores/app-mode-store";
 
 export default function SettingsScreen() {
+	const themeAccent = useThemeColor("accent");
 	const { session, user } = useSession();
 	const { mode, setMode } = useAppModeStore();
 
@@ -54,8 +55,8 @@ export default function SettingsScreen() {
 				{/* User Profile Card */}
 				<Card className="mb-4 border border-slate-100 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
 					<View className="flex-row items-center">
-						<View className="h-14 w-14 items-center justify-center rounded-full bg-[#f95a24]/10">
-							<Ionicons name="person" size={28} color="#f95a24" />
+						<View className="h-14 w-14 items-center justify-center rounded-full bg-accent/10">
+							<Ionicons name="person" size={28} color={themeAccent} />
 						</View>
 						<View className="ml-3.5 flex-1">
 							<Text className="font-bold text-base text-slate-900 dark:text-white">
@@ -79,7 +80,7 @@ export default function SettingsScreen() {
 				<Card className="mb-5 border border-slate-100 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
 					<View className="mb-2 flex-row items-center justify-between">
 						<View className="flex-row items-center">
-							<Ionicons name="swap-horizontal" size={20} color="#f95a24" />
+							<Ionicons name="swap-horizontal" size={20} color={themeAccent} />
 							<Text className="ml-2 font-bold text-base text-slate-900 dark:text-white">
 								App Mode Switcher
 							</Text>
@@ -120,12 +121,12 @@ export default function SettingsScreen() {
 							<Ionicons
 								name="shield-checkmark"
 								size={16}
-								color={mode === "admin" ? "#f95a24" : "#64748b"}
+								color={mode === "admin" ? themeAccent : "#64748b"}
 							/>
 							<Text
 								className={`ml-1.5 font-bold text-xs ${
 									mode === "admin"
-										? "text-[#f95a24]"
+										? "text-accent"
 										: "text-slate-600 dark:text-zinc-400"
 								}`}
 							>

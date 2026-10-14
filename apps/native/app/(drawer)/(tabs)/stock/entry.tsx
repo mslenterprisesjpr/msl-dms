@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { useToast } from "heroui-native";
+import { useThemeColor, useToast } from "heroui-native";
 import { useEffect, useMemo, useState } from "react";
 import {
 	ActivityIndicator,
@@ -52,6 +52,7 @@ function formatDateDisplay(date: Date): string {
 }
 
 export default function AddStockScreen() {
+	const themeAccent = useThemeColor("accent");
 	const router = useRouter();
 	const insets = useSafeAreaInsets();
 	const { toast } = useToast();
@@ -282,8 +283,8 @@ export default function AddStockScreen() {
 					>
 						<View className="mr-2 flex-1 flex-row items-center">
 							{/* Bottle Icon / Badge */}
-							<View className="mr-3 h-8 w-8 items-center justify-center rounded-lg bg-red-50 dark:bg-red-950/40">
-								<Ionicons name="wine" size={18} color="#f95a24" />
+							<View className="mr-3 h-8 w-8 items-center justify-center rounded-lg bg-accent/10">
+								<Ionicons name="wine" size={18} color={themeAccent} />
 							</View>
 							<View className="flex-1">
 								<Text
@@ -520,7 +521,7 @@ export default function AddStockScreen() {
 				<Pressable
 					onPress={handleSaveStock}
 					disabled={isSubmitting}
-					className="flex-row items-center justify-center rounded-2xl bg-[#f95a24] py-4 shadow-sm active:opacity-90 disabled:opacity-50"
+					className="flex-row items-center justify-center rounded-2xl bg-accent py-4 shadow-sm active:opacity-90 disabled:opacity-50"
 				>
 					{isSubmitting ? (
 						<ActivityIndicator size="small" color="#ffffff" />
@@ -532,7 +533,9 @@ export default function AddStockScreen() {
 								color="#ffffff"
 								style={{ marginRight: 8 }}
 							/>
-							<Text className="font-bold text-base text-white">Save Stock</Text>
+							<Text className="font-bold text-accent-foreground text-base">
+								Save Stock
+							</Text>
 						</>
 					)}
 				</Pressable>
@@ -558,10 +561,10 @@ export default function AddStockScreen() {
 										setShowProductPicker(false);
 										router.push("/stock/create" as any);
 									}}
-									className="flex-row items-center rounded-lg bg-orange-50 px-2.5 py-1 dark:bg-orange-950/40"
+									className="flex-row items-center rounded-lg bg-accent/10 px-2.5 py-1"
 								>
-									<Ionicons name="add" size={14} color="#f95a24" />
-									<Text className="ml-1 font-bold text-[#f95a24] text-xs">
+									<Ionicons name="add" size={14} color={themeAccent} />
+									<Text className="ml-1 font-bold text-accent text-xs">
 										New SKU
 									</Text>
 								</Pressable>
@@ -590,7 +593,7 @@ export default function AddStockScreen() {
 						<ScrollView className="max-h-96">
 							{isLoadingProducts ? (
 								<View className="items-center py-8">
-									<ActivityIndicator size="small" color="#f95a24" />
+									<ActivityIndicator size="small" color={themeAccent} />
 								</View>
 							) : filteredProducts.length === 0 ? (
 								<View className="items-center py-8">
@@ -607,7 +610,7 @@ export default function AddStockScreen() {
 											onPress={() => handleSelectProduct(p)}
 											className={`mb-2 flex-row items-center justify-between rounded-xl border p-3 ${
 												isSelected
-													? "border-[#f95a24] bg-orange-50/40 dark:bg-orange-950/20"
+													? "border-accent bg-accent/10"
 													: "border-slate-100 bg-slate-50/50 dark:border-zinc-800 dark:bg-zinc-800/40"
 											}`}
 										>
@@ -671,7 +674,7 @@ export default function AddStockScreen() {
 									}}
 									className={`flex-row items-center justify-between rounded-xl border p-3 ${
 										supplier === s
-											? "border-[#f95a24] bg-orange-50/40 dark:bg-orange-950/20"
+											? "border-accent bg-accent/10"
 											: "border-slate-100 bg-slate-50/50 dark:border-zinc-800 dark:bg-zinc-800/40"
 									}`}
 								>
@@ -682,7 +685,7 @@ export default function AddStockScreen() {
 										<Ionicons
 											name="checkmark-circle"
 											size={18}
-											color="#f95a24"
+											color={themeAccent}
 										/>
 									)}
 								</Pressable>
@@ -917,9 +920,11 @@ export default function AddStockScreen() {
 							</Pressable>
 							<Pressable
 								onPress={saveDatePicker}
-								className="flex-1 items-center justify-center rounded-xl bg-[#f95a24] py-2.5"
+								className="flex-1 items-center justify-center rounded-xl bg-accent py-2.5"
 							>
-								<Text className="font-bold text-sm text-white">Apply</Text>
+								<Text className="font-bold text-accent-foreground text-sm">
+									Apply
+								</Text>
 							</Pressable>
 						</View>
 					</View>

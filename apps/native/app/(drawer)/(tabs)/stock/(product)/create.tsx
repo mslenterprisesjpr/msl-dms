@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useToast } from "heroui-native";
+import { useThemeColor, useToast } from "heroui-native";
 import { useEffect, useMemo, useState } from "react";
 import {
 	ActivityIndicator,
@@ -27,6 +27,7 @@ const UNITS = ["BOTTLE", "PIECE", "KG", "LITER", "PACKET"] as const;
 const CATEGORIES = ["Beverages", "Snacks", "Others"];
 
 export default function CreateOrEditProductScreen() {
+	const themeAccent = useThemeColor("accent");
 	const router = useRouter();
 	const insets = useSafeAreaInsets();
 	const { toast } = useToast();
@@ -169,7 +170,7 @@ export default function CreateOrEditProductScreen() {
 	if (isEditing && isLoadingProduct) {
 		return (
 			<View className="flex-1 items-center justify-center bg-white dark:bg-zinc-950">
-				<ActivityIndicator size="large" color="#f95a24" />
+				<ActivityIndicator size="large" color={themeAccent} />
 				<Text className="mt-3 font-semibold text-slate-400 text-xs">
 					Loading product details...
 				</Text>
@@ -226,7 +227,7 @@ export default function CreateOrEditProductScreen() {
 						</View>
 					) : (
 						<View className="mb-3 h-28 w-28 items-center justify-center rounded-2xl border border-slate-300 border-dashed bg-slate-50 dark:border-zinc-700 dark:bg-zinc-900">
-							<Ionicons name="wine-outline" size={36} color="#f95a24" />
+							<Ionicons name="wine-outline" size={36} color={themeAccent} />
 							<Text className="mt-1 font-medium text-[11px] text-slate-400">
 								No Image
 							</Text>
@@ -309,14 +310,14 @@ export default function CreateOrEditProductScreen() {
 							onPress={() => updateField("category", c)}
 							className={`rounded-lg px-3 py-1.5 ${
 								formData.category === c
-									? "bg-[#f95a24]"
+									? "bg-accent"
 									: "border border-slate-200 bg-slate-50 dark:border-zinc-800 dark:bg-zinc-800"
 							}`}
 						>
 							<Text
 								className={`font-semibold text-xs ${
 									formData.category === c
-										? "text-white"
+										? "text-accent-foreground"
 										: "text-slate-600 dark:text-zinc-300"
 								}`}
 							>
@@ -498,12 +499,12 @@ export default function CreateOrEditProductScreen() {
 					<Pressable
 						onPress={handleSubmit}
 						disabled={isPending}
-						className="flex-1 items-center justify-center rounded-2xl bg-[#f95a24] py-4 shadow-sm active:opacity-90 disabled:opacity-50"
+						className="flex-1 items-center justify-center rounded-2xl bg-accent py-4 shadow-sm active:opacity-90 disabled:opacity-50"
 					>
 						{isPending ? (
 							<ActivityIndicator size="small" color="#ffffff" />
 						) : (
-							<Text className="font-bold text-sm text-white">
+							<Text className="font-bold text-accent-foreground text-sm">
 								{isEditing ? "Update Product" : "Create Product"}
 							</Text>
 						)}

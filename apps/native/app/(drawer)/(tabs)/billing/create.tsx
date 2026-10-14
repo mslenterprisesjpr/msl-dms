@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { Button, Card, Input, useToast } from "heroui-native";
+import { Button, Card, Input, useThemeColor, useToast } from "heroui-native";
 import React, { useMemo, useState } from "react";
 import {
 	ActivityIndicator,
@@ -23,6 +23,7 @@ interface CartItem {
 }
 
 export default function CreateBillScreen() {
+	const themeAccent = useThemeColor("accent");
 	const { toast } = useToast();
 	const { user } = useSession();
 
@@ -150,14 +151,14 @@ export default function CreateBillScreen() {
 									onPress={() => setSelectedCustomerId("")}
 									className={`rounded-xl border px-3.5 py-2 ${
 										!selectedCustomerId
-											? "border-[#f95a24] bg-[#f95a24]/10"
+											? "border-accent bg-accent/10"
 											: "border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
 									}`}
 								>
 									<Text
 										className={`font-bold text-xs ${
 											!selectedCustomerId
-												? "text-[#f95a24]"
+												? "text-accent"
 												: "text-slate-700 dark:text-zinc-300"
 										}`}
 									>
@@ -170,14 +171,14 @@ export default function CreateBillScreen() {
 										onPress={() => setSelectedCustomerId(c._id)}
 										className={`rounded-xl border px-3.5 py-2 ${
 											selectedCustomerId === c._id
-												? "border-[#f95a24] bg-[#f95a24]/10"
+												? "border-accent bg-accent/10"
 												: "border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
 										}`}
 									>
 										<Text
 											className={`font-bold text-xs ${
 												selectedCustomerId === c._id
-													? "text-[#f95a24]"
+													? "text-accent"
 													: "text-slate-700 dark:text-zinc-300"
 											}`}
 										>
@@ -200,7 +201,7 @@ export default function CreateBillScreen() {
 						2. Add Products
 					</Text>
 					{isProductsLoading ? (
-						<ActivityIndicator size="small" color="#f95a24" />
+						<ActivityIndicator size="small" color={themeAccent} />
 					) : products.length === 0 ? (
 						<Text className="text-slate-400 text-xs">
 							No active products available
@@ -231,9 +232,9 @@ export default function CreateBillScreen() {
 										{qty === 0 ? (
 											<Pressable
 												onPress={() => handleAddProduct(prod)}
-												className="rounded-lg bg-[#f95a24] px-3 py-1.5 active:opacity-80"
+												className="rounded-lg bg-accent px-3 py-1.5 active:opacity-80"
 											>
-												<Text className="font-bold text-white text-xs">
+												<Text className="font-bold text-accent-foreground text-xs">
 													+ Add
 												</Text>
 											</Pressable>
@@ -252,9 +253,9 @@ export default function CreateBillScreen() {
 												</Text>
 												<Pressable
 													onPress={() => handleAddProduct(prod)}
-													className="h-7 w-7 items-center justify-center rounded-lg bg-[#f95a24]"
+													className="h-7 w-7 items-center justify-center rounded-lg bg-accent"
 												>
-													<Text className="font-bold text-sm text-white">
+													<Text className="font-bold text-accent-foreground text-sm">
 														+
 													</Text>
 												</Pressable>
@@ -292,7 +293,7 @@ export default function CreateBillScreen() {
 							<Text className="font-bold text-base text-slate-900 dark:text-white">
 								Grand Total
 							</Text>
-							<Text className="font-black text-[#f95a24] text-xl">
+							<Text className="font-black text-accent text-xl">
 								₹{totalAmount.toLocaleString("en-IN")}
 							</Text>
 						</View>
@@ -311,14 +312,14 @@ export default function CreateBillScreen() {
 								onPress={() => setPaymentMethod(method)}
 								className={`flex-1 items-center justify-center rounded-xl border py-2.5 ${
 									paymentMethod === method
-										? "border-[#f95a24] bg-[#f95a24]/10"
+										? "border-accent bg-accent/10"
 										: "border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
 								}`}
 							>
 								<Text
 									className={`font-bold text-xs ${
 										paymentMethod === method
-											? "text-[#f95a24]"
+											? "text-accent"
 											: "text-slate-700 dark:text-zinc-300"
 									}`}
 								>
@@ -334,7 +335,7 @@ export default function CreateBillScreen() {
 					onPress={handleSubmit}
 					disabled={isSubmitting || cart.length === 0}
 					className={`flex-row items-center justify-center rounded-2xl py-4 shadow-sm active:opacity-90 ${
-						cart.length === 0 ? "bg-slate-300 dark:bg-zinc-800" : "bg-[#f95a24]"
+						cart.length === 0 ? "bg-slate-300 dark:bg-zinc-800" : "bg-accent"
 					}`}
 				>
 					{isSubmitting ? (
@@ -342,7 +343,7 @@ export default function CreateBillScreen() {
 					) : (
 						<>
 							<Ionicons name="checkmark-done" size={20} color="#ffffff" />
-							<Text className="ml-2 font-bold text-base text-white">
+							<Text className="ml-2 font-bold text-accent-foreground text-base">
 								Generate Bill • ₹{totalAmount.toLocaleString("en-IN")}
 							</Text>
 						</>

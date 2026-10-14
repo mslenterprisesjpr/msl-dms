@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useThemeColor } from "heroui-native";
 import { useMemo, useState } from "react";
 import {
 	ActivityIndicator,
@@ -103,6 +104,7 @@ function ProductBottleGraphic({ product }: { product: Product }) {
 }
 
 export default function StockListScreen() {
+	const themeAccent = useThemeColor("accent");
 	const router = useRouter();
 	const insets = useSafeAreaInsets();
 
@@ -301,10 +303,12 @@ export default function StockListScreen() {
 				</View>
 				<Pressable
 					onPress={() => router.push("/stock/create" as any)}
-					className="flex-row items-center rounded-xl bg-[#f95a24] px-3 py-1.5 shadow-sm active:opacity-90"
+					className="flex-row items-center rounded-xl bg-accent px-3 py-1.5 shadow-sm active:opacity-90"
 				>
 					<Ionicons name="add" size={16} color="#ffffff" />
-					<Text className="ml-1 font-bold text-white text-xs">Add Product</Text>
+					<Text className="ml-1 font-bold text-accent-foreground text-xs">
+						Add Product
+					</Text>
 				</Pressable>
 			</View>
 
@@ -332,7 +336,7 @@ export default function StockListScreen() {
 					onPress={() => setShowFilterModal(true)}
 					className={`h-10 w-10 items-center justify-center rounded-xl border ${
 						statusFilter !== "ALL" || sortBy !== "NAME"
-							? "border-[#f95a24] bg-orange-50 dark:border-[#f95a24] dark:bg-orange-950/40"
+							? "border-accent bg-accent/10"
 							: "border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
 					}`}
 				>
@@ -341,7 +345,7 @@ export default function StockListScreen() {
 						size={18}
 						color={
 							statusFilter !== "ALL" || sortBy !== "NAME"
-								? "#f95a24"
+								? themeAccent
 								: "#334155"
 						}
 					/>
@@ -363,14 +367,14 @@ export default function StockListScreen() {
 								onPress={() => setSelectedCategory(cat.name)}
 								className={`rounded-xl px-4 py-2 ${
 									isSelected
-										? "bg-[#f95a24] shadow-sm"
+										? "bg-accent shadow-sm"
 										: "border border-slate-200/80 bg-slate-50 dark:border-zinc-800 dark:bg-zinc-900"
 								}`}
 							>
 								<Text
 									className={`font-bold text-xs ${
 										isSelected
-											? "text-white"
+											? "text-accent-foreground"
 											: "text-slate-600 dark:text-zinc-300"
 									}`}
 								>
@@ -385,7 +389,7 @@ export default function StockListScreen() {
 			{/* Product List */}
 			{isLoading ? (
 				<View className="flex-1 items-center justify-center py-20">
-					<ActivityIndicator size="large" color="#f95a24" />
+					<ActivityIndicator size="large" color={themeAccent} />
 					<Text className="mt-3 font-semibold text-slate-400 text-xs">
 						Loading inventory stock...
 					</Text>
@@ -401,7 +405,7 @@ export default function StockListScreen() {
 						<RefreshControl
 							refreshing={isRefetching}
 							onRefresh={refetch}
-							colors={["#f95a24"]}
+							colors={[themeAccent]}
 						/>
 					}
 					ListEmptyComponent={
@@ -417,9 +421,9 @@ export default function StockListScreen() {
 							</Text>
 							<Pressable
 								onPress={() => router.push("/stock/entry" as any)}
-								className="mt-4 rounded-xl bg-[#f95a24] px-4 py-2.5 shadow-sm"
+								className="mt-4 rounded-xl bg-accent px-4 py-2.5 shadow-sm"
 							>
-								<Text className="font-bold text-white text-xs">
+								<Text className="font-bold text-accent-foreground text-xs">
 									+ Add Stock Now
 								</Text>
 							</Pressable>
@@ -467,14 +471,14 @@ export default function StockListScreen() {
 									onPress={() => setStatusFilter(s.val)}
 									className={`rounded-xl px-3.5 py-2 ${
 										statusFilter === s.val
-											? "bg-[#f95a24]"
+											? "bg-accent"
 											: "border border-slate-200 bg-slate-50 dark:border-zinc-800 dark:bg-zinc-800"
 									}`}
 								>
 									<Text
 										className={`font-bold text-xs ${
 											statusFilter === s.val
-												? "text-white"
+												? "text-accent-foreground"
 												: "text-slate-700 dark:text-zinc-300"
 										}`}
 									>
@@ -501,7 +505,7 @@ export default function StockListScreen() {
 									onPress={() => setSortBy(item.val)}
 									className={`flex-row items-center justify-between rounded-xl border p-3 ${
 										sortBy === item.val
-											? "border-[#f95a24] bg-orange-50/50 dark:bg-orange-950/20"
+											? "border-accent bg-accent/10"
 											: "border-slate-100 bg-slate-50/50 dark:border-zinc-800 dark:bg-zinc-800/40"
 									}`}
 								>
@@ -512,7 +516,7 @@ export default function StockListScreen() {
 										<Ionicons
 											name="checkmark-circle"
 											size={18}
-											color="#f95a24"
+											color={themeAccent}
 										/>
 									)}
 								</Pressable>
@@ -535,9 +539,11 @@ export default function StockListScreen() {
 							</Pressable>
 							<Pressable
 								onPress={() => setShowFilterModal(false)}
-								className="flex-1 items-center justify-center rounded-xl bg-[#f95a24] py-3"
+								className="flex-1 items-center justify-center rounded-xl bg-accent py-3"
 							>
-								<Text className="font-bold text-sm text-white">Apply</Text>
+								<Text className="font-bold text-accent-foreground text-sm">
+									Apply
+								</Text>
 							</Pressable>
 						</View>
 					</View>
@@ -618,10 +624,10 @@ export default function StockListScreen() {
 											setSelectedProductAction(null);
 											router.push("/stock/entry" as any);
 										}}
-										className="flex-row items-center justify-center rounded-xl bg-[#f95a24] py-3 active:opacity-90"
+										className="flex-row items-center justify-center rounded-xl bg-accent py-3 active:opacity-90"
 									>
 										<Ionicons name="add-circle" size={18} color="#ffffff" />
-										<Text className="ml-2 font-bold text-sm text-white">
+										<Text className="ml-2 font-bold text-accent-foreground text-sm">
 											+ Add / Purchase Stock
 										</Text>
 									</Pressable>

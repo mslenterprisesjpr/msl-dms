@@ -25,9 +25,9 @@
 			--default: oklch(0.967 0.001 286.375);
 			--default-foreground: oklch(0.21 0.006 285.885);
 
-			/* Accent (Primary) */
-			--accent: oklch(0.705 0.213 47.604);
-			--accent-foreground: oklch(0.98 0.016 73.684);
+			/* Accent (Primary) - MSL Deep Navy Blue #002B66 */
+			--accent: oklch(0.315 0.142 256.3);
+			--accent-foreground: oklch(1 0 0);
 
 			/* Forms */
 			--field-background: oklch(0.92 0.004 286.32);
@@ -40,8 +40,8 @@
 			/* chart-2 */
 			--success-foreground: oklch(0.141 0.005 285.823);
 
-			--warning: oklch(0.828 0.189 84.429);
-			/* chart-4 */
+			--warning: oklch(0.78 0.17 72);
+			/* MSL Golden Amber */
 			--warning-foreground: oklch(0.141 0.005 285.823);
 
 			--danger: oklch(0.577 0.245 27.325);
@@ -54,7 +54,7 @@
 			/* Misc */
 			--border: oklch(0.92 0.004 286.32);
 			--divider: oklch(0.92 0.004 286.32);
-			--link: oklch(0.705 0.213 47.604);
+			--link: oklch(0.315 0.142 256.3);
 		}
 
 		/* ================= DARK ================= */
@@ -76,9 +76,9 @@
 			--default: oklch(0.274 0.006 286.033);
 			--default-foreground: oklch(0.985 0 0);
 
-			/* Accent (Primary) */
-			--accent: oklch(0.646 0.222 41.116);
-			--accent-foreground: oklch(0.98 0.016 73.684);
+			/* Accent (Primary) - Vibrant Royal Blue for dark contrast */
+			--accent: oklch(0.62 0.195 254);
+			--accent-foreground: oklch(1 0 0);
 
 			/* Forms */
 			--field-background: oklch(1 0 0 / 15%);
@@ -91,8 +91,8 @@
 			/* chart-2 (dark) */
 			--success-foreground: oklch(0.985 0 0);
 
-			--warning: oklch(0.627 0.265 303.9);
-			/* chart-4 (dark) */
+			--warning: oklch(0.78 0.17 72);
+			/* MSL Golden Amber (dark) */
 			--warning-foreground: oklch(0.985 0 0);
 
 			--danger: oklch(0.704 0.191 22.216);
@@ -105,7 +105,7 @@
 			/* Misc */
 			--border: oklch(1 0 0 / 10%);
 			--divider: oklch(1 0 0 / 10%);
-			--link: oklch(0.646 0.222 41.116);
+			--link: oklch(0.62 0.195 254);
 		}
 	}
 }
