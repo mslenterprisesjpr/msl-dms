@@ -1,18 +1,18 @@
+import { Ionicons } from "@expo/vector-icons";
 import { useForm } from "@tanstack/react-form";
+import { router } from "expo-router";
+import { FieldError, useToast } from "heroui-native";
+import React, { useRef, useState } from "react";
 import {
-	Button,
-	FieldError,
-	Input,
-	Label,
-	Spinner,
-	Surface,
-	TextField,
-	useToast,
-} from "heroui-native";
-import { useRef } from "react";
-import { Text, type TextInput, View } from "react-native";
+	ActivityIndicator,
+	Pressable,
+	Text,
+	TextInput,
+	View,
+} from "react-native";
 import z from "zod";
 
+import { MslLogo } from "@/components/msl-logo";
 import { authClient } from "@/lib/auth-client";
 
 const signUpSchema = z.object({
@@ -59,10 +59,15 @@ function getErrorMessage(error: unknown): string | null {
 	return null;
 }
 
-export function SignUp() {
+interface SignUpProps {
+	onSwitchToSignIn?: () => void;
+}
+
+export function SignUp({ onSwitchToSignIn }: SignUpProps) {
 	const emailInputRef = useRef<TextInput>(null);
 	const passwordInputRef = useRef<TextInput>(null);
 	const { toast } = useToast();
+	const [showPassword, setShowPassword] = useState(false);
 
 	const form = useForm({
 		defaultValues: {
@@ -93,6 +98,7 @@ export function SignUp() {
 							variant: "success",
 							label: "Account created successfully",
 						});
+						router.replace("/(drawer)/(tabs)" as any);
 					},
 				},
 			);
@@ -100,8 +106,24 @@ export function SignUp() {
 	});
 
 	return (
-		<Surface variant="secondary" className="rounded-lg p-4">
-			<Text className="mb-4 font-medium text-foreground">Create Account</Text>
+		<View className="w-full">
+			{/* Top MSL Logo */}
+			<View className="mb-4 items-center">
+				<MslLogo size="md" />
+			</View>
+
+			{/* Screen Header Titles */}
+			<View className="mb-5">
+				<Text className="font-extrabold text-2xl text-[#0f274a] dark:text-white">
+					Register
+				</Text>
+				<Text className="mt-1 font-semibold text-slate-800 text-sm dark:text-slate-200">
+					Create your account
+				</Text>
+				<Text className="text-slate-500 text-xs dark:text-slate-400">
+					Join MSL Enterprises distribution network.
+				</Text>
+			</View>
 
 			<form.Subscribe
 				selector={(state) => ({
@@ -113,21 +135,34 @@ export function SignUp() {
 					const formError = validationError;
 
 					return (
-						<>
-							<FieldError isInvalid={!!formError} className="mb-3">
-								{formError}
-							</FieldError>
+						<View className="gap-4">
+							{/* Form Level Error Message */}
+							{formError ? (
+								<FieldError isInvalid={!!formError} className="mb-1">
+									{formError}
+								</FieldError>
+							) : null}
 
-							<View className="gap-3">
-								<form.Field name="name">
-									{(field) => (
-										<TextField>
-											<Label>Name</Label>
-											<Input
+							{/* Name Input Field */}
+							<form.Field name="name">
+								{(field) => (
+									<View>
+										<Text className="mb-1.5 font-medium text-slate-700 text-xs dark:text-slate-300">
+											Full Name
+										</Text>
+										<View className="flex-row items-center rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 dark:border-zinc-800 dark:bg-zinc-900">
+											<Ionicons
+												name="person-outline"
+												size={18}
+												color="#94a3b8"
+												style={{ marginRight: 8 }}
+											/>
+											<TextInput
 												value={field.state.value}
 												onBlur={field.handleBlur}
 												onChangeText={field.handleChange}
-												placeholder="John Doe"
+												placeholder="Enter your name"
+												placeholderTextColor="#94a3b8"
 												autoComplete="name"
 												textContentType="name"
 												returnKeyType="next"
@@ -135,21 +170,40 @@ export function SignUp() {
 												onSubmitEditing={() => {
 													emailInputRef.current?.focus();
 												}}
+												className="flex-1 text-slate-900 text-sm dark:text-white"
+												style={{ paddingVertical: 0 }}
 											/>
-										</TextField>
-									)}
-								</form.Field>
+										</View>
+										{field.state.meta.errors?.[0] ? (
+											<Text className="mt-1 text-red-500 text-xs">
+												{field.state.meta.errors[0]?.toString()}
+											</Text>
+										) : null}
+									</View>
+								)}
+							</form.Field>
 
-								<form.Field name="email">
-									{(field) => (
-										<TextField>
-											<Label>Email</Label>
-											<Input
+							{/* Email Input Field */}
+							<form.Field name="email">
+								{(field) => (
+									<View>
+										<Text className="mb-1.5 font-medium text-slate-700 text-xs dark:text-slate-300">
+											Email Address
+										</Text>
+										<View className="flex-row items-center rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 dark:border-zinc-800 dark:bg-zinc-900">
+											<Ionicons
+												name="mail-outline"
+												size={18}
+												color="#94a3b8"
+												style={{ marginRight: 8 }}
+											/>
+											<TextInput
 												ref={emailInputRef}
 												value={field.state.value}
 												onBlur={field.handleBlur}
 												onChangeText={field.handleChange}
 												placeholder="email@example.com"
+												placeholderTextColor="#94a3b8"
 												keyboardType="email-address"
 												autoCapitalize="none"
 												autoComplete="email"
@@ -159,47 +213,100 @@ export function SignUp() {
 												onSubmitEditing={() => {
 													passwordInputRef.current?.focus();
 												}}
+												className="flex-1 text-slate-900 text-sm dark:text-white"
+												style={{ paddingVertical: 0 }}
 											/>
-										</TextField>
-									)}
-								</form.Field>
+										</View>
+										{field.state.meta.errors?.[0] ? (
+											<Text className="mt-1 text-red-500 text-xs">
+												{field.state.meta.errors[0]?.toString()}
+											</Text>
+										) : null}
+									</View>
+								)}
+							</form.Field>
 
-								<form.Field name="password">
-									{(field) => (
-										<TextField>
-											<Label>Password</Label>
-											<Input
+							{/* Password Input Field */}
+							<form.Field name="password">
+								{(field) => (
+									<View>
+										<Text className="mb-1.5 font-medium text-slate-700 text-xs dark:text-slate-300">
+											Password
+										</Text>
+										<View className="flex-row items-center rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 dark:border-zinc-800 dark:bg-zinc-900">
+											<Ionicons
+												name="lock-closed-outline"
+												size={18}
+												color="#94a3b8"
+												style={{ marginRight: 8 }}
+											/>
+											<TextInput
 												ref={passwordInputRef}
 												value={field.state.value}
 												onBlur={field.handleBlur}
 												onChangeText={field.handleChange}
-												placeholder="••••••••"
-												secureTextEntry
+												placeholder="At least 8 characters"
+												placeholderTextColor="#94a3b8"
+												secureTextEntry={!showPassword}
 												autoComplete="new-password"
 												textContentType="newPassword"
 												returnKeyType="go"
 												onSubmitEditing={form.handleSubmit}
+												className="flex-1 text-slate-900 text-sm dark:text-white"
+												style={{ paddingVertical: 0 }}
 											/>
-										</TextField>
-									)}
-								</form.Field>
+											<Pressable
+												onPress={() => setShowPassword(!showPassword)}
+												hitSlop={8}
+											>
+												<Ionicons
+													name={
+														showPassword ? "eye-off-outline" : "eye-outline"
+													}
+													size={20}
+													color="#94a3b8"
+												/>
+											</Pressable>
+										</View>
+										{field.state.meta.errors?.[0] ? (
+											<Text className="mt-1 text-red-500 text-xs">
+												{field.state.meta.errors[0]?.toString()}
+											</Text>
+										) : null}
+									</View>
+								)}
+							</form.Field>
 
-								<Button
-									onPress={form.handleSubmit}
-									isDisabled={isSubmitting}
-									className="mt-1"
-								>
-									{isSubmitting ? (
-										<Spinner size="sm" color="default" />
-									) : (
-										<Button.Label>Create Account</Button.Label>
-									)}
-								</Button>
+							{/* Primary Golden Register Button */}
+							<Pressable
+								onPress={form.handleSubmit}
+								disabled={isSubmitting}
+								className="mt-2 items-center justify-center rounded-xl bg-[#f59e0b] py-3.5 shadow-sm active:opacity-90"
+							>
+								{isSubmitting ? (
+									<ActivityIndicator size="small" color="#ffffff" />
+								) : (
+									<Text className="font-bold text-base text-white">
+										Create Account
+									</Text>
+								)}
+							</Pressable>
+
+							{/* Login Switch Link */}
+							<View className="mt-4 flex-row items-center justify-center">
+								<Text className="text-slate-500 text-xs dark:text-slate-400">
+									Already have an account?{" "}
+								</Text>
+								<Pressable onPress={onSwitchToSignIn} hitSlop={8}>
+									<Text className="font-bold text-[#0f274a] text-xs dark:text-amber-400">
+										Sign In
+									</Text>
+								</Pressable>
 							</View>
-						</>
+						</View>
 					);
 				}}
 			</form.Subscribe>
-		</Surface>
+		</View>
 	);
 }

@@ -295,7 +295,7 @@ export default function ProfileScreen() {
 						setIsSigningOut(true);
 						try {
 							await authClient.signOut();
-							router.replace("/(drawer)/second");
+							router.replace("/(drawer)/auth");
 						} catch (error) {
 							console.error("Sign out error:", error);
 							Alert.alert("Error", "Failed to sign out. Please try again.");

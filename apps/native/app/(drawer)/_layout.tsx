@@ -48,21 +48,10 @@ function DrawerLayout() {
 				}}
 			/>
 			<Drawer.Screen
-				name="second"
+				name="auth"
 				options={{
-					headerTitle: "Second",
-					drawerLabel: ({ color, focused }) => (
-						<Text style={{ color: focused ? color : themeColorForeground }}>
-							Second
-						</Text>
-					),
-					drawerIcon: ({ size, color, focused }) => (
-						<Ionicons
-							name="home-outline"
-							size={size}
-							color={focused ? color : themeColorForeground}
-						/>
-					),
+					headerShown: false,
+					drawerItemStyle: { display: "none" },
 				}}
 			/>
 			<Drawer.Screen
