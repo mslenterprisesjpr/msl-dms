@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import {
 	Button,
 	Card,
@@ -10,16 +10,30 @@ import {
 	Typography,
 	useToast,
 } from "heroui-native";
-import { useState } from "react";
-import { ScrollView, View } from "react-native";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 import { Container } from "@/components/container";
-import { useCreateCustomer } from "@/hooks/use-customers";
+import {
+	useCreateCustomer,
+	useCustomer,
+	useUpdateCustomer,
+} from "@/hooks/use-customers";
 import type { CreateCustomerDto } from "@/types/customer";
 
-export default function CreateCustomerScreen() {
+export default function CustomerFormScreen() {
 	const router = useRouter();
+	const navigation = useNavigation();
+	const { id } = useLocalSearchParams<{ id?: string }>();
+	const isEditing = !!id;
+
 	const createMutation = useCreateCustomer();
+	const updateMutation = useUpdateCustomer();
+	const { data: existingCustomer, isLoading: isFetching } = useCustomer(
+		id || "",
+	);
+
 	const { toast } = useToast();
 	const insets = useSafeAreaInsets();
 
@@ -30,6 +44,29 @@ export default function CreateCustomerScreen() {
 		gstNumber: "",
 		isActive: true,
 	});
+
+	// Set dynamic navigation title
+	useEffect(() => {
+		navigation.setOptions({
+			title: isEditing ? "Edit Customer" : "Add Customer",
+		});
+	}, [isEditing, navigation]);
+
+	// Prefill form when editing existing customer
+	useEffect(() => {
+		if (existingCustomer) {
+			setFormData({
+				name: existingCustomer.name || "",
+				phone: existingCustomer.phone || "",
+				address: existingCustomer.address || "",
+				gstNumber: existingCustomer.gstNumber || "",
+				isActive:
+					existingCustomer.isActive !== undefined
+						? existingCustomer.isActive
+						: true,
+			});
+		}
+	}, [existingCustomer]);
 
 	const updateField = (
 		field: keyof CreateCustomerDto,
@@ -55,14 +92,24 @@ export default function CreateCustomerScreen() {
 				gstNumber: formData.gstNumber?.trim().toUpperCase() || undefined,
 				isActive: formData.isActive,
 			};
-			await createMutation.mutateAsync(payload);
-			toast.show({
-				variant: "success",
-				label: "Customer created successfully",
-			});
+
+			if (isEditing && id) {
+				await updateMutation.mutateAsync({ id, data: payload });
+				toast.show({
+					variant: "success",
+					label: "Customer updated successfully",
+				});
+			} else {
+				await createMutation.mutateAsync(payload);
+				toast.show({
+					variant: "success",
+					label: "Customer created successfully",
+				});
+			}
+
 			router.back();
 		} catch (error: unknown) {
-			console.log("❌ CREATE CUSTOMER ERROR:", error);
+			console.log("❌ CUSTOMER SAVE ERROR:", error);
 			const errorMessage =
 				error &&
 				typeof error === "object" &&
@@ -74,7 +121,9 @@ export default function CreateCustomerScreen() {
 				typeof error.response.data === "object" &&
 				"message" in error.response.data
 					? String(error.response.data.message)
-					: "Failed to create customer";
+					: isEditing
+						? "Failed to update customer"
+						: "Failed to create customer";
 
 			toast.show({
 				variant: "danger",
@@ -82,6 +131,16 @@ export default function CreateCustomerScreen() {
 			});
 		}
 	};
+
+	const isPending = createMutation.isPending || updateMutation.isPending;
+
+	if (isEditing && isFetching) {
+		return (
+			<Container className="items-center justify-center">
+				<ActivityIndicator size="large" color="#0d9488" />
+			</Container>
+		);
+	}
 
 	return (
 		<Container>
@@ -101,7 +160,7 @@ export default function CreateCustomerScreen() {
 							className="border-border bg-surface text-foreground"
 						/>
 						<Description className="mt-1 text-foreground/60">
-							Full name of the customer
+							Full name of the customer / shop
 						</Description>
 					</View>
 
@@ -116,7 +175,7 @@ export default function CreateCustomerScreen() {
 							className="border-border bg-surface text-foreground"
 						/>
 						<Description className="mt-1 text-foreground/60">
-							Contact number for the customer
+							Contact number for billing & invoices
 						</Description>
 					</View>
 
@@ -152,7 +211,7 @@ export default function CreateCustomerScreen() {
 							numberOfLines={3}
 						/>
 						<Description className="mt-1 text-foreground/60">
-							Full address of the customer
+							Full address / locality of the shop
 						</Description>
 					</View>
 
@@ -172,12 +231,14 @@ export default function CreateCustomerScreen() {
 				</Card>
 
 				<View className="mt-4 mb-6 gap-3">
-					<Button
-						size="lg"
-						onPress={handleSubmit}
-						isDisabled={createMutation.isPending}
-					>
-						{createMutation.isPending ? "Creating..." : "Create Customer"}
+					<Button size="lg" onPress={handleSubmit} isDisabled={isPending}>
+						{isPending
+							? isEditing
+								? "Updating..."
+								: "Creating..."
+							: isEditing
+								? "Update Customer"
+								: "Create Customer"}
 					</Button>
 					<Button variant="outline" size="lg" onPress={() => router.back()}>
 						Cancel

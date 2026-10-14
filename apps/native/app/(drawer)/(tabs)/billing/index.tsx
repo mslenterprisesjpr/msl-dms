@@ -396,14 +396,30 @@ export default function BillingScreen() {
 													) : null}
 												</View>
 
-												{cust.phone ? (
+												<View className="flex-row items-center gap-2">
+													{cust.phone ? (
+														<Pressable
+															onPress={() =>
+																Linking.openURL(`tel:${cust.phone}`)
+															}
+															className="h-9 w-9 items-center justify-center rounded-full bg-emerald-50 active:bg-emerald-100 dark:bg-emerald-950/60"
+														>
+															<Ionicons name="call" size={16} color="#10b981" />
+														</Pressable>
+													) : null}
+
 													<Pressable
-														onPress={() => Linking.openURL(`tel:${cust.phone}`)}
-														className="h-9 w-9 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-950/60"
+														onPress={() =>
+															router.push({
+																pathname: "/billing/customer-create",
+																params: { id: cust._id },
+															} as any)
+														}
+														className="h-9 w-9 items-center justify-center rounded-full bg-slate-100 active:bg-slate-200 dark:bg-zinc-800"
 													>
-														<Ionicons name="call" size={16} color="#10b981" />
+														<Ionicons name="pencil" size={16} color="#0f274a" />
 													</Pressable>
-												) : null}
+												</View>
 											</View>
 										</Card>
 									))}
