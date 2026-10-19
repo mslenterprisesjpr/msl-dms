@@ -53,22 +53,31 @@ export interface AllWorkersStockResponse {
 
 export interface WorkerStock {
 	_id: string;
-	orgId: string;
-	workerId: string;
-	productId: {
-		_id: string;
-		name: string;
-		sku: string;
-		packSize: string;
-		unit: string;
-		unitsPerCase: number;
-	};
-	stock: number; // Total units
+	orgId?: string;
+	workerId?: string;
+	productId:
+		| string
+		| {
+				_id: string;
+				name: string;
+				sku?: string;
+				packSize?: string;
+				unit?: string;
+				unitsPerCase?: number;
+		  };
+	productName?: string;
+	sku?: string;
+	packSize?: string;
+	unit?: string;
+	unitsPerCase?: number;
+	quantity?: number; // Total units from backend
+	stock?: number; // Fallback field
 	stockInCases?: number;
 	remainingUnits?: number;
 	stockDisplay?: string;
-	createdAt: string;
-	updatedAt: string;
+	sellingRate?: number;
+	createdAt?: string;
+	updatedAt?: string;
 }
 
 export interface IssueStockDto {
@@ -82,9 +91,10 @@ export interface IssueStockDto {
 
 export interface ReturnStockDto {
 	productId: string;
-	quantity: number; // Total units
-	cases?: number;
-	units?: number;
+	workerId?: string;
+	quantity?: number; // Total units
+	cases: number;
+	units: number;
 	note?: string;
 }
 

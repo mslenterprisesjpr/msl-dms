@@ -315,6 +315,58 @@ app.post(
 	},
 );
 
+// Get current logged-in worker's stock
+app.get("/my-stock", requireAuth, async (c) => {
+	const user = c.get("user") as User;
+	const organizationId = await resolveOrganizationId(c);
+	const orgFilter = organizationFilter(organizationId);
+
+	const workerStocks = await WorkerStock.find({
+		orgId: orgFilter,
+		workerId: user.id,
+		quantity: { $gt: 0 },
+	})
+		.populate(
+			"productId",
+			"name sku unitsPerCase unit packSize sellingRate purchaseRate",
+		)
+		.sort({ createdAt: -1 });
+
+	const products = workerStocks.map((stock: any) => {
+		const product = stock.productId;
+		const unitsPerCase = product?.unitsPerCase || 1;
+		const stockInCases = Math.floor(stock.quantity / unitsPerCase);
+		const remainingUnits = stock.quantity % unitsPerCase;
+
+		return {
+			_id: stock._id,
+			productId: product?._id,
+			productName: product?.name || "Unknown Product",
+			sku: product?.sku,
+			packSize: product?.packSize,
+			quantity: stock.quantity,
+			stockInCases,
+			remainingUnits,
+			stockDisplay:
+				remainingUnits > 0
+					? `${stockInCases} Cases + ${remainingUnits} ${product?.unit || "pcs"}`
+					: `${stockInCases} Cases`,
+			unit: product?.unit || "pcs",
+			unitsPerCase,
+			sellingRate: product?.sellingRate || product?.purchaseRate || 0,
+			updatedAt: stock.updatedAt,
+		};
+	});
+
+	return c.json({
+		message: "Worker stock retrieved successfully",
+		workerId: user.id,
+		data: products,
+		totalProducts: products.length,
+		totalQuantity: products.reduce((sum, p) => sum + p.quantity, 0),
+	});
+});
+
 // Get specific worker's stock (All authenticated users - own data only)
 app.get(
 	"/:workerId",
@@ -338,29 +390,34 @@ app.get(
 			workerId,
 			quantity: { $gt: 0 }, // Only show non-zero stocks
 		})
-			.populate("productId", "name sku unitsPerCase unit packSize")
+			.populate(
+				"productId",
+				"name sku unitsPerCase unit packSize sellingRate purchaseRate",
+			)
 			.sort({ createdAt: -1 });
 
 		const products = workerStocks.map((stock: any) => {
 			const product = stock.productId;
-			const stockInCases = Math.floor(stock.quantity / product.unitsPerCase);
-			const remainingUnits = stock.quantity % product.unitsPerCase;
+			const unitsPerCase = product?.unitsPerCase || 1;
+			const stockInCases = Math.floor(stock.quantity / unitsPerCase);
+			const remainingUnits = stock.quantity % unitsPerCase;
 
 			return {
 				_id: stock._id,
-				productId: product._id,
-				productName: product.name,
-				sku: product.sku,
-				packSize: product.packSize,
+				productId: product?._id,
+				productName: product?.name || "Unknown Product",
+				sku: product?.sku,
+				packSize: product?.packSize,
 				quantity: stock.quantity,
 				stockInCases,
 				remainingUnits,
 				stockDisplay:
 					remainingUnits > 0
-						? `${stockInCases} Cases + ${remainingUnits} ${product.unit}s`
+						? `${stockInCases} Cases + ${remainingUnits} ${product?.unit || "pcs"}`
 						: `${stockInCases} Cases`,
-				unit: product.unit,
-				unitsPerCase: product.unitsPerCase,
+				unit: product?.unit || "pcs",
+				unitsPerCase,
+				sellingRate: product?.sellingRate || product?.purchaseRate || 0,
 				updatedAt: stock.updatedAt,
 			};
 		});
