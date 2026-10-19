@@ -42,6 +42,10 @@ export default function StockLayout() {
 				name="return"
 				options={detailHeaderOptions("Return Stock")}
 			/>
+			<Stack.Screen
+				name="workers"
+				options={detailHeaderOptions("Van Stock & Day-End Closing")}
+			/>
 		</Stack>
 	);
 }

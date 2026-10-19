@@ -11,7 +11,7 @@ import {
 	useToast,
 } from "heroui-native";
 import { useState } from "react";
-import { Alert, ScrollView, View } from "react-native";
+import { Alert, RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
 import { LoadingScreen } from "@/components/loading-screen";
@@ -26,7 +26,7 @@ export default function ReturnStockScreen() {
 	const { toast } = useToast();
 	const insets = useSafeAreaInsets();
 
-	const { data: stockData, isLoading } = useWorkerStock();
+	const { data: stockData, isLoading, refetch } = useWorkerStock();
 	const returnMutation = useReturnStock();
 
 	const [selectedProduct, setSelectedProduct] = useState<WorkerStock | null>(
@@ -35,8 +35,18 @@ export default function ReturnStockScreen() {
 	const [cases, setCases] = useState("");
 	const [units, setUnits] = useState("");
 	const [note, setNote] = useState("");
+	const [refreshing, setRefreshing] = useState(false);
 
 	const stockItems = stockData?.data || [];
+
+	const onRefresh = async () => {
+		setRefreshing(true);
+		try {
+			await refetch();
+		} finally {
+			setRefreshing(false);
+		}
+	};
 
 	const handleProductSelect = (product: WorkerStock) => {
 		setSelectedProduct(product);
@@ -117,7 +127,12 @@ export default function ReturnStockScreen() {
 
 	return (
 		<Container className="flex-1">
-			<ScrollView contentContainerStyle={{ padding: 16 }}>
+			<ScrollView
+				contentContainerStyle={{ padding: 16 }}
+				refreshControl={
+					<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+				}
+			>
 				<Card className="mb-4 p-4">
 					{/* Product Selection */}
 					<View className="mb-4">

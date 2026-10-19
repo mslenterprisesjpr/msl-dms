@@ -3,6 +3,54 @@ import { apiClient } from "@/lib/api-client";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 
 // Types
+export interface WorkerStockProduct {
+	productId: string;
+	productName: string;
+	sku?: string;
+	packSize?: string;
+	quantity: number;
+	stockInCases: number;
+	remainingUnits: number;
+	unit: string;
+	unitsPerCase: number;
+	sellingRate: number;
+	itemValue: number;
+}
+
+export interface WorkerVanSummary {
+	workerId: string;
+	workerName: string;
+	workerEmail?: string;
+	workerImage?: string | null;
+	products: WorkerStockProduct[];
+	totalItems: number;
+	totalUnits: number;
+	totalCases: number;
+	stockValue: number;
+	todayStats: {
+		billsCount: number;
+		totalSales: number;
+		cashCollected: number;
+		upiCollected: number;
+		totalCollected: number;
+		pendingCredit: number;
+	};
+}
+
+export interface AllWorkersStockResponse {
+	message: string;
+	summary: {
+		totalWorkers: number;
+		totalUnitsInVans: number;
+		totalCasesInVans: number;
+		totalStockValue: number;
+		totalTodaySales: number;
+		totalCashToCollect: number;
+		totalUpiCollected: number;
+	};
+	data: WorkerVanSummary[];
+}
+
 export interface WorkerStock {
 	_id: string;
 	orgId: string;
@@ -40,6 +88,13 @@ export interface ReturnStockDto {
 	note?: string;
 }
 
+export interface CloseDayDto {
+	workerId: string;
+	cashReceived: number;
+	returnAllStockToWarehouse: boolean;
+	note?: string;
+}
+
 // Get current worker's stock (for worker role)
 export function useWorkerStock() {
 	const currentOrgId = useOrganizationStore((state) => state.currentOrgId);
@@ -72,26 +127,26 @@ export function useWorkerStockByWorker(workerId: string) {
 	});
 }
 
-// Get all workers' stock (admin only)
+// Get all workers' stock & day-end summary (admin only)
 export function useAllWorkersStock() {
 	const currentOrgId = useOrganizationStore((state) => state.currentOrgId);
 
 	return useQuery({
 		queryKey: ["worker-stock", "all", currentOrgId],
 		queryFn: async () => {
-			const { data } = await apiClient.get<{ data: WorkerStock[] }>(
-				"/worker-stock/all",
-			);
+			const { data } =
+				await apiClient.get<AllWorkersStockResponse>("/worker-stock/all");
 			return data;
 		},
 		enabled: !!currentOrgId,
+		refetchOnWindowFocus: true,
+		refetchOnMount: "always",
 	});
 }
 
 // Issue stock to worker (admin only)
 export function useIssueStock() {
 	const queryClient = useQueryClient();
-	const currentOrgId = useOrganizationStore((state) => state.currentOrgId);
 
 	return useMutation({
 		mutationFn: async (data: IssueStockDto) => {
@@ -99,13 +154,10 @@ export function useIssueStock() {
 			return response.data;
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({
-				queryKey: ["worker-stock", currentOrgId],
-			});
-			queryClient.invalidateQueries({
-				queryKey: ["stock-transactions", currentOrgId],
-			});
-			queryClient.invalidateQueries({ queryKey: ["products", currentOrgId] });
+			queryClient.invalidateQueries({ queryKey: ["worker-stock"] });
+			queryClient.invalidateQueries({ queryKey: ["stock-transactions"] });
+			queryClient.invalidateQueries({ queryKey: ["products"] });
+			queryClient.invalidateQueries({ queryKey: ["stock"] });
 		},
 	});
 }
@@ -113,7 +165,6 @@ export function useIssueStock() {
 // Return stock from worker
 export function useReturnStock() {
 	const queryClient = useQueryClient();
-	const currentOrgId = useOrganizationStore((state) => state.currentOrgId);
 
 	return useMutation({
 		mutationFn: async (data: ReturnStockDto) => {
@@ -121,13 +172,28 @@ export function useReturnStock() {
 			return response.data;
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({
-				queryKey: ["worker-stock", currentOrgId],
-			});
-			queryClient.invalidateQueries({
-				queryKey: ["stock-transactions", currentOrgId],
-			});
-			queryClient.invalidateQueries({ queryKey: ["products", currentOrgId] });
+			queryClient.invalidateQueries({ queryKey: ["worker-stock"] });
+			queryClient.invalidateQueries({ queryKey: ["stock-transactions"] });
+			queryClient.invalidateQueries({ queryKey: ["products"] });
+			queryClient.invalidateQueries({ queryKey: ["stock"] });
+		},
+	});
+}
+
+// Day-End Settlement - Close Day for worker
+export function useCloseDay() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async (data: CloseDayDto) => {
+			const response = await apiClient.post("/worker-stock/close-day", data);
+			return response.data;
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["worker-stock"] });
+			queryClient.invalidateQueries({ queryKey: ["products"] });
+			queryClient.invalidateQueries({ queryKey: ["stock-transactions"] });
+			queryClient.invalidateQueries({ queryKey: ["stock"] });
 		},
 	});
 }

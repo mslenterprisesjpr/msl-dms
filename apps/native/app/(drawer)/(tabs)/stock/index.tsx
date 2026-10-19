@@ -382,7 +382,30 @@ export default function StockScreen() {
 							</View>
 						</View>
 
-						{/* 4. QUICK ACTIONS SECTION */}
+						{/* 4. VAN STOCK & DAY-END CLOSING BANNER */}
+						<Pressable
+							onPress={() => router.push("/stock/workers" as any)}
+							className="mb-4 flex-row items-center justify-between rounded-2xl border border-sky-200/80 bg-[#f0f9ff] p-4 shadow-sm active:opacity-90 dark:border-sky-900/60 dark:bg-sky-950/30"
+						>
+							<View className="flex-1 flex-row items-center pr-3">
+								<View className="mr-3 h-11 w-11 items-center justify-center rounded-2xl bg-sky-500/15">
+									<Ionicons name="car-sport" size={22} color="#0284c7" />
+								</View>
+								<View className="flex-1">
+									<Text className="font-bold text-slate-900 text-sm dark:text-white">
+										Van Stock & Day-End Closing
+									</Text>
+									<Text className="mt-0.5 font-medium text-slate-500 text-xs dark:text-zinc-400">
+										Track live field inventory, cash in hand & settle workers
+									</Text>
+								</View>
+							</View>
+							<View className="h-8 w-8 items-center justify-center rounded-full bg-white shadow-xs dark:bg-zinc-800">
+								<Ionicons name="chevron-forward" size={16} color="#0284c7" />
+							</View>
+						</Pressable>
+
+						{/* 5. QUICK ACTIONS SECTION */}
 						<View className="mb-2">
 							<Text className="mb-3 font-bold text-base text-slate-900 dark:text-white">
 								Quick Actions

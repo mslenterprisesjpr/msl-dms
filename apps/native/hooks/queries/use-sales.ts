@@ -59,6 +59,9 @@ export const useCreateSale = () => {
 		mutationFn: (dto: CreateSaleDto) => saleService.createSale(dto),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: saleKeys.lists() });
+			queryClient.invalidateQueries({ queryKey: ["worker-stock"] });
+			queryClient.invalidateQueries({ queryKey: ["stock"] });
+			queryClient.invalidateQueries({ queryKey: ["products"] });
 		},
 	});
 };

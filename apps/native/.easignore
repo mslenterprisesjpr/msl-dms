@@ -1,8 +1,17 @@
-# EAS Build Ignore
-.agents/
-node_modules/
+# Gradle cache and build files
+android/.gradle/
+android/build/
+android/app/build/
+android/.cxx/
+android/local.properties
+
+# iOS build files
+ios/build/
+ios/Pods/
+ios/*.xcworkspace/xcuserdata/
+ios/*.xcodeproj/xcuserdata/
+
+# Other
 .expo/
-.git/
+node_modules/
 *.log
-.DS_Store
-.kimchi/

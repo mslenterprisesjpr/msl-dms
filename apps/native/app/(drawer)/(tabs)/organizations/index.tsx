@@ -10,6 +10,7 @@ import {
 	Surface,
 	TextField,
 	Typography,
+	useThemeColor,
 } from "heroui-native";
 import { useEffect, useState } from "react";
 import {
@@ -17,6 +18,7 @@ import {
 	Pressable,
 	RefreshControl,
 	ScrollView,
+	Text,
 	View,
 } from "react-native";
 import { withUniwind } from "uniwind";
@@ -50,13 +52,15 @@ interface SystemUser {
 	id: string;
 	name: string;
 	email: string;
-	createdAt: string;
+	createdAt: string | Date;
 	banned?: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function OrganizationsScreen() {
+	const themeForeground = useThemeColor("foreground");
+	const themeAccent = useThemeColor("accent");
 	const { organizations, currentOrgId, refetch } = useOrganizations();
 	const { setCurrentOrg } = useOrganizationStore();
 	const isLoading = useOrganizationStore((state) => state.isLoading);
@@ -177,8 +181,10 @@ export default function OrganizationsScreen() {
 			} else if (selectedOrg) {
 				const { error } = await authClient.organization.update({
 					organizationId: selectedOrg.id,
-					name: orgName,
-					slug: orgSlug,
+					data: {
+						name: orgName,
+						slug: orgSlug,
+					},
 				});
 				if (error) {
 					Alert.alert(
@@ -488,7 +494,7 @@ export default function OrganizationsScreen() {
 												currentOrgId === org.id ? "secondary" : "primary"
 											}
 											onPress={() => handleSelectOrg(org.id)}
-											disabled={currentOrgId === org.id}
+											isDisabled={currentOrgId === org.id}
 											className="flex-1"
 										>
 											{currentOrgId === org.id ? "Selected" : "Select"}
@@ -564,7 +570,7 @@ export default function OrganizationsScreen() {
 										Pending Invitations
 									</Typography>
 									{invitations.length > 0 && (
-										<Chip size="sm" variant="warning">
+										<Chip size="sm" variant="soft">
 											{String(invitations.length)}
 										</Chip>
 									)}
@@ -619,7 +625,7 @@ export default function OrganizationsScreen() {
 															</Typography>
 														</View>
 														<View className="flex-row items-center gap-2">
-															<Chip size="sm" variant="warning">
+															<Chip size="sm" variant="soft">
 																Pending
 															</Chip>
 															<Chip
@@ -627,7 +633,7 @@ export default function OrganizationsScreen() {
 																variant={
 																	invitation.role === "admin"
 																		? "secondary"
-																		: "default"
+																		: "soft"
 																}
 															>
 																{invitation.role}
@@ -771,9 +777,7 @@ export default function OrganizationsScreen() {
 														<Chip
 															size="sm"
 															variant={
-																member.role === "admin"
-																	? "secondary"
-																	: "default"
+																member.role === "admin" ? "secondary" : "soft"
 															}
 														>
 															{member.role}
