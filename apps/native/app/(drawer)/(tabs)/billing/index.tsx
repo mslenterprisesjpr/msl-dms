@@ -773,6 +773,29 @@ export default function BillingScreen() {
 
 						{/* Action Buttons */}
 						<View className="mt-2 gap-2">
+							{selectedInvoiceAction.pendingAmount > 0 && (
+								<Pressable
+									onPress={() => {
+										const saleId = selectedInvoiceAction._id;
+										setSelectedInvoiceAction(null);
+										router.push({
+											pathname: "/billing/[id]" as any,
+											params: { id: saleId, openPayment: "true" },
+										});
+									}}
+									className="flex-row items-center justify-center rounded-xl bg-emerald-600 py-3 active:opacity-90"
+								>
+									<Ionicons name="cash-outline" size={18} color="#ffffff" />
+									<Text className="ml-2 font-bold text-sm text-white">
+										💰 Collect Balance (₹
+										{selectedInvoiceAction.pendingAmount.toLocaleString(
+											"en-IN",
+										)}
+										)
+									</Text>
+								</Pressable>
+							)}
+
 							<Pressable
 								onPress={() => {
 									const saleId = selectedInvoiceAction._id;
@@ -892,6 +915,24 @@ export default function BillingScreen() {
 
 						{/* Action Buttons */}
 						<View className="mt-2 gap-2">
+							{/* 0. Direct Collect Payment / Udhari Vasooli (Top Action) */}
+							<Pressable
+								onPress={() => {
+									const custId = selectedCustomerAction._id;
+									setSelectedCustomerAction(null);
+									router.push({
+										pathname: "/billing/customer-khata" as any,
+										params: { id: custId, openPayment: "true" },
+									});
+								}}
+								className="flex-row items-center justify-center rounded-xl bg-emerald-600 py-3 active:opacity-90"
+							>
+								<Ionicons name="cash-outline" size={18} color="#ffffff" />
+								<Text className="ml-2 font-bold text-sm text-white">
+									💰 Collect Payment (Udhari Vasooli)
+								</Text>
+							</Pressable>
+
 							{/* 1. View Khata / Ledger (Primary Action) */}
 							<Pressable
 								onPress={() => {

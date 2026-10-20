@@ -30,7 +30,10 @@ export default function InvoiceDetailScreen() {
 	const themeAccent = useThemeColor("accent");
 	const themeColorForeground = useThemeColor("foreground");
 
-	const { id } = useLocalSearchParams<{ id: string }>();
+	const { id, openPayment } = useLocalSearchParams<{
+		id: string;
+		openPayment?: string;
+	}>();
 	const { data: session } = authClient.useSession();
 	const currentUserId = session?.user?.id || "";
 
@@ -73,6 +76,16 @@ export default function InvoiceDetailScreen() {
 	const isPartial = sale?.paymentStatus === "PARTIAL";
 	const isPending = sale?.paymentStatus === "PENDING";
 	const pendingBalance = sale?.pendingAmount ?? 0;
+
+	// Auto-open payment collection modal if requested via route params
+	React.useEffect(() => {
+		if (openPayment === "true" && pendingBalance > 0 && !paymentModalVisible) {
+			setPaymentAmount(pendingBalance.toString());
+			setPaymentMethod("CASH");
+			setPaymentNote("");
+			setPaymentModalVisible(true);
+		}
+	}, [openPayment, pendingBalance, paymentModalVisible]);
 
 	// Total Cases & Units across items
 	const itemsTotals = useMemo(() => {

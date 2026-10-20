@@ -28,7 +28,10 @@ export default function CustomerKhataScreen() {
 	const themeAccent = useThemeColor("accent");
 	const themeColorForeground = useThemeColor("foreground");
 
-	const { id } = useLocalSearchParams<{ id: string }>();
+	const { id, openPayment } = useLocalSearchParams<{
+		id: string;
+		openPayment?: string;
+	}>();
 	const { data: session } = authClient.useSession();
 	const currentUserId = session?.user?.id || "";
 
@@ -69,6 +72,26 @@ export default function CustomerKhataScreen() {
 	const summary = ledgerResponse?.summary;
 	const timeline = ledgerResponse?.timeline || [];
 	const unpaidInvoices = ledgerResponse?.unpaidInvoices || [];
+
+	// Auto-open payment collection modal if requested via route params
+	React.useEffect(() => {
+		if (
+			openPayment === "true" &&
+			unpaidInvoices.length > 0 &&
+			!paymentModalVisible
+		) {
+			const targetInvoice = unpaidInvoices[0];
+			setSelectedSaleId(targetInvoice._id);
+			setPaymentAmount(
+				targetInvoice.pendingAmount > 0
+					? targetInvoice.pendingAmount.toString()
+					: "",
+			);
+			setPaymentMethod("CASH");
+			setPaymentNote("");
+			setPaymentModalVisible(true);
+		}
+	}, [openPayment, unpaidInvoices, paymentModalVisible]);
 
 	// Filtered Ledger Events
 	const filteredTimeline = useMemo(() => {
