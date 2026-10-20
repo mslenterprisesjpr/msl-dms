@@ -304,16 +304,26 @@ app.post(
 
 			const quantity = item.cases * product.unitsPerCase + item.units;
 
-			// Check worker stock
+			// Check worker van stock first
 			const workerStock = await WorkerStock.findOne({
 				orgId: organizationId,
 				workerId: user.id,
 				productId: item.productId,
 			});
 
-			if (!workerStock || workerStock.quantity < quantity) {
+			let deductFromWorkerStock = false;
+			if (workerStock && workerStock.quantity >= quantity) {
+				deductFromWorkerStock = true;
+			} else if (user.role === "admin") {
+				// Admin can bill directly from central godown/warehouse stock
+				if ((product.stock || 0) < quantity) {
+					throw new HTTPException(400, {
+						message: `Insufficient warehouse stock for ${product.name}. Available: ${product.stock || 0}, Required: ${quantity}`,
+					});
+				}
+			} else {
 				throw new HTTPException(400, {
-					message: `Insufficient stock for product ${product.name}. Available: ${workerStock?.quantity || 0}, Required: ${quantity}`,
+					message: `Insufficient van stock for ${product.name}. Available in your van: ${workerStock?.quantity || 0}, Required: ${quantity}`,
 				});
 			}
 
@@ -328,11 +338,12 @@ app.post(
 				price: item.price,
 				total: itemTotal,
 				workerStock,
+				deductFromWorkerStock,
 				product,
 			});
 		}
 
-		const total = subtotal - body.discount;
+		const total = Math.max(0, subtotal - body.discount);
 
 		// Generate invoice number
 		const invoiceNo = await generateInvoiceNumber(organizationId);
@@ -347,7 +358,7 @@ app.post(
 			discount: body.discount,
 			total,
 			paidAmount: body.paidAmount,
-			pendingAmount: total - body.paidAmount,
+			pendingAmount: Math.max(0, total - body.paidAmount),
 			paymentStatus:
 				body.paidAmount >= total
 					? "PAID"
@@ -359,7 +370,7 @@ app.post(
 			createdBy: user.id,
 		});
 
-		// Create sale items and update worker stock
+		// Create sale items and deduct stock
 		for (const item of saleItems) {
 			// Create sale item
 			await SaleItem.create({
@@ -372,11 +383,20 @@ app.post(
 				total: item.total,
 			});
 
-			// Deduct from worker stock
-			item.workerStock.quantity -= item.quantity;
-			await item.workerStock.save();
+			if (item.deductFromWorkerStock && item.workerStock) {
+				// Deduct from worker's van stock
+				item.workerStock.quantity -= item.quantity;
+				await item.workerStock.save();
+			} else {
+				// Deduct from central warehouse stock
+				item.product.stock = Math.max(
+					0,
+					(item.product.stock || 0) - item.quantity,
+				);
+				await item.product.save();
+			}
 
-			// Create stock transaction
+			// Create stock transaction audit entry
 			await StockTransaction.create({
 				orgId: organizationId,
 				productId: item.productId,
@@ -386,7 +406,9 @@ app.post(
 				cases: item.cases,
 				units: item.units,
 				referenceId: sale._id,
-				note: `Direct sale ${invoiceNo}`,
+				note: item.deductFromWorkerStock
+					? `Spot van sale #${invoiceNo}`
+					: `Warehouse counter sale #${invoiceNo}`,
 				createdBy: user.id,
 			});
 		}

@@ -71,19 +71,16 @@ export interface SaleDetail extends Sale {
 }
 
 export interface CreateSaleDto {
-	invoiceNo?: string;
 	customerId: string;
-	workerId?: string;
-	saleDate?: string;
-	items?: Array<{
+	items: Array<{
 		productId: string;
 		cases: number;
 		units: number;
 		price: number;
 	}>;
-	subtotal: number;
+	subtotal?: number;
 	discount?: number;
-	total: number;
+	total?: number;
 	paidAmount?: number;
 	pendingAmount?: number;
 	paymentMethod?: "CASH" | "UPI" | "CARD" | "CREDIT";
