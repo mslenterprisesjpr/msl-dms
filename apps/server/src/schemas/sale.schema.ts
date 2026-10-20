@@ -4,9 +4,17 @@ import { z } from "zod";
 const saleItemSchema = z
 	.object({
 		productId: z.string().min(1, "Product ID is required"),
-		cases: z.number().int().min(0, "Cases must be non-negative").default(0),
-		units: z.number().int().min(0, "Units must be non-negative").default(0),
-		price: z.number().min(0, "Price must be non-negative"),
+		cases: z.coerce
+			.number()
+			.int()
+			.min(0, "Cases must be non-negative")
+			.default(0),
+		units: z.coerce
+			.number()
+			.int()
+			.min(0, "Units must be non-negative")
+			.default(0),
+		price: z.coerce.number().min(0, "Price must be non-negative"),
 	})
 	.refine(
 		(data: { cases: number; units: number }) =>
@@ -21,9 +29,9 @@ const saleItemSchema = z
 export const createSaleBodySchema = z.object({
 	customerId: z.string().min(1, "Customer ID is required"),
 	items: z.array(saleItemSchema).min(1, "At least one item is required"),
-	discount: z.number().min(0).default(0),
+	discount: z.coerce.number().min(0).default(0),
 	paymentMethod: z.enum(["CASH", "UPI", "CARD", "CREDIT"]).default("CASH"),
-	paidAmount: z.number().min(0).default(0),
+	paidAmount: z.coerce.number().min(0).default(0),
 	note: z.string().optional(),
 });
 

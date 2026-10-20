@@ -362,6 +362,33 @@ export function CustomDrawerContent(props: any) {
 							Settings & Preferences
 						</Text>
 					</Pressable>
+
+					{/* POS Thermal Printer */}
+					<Pressable
+						onPress={() => navigateTo("/(drawer)/printer")}
+						className="flex-row items-center px-4 py-3 active:bg-default-100"
+					>
+						<Ionicons
+							name="print-outline"
+							size={20}
+							color={themeColorForeground}
+							style={{ marginRight: 20 }}
+						/>
+						<View className="flex-1">
+							<Text
+								className="font-medium text-base"
+								style={{ color: themeColorForeground }}
+							>
+								POS Thermal Printer
+							</Text>
+							<Text
+								className="text-xs opacity-60"
+								style={{ color: themeColorForeground }}
+							>
+								Bluetooth 58mm/80mm setup
+							</Text>
+						</View>
+					</Pressable>
 				</View>
 
 				{/* APP FOOTER / VERSION INFO */}

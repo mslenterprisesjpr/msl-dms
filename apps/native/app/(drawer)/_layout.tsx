@@ -61,6 +61,13 @@ function DrawerLayout() {
 					drawerItemStyle: { display: "none" },
 				}}
 			/>
+			<Drawer.Screen
+				name="printer"
+				options={{
+					headerShown: false,
+					drawerItemStyle: { display: "none" },
+				}}
+			/>
 		</Drawer>
 	);
 }

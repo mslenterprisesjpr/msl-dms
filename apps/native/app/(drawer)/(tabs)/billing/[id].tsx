@@ -22,6 +22,13 @@ import { useCreatePayment } from "@/hooks/queries/use-payments";
 import { useSale } from "@/hooks/queries/use-sales";
 import { authClient } from "@/lib/auth-client";
 import type { SaleItem } from "@/services/sale.service";
+import {
+	connectToPrinter,
+	getSavedPrinter,
+	type PrinterDevice,
+	printSaleInvoice,
+	scanBluetoothPrinters,
+} from "@/utils/printer-helper";
 
 export default function InvoiceDetailScreen() {
 	const router = useRouter();
@@ -50,6 +57,100 @@ export default function InvoiceDetailScreen() {
 		"CASH",
 	);
 	const [paymentNote, setPaymentNote] = useState("");
+
+	// POS Thermal Printer State
+	const [printerModalVisible, setPrinterModalVisible] = useState(false);
+	const [activePrinter, setActivePrinter] = useState<PrinterDevice | null>(
+		null,
+	);
+	const [isPrinting, setIsPrinting] = useState(false);
+	const [scannedPrinters, setScannedPrinters] = useState<PrinterDevice[]>([]);
+	const [isScanningPrinters, setIsScanningPrinters] = useState(false);
+	const [connectingMac, setConnectingMac] = useState<string | null>(null);
+
+	// Load saved printer on mount
+	useEffect(() => {
+		(async () => {
+			const saved = await getSavedPrinter();
+			if (saved) setActivePrinter(saved);
+		})();
+	}, []);
+
+	// Handle Direct POS Print
+	const handlePosPrint = async () => {
+		if (!sale) return;
+
+		let printer = activePrinter;
+		if (!printer) {
+			printer = await getSavedPrinter();
+			if (printer) setActivePrinter(printer);
+		}
+
+		if (!printer) {
+			setPrinterModalVisible(true);
+			handleScanPrinters();
+			return;
+		}
+
+		setIsPrinting(true);
+		try {
+			const res = await printSaleInvoice(sale);
+			if (res.success) {
+				toast.show({
+					variant: "success",
+					label: `Printed on ${printer.device_name || "POS Printer"}!`,
+				});
+			} else {
+				Alert.alert(
+					"Print Failed",
+					"Printer se print nahi ho paya. Bluetooth check karein ya reconnect karein.",
+					[
+						{ text: "Cancel", style: "cancel" },
+						{
+							text: "Select Printer",
+							onPress: () => {
+								setPrinterModalVisible(true);
+								handleScanPrinters();
+							},
+						},
+					],
+				);
+			}
+		} catch (e: any) {
+			Alert.alert("Print Error", String(e?.message || e));
+		} finally {
+			setIsPrinting(false);
+		}
+	};
+
+	const handleScanPrinters = async () => {
+		try {
+			setIsScanningPrinters(true);
+			const list = await scanBluetoothPrinters();
+			setScannedPrinters(list || []);
+		} catch (e: any) {
+			Alert.alert("Bluetooth Scan Error", String(e?.message || e));
+		} finally {
+			setIsScanningPrinters(false);
+		}
+	};
+
+	const handleConnectPrinter = async (dev: PrinterDevice) => {
+		try {
+			setConnectingMac(dev.inner_mac_address);
+			await connectToPrinter(dev);
+			setActivePrinter(dev);
+			toast.show({
+				variant: "success",
+				label: `Connected to ${dev.device_name || "Thermal Printer"}!`,
+			});
+			setPrinterModalVisible(false);
+		} catch (e: any) {
+			Alert.alert("Connect Error", String(e?.message || e));
+		} finally {
+			setConnectingMac(null);
+		}
+	};
 
 	const onRefresh = async () => {
 		setRefreshing(true);
@@ -347,6 +448,20 @@ export default function InvoiceDetailScreen() {
 				{/* Header Actions */}
 				<View className="flex-row items-center gap-2">
 					<Pressable
+						onPress={() => {
+							setPrinterModalVisible(true);
+							handleScanPrinters();
+						}}
+						className="h-9 w-9 items-center justify-center rounded-xl bg-slate-100 active:opacity-70 dark:bg-zinc-800"
+						hitSlop={8}
+					>
+						<Ionicons
+							name="print"
+							size={17}
+							color={activePrinter ? "#10b981" : "#64748b"}
+						/>
+					</Pressable>
+					<Pressable
 						onPress={handleGeneralShare}
 						className="h-9 w-9 items-center justify-center rounded-xl bg-slate-100 active:opacity-70 dark:bg-zinc-800"
 						hitSlop={8}
@@ -477,28 +592,76 @@ export default function InvoiceDetailScreen() {
 					</View>
 				</Card>
 
-				{/* 2. PRIMARY WHATSAPP SHARE BANNER */}
-				<Pressable
-					onPress={handleWhatsAppShare}
-					className="mb-4 flex-row items-center justify-between rounded-2xl bg-[#25D366] p-4 shadow-sm active:opacity-90"
-				>
-					<View className="flex-1 flex-row items-center gap-3">
-						<View className="h-10 w-10 items-center justify-center rounded-xl bg-white/20">
-							<Ionicons name="logo-whatsapp" size={24} color="#ffffff" />
+				{/* 2. DUAL ACTION ROW: WHATSAPP SLIP + POS THERMAL PRINT */}
+				<View className="mb-4 flex-row gap-2.5">
+					{/* WhatsApp Share Button */}
+					<Pressable
+						onPress={handleWhatsAppShare}
+						className="flex-1 flex-row items-center justify-between rounded-2xl bg-[#25D366] p-3.5 shadow-sm active:opacity-90"
+					>
+						<View className="flex-1 flex-row items-center gap-2.5">
+							<View className="h-9 w-9 items-center justify-center rounded-xl bg-white/20">
+								<Ionicons name="logo-whatsapp" size={20} color="#ffffff" />
+							</View>
+							<View className="flex-1">
+								<Text className="font-black text-white text-xs">
+									WhatsApp Slip
+								</Text>
+								<Text
+									className="font-medium text-[10px] text-white/80"
+									numberOfLines={1}
+								>
+									{customerPhone || "Share Invoice"}
+								</Text>
+							</View>
 						</View>
-						<View className="flex-1">
-							<Text className="font-black text-sm text-white">
-								Share WhatsApp Bill Slip
-							</Text>
-							<Text className="font-medium text-white/90 text-xs">
-								{customerPhone
-									? `Send instant slip to ${customerPhone}`
-									: "Share invoice summary & payment link"}
-							</Text>
+						<Ionicons name="send" size={15} color="#ffffff" />
+					</Pressable>
+
+					{/* POS Thermal Print Button */}
+					<Pressable
+						onPress={handlePosPrint}
+						disabled={isPrinting}
+						className="flex-1 flex-row items-center justify-between rounded-2xl bg-slate-900 p-3.5 shadow-sm active:opacity-90 dark:bg-white"
+					>
+						<View className="flex-1 flex-row items-center gap-2.5">
+							<View className="h-9 w-9 items-center justify-center rounded-xl bg-white/20 dark:bg-zinc-900/10">
+								{isPrinting ? (
+									<ActivityIndicator size="small" color="#ffffff" />
+								) : (
+									<Ionicons
+										name="print"
+										size={20}
+										color={
+											themeColorForeground === "#ffffff" ? "#09090b" : "#ffffff"
+										}
+									/>
+								)}
+							</View>
+							<View className="flex-1">
+								<Text
+									className="font-black text-white text-xs dark:text-zinc-900"
+									numberOfLines={1}
+								>
+									{isPrinting ? "Printing..." : "POS Print"}
+								</Text>
+								<Text
+									className="font-medium text-[10px] text-white/80 dark:text-zinc-500"
+									numberOfLines={1}
+								>
+									{activePrinter
+										? activePrinter.device_name || "Thermal 58mm"
+										: "Pair Printer ➔"}
+								</Text>
+							</View>
 						</View>
-					</View>
-					<Ionicons name="send" size={18} color="#ffffff" />
-				</Pressable>
+						<View
+							className={`h-2 w-2 rounded-full ${
+								activePrinter ? "bg-emerald-400" : "bg-amber-400"
+							}`}
+						/>
+					</Pressable>
+				</View>
 
 				{/* 3. BILLED PRODUCTS LIST (CASES-FIRST) */}
 				<Card className="mb-4 border-slate-200/80 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
@@ -876,6 +1039,171 @@ export default function InvoiceDetailScreen() {
 							className="rounded-xl border border-slate-200 bg-white p-2.5 font-medium text-slate-900 text-xs dark:border-zinc-800 dark:bg-zinc-800 dark:text-white"
 						/>
 					</View>
+				</ScrollView>
+			</HeroBottomSheet>
+
+			{/* ================= HEROUI NATIVE BOTTOM SHEET: POS BLUETOOTH PRINTER PAIRING ================= */}
+			<HeroBottomSheet
+				visible={printerModalVisible}
+				onClose={() => setPrinterModalVisible(false)}
+				title="POS Thermal Printer Setup"
+				subtitle="58mm / 80mm Bluetooth ESC/POS receipt printer"
+				snapPoints={["65%", "85%"]}
+				footer={
+					<View className="flex-row items-center gap-3">
+						<Pressable
+							onPress={handleScanPrinters}
+							disabled={isScanningPrinters}
+							className="flex-1 flex-row items-center justify-center rounded-2xl border border-slate-200 py-3 active:opacity-80 dark:border-zinc-800"
+						>
+							{isScanningPrinters ? (
+								<ActivityIndicator size="small" color={themeAccent} />
+							) : (
+								<>
+									<Ionicons
+										name="refresh"
+										size={15}
+										color="#0284c7"
+										style={{ marginRight: 6 }}
+									/>
+									<Text className="font-bold text-sky-600 text-xs dark:text-sky-400">
+										Scan Nearby Printers
+									</Text>
+								</>
+							)}
+						</Pressable>
+
+						{activePrinter && (
+							<Pressable
+								onPress={handlePosPrint}
+								className="flex-1 items-center justify-center rounded-2xl bg-emerald-600 py-3 shadow-sm active:opacity-90"
+							>
+								<Text className="font-bold text-white text-xs">
+									Print Bill Now ➔
+								</Text>
+							</Pressable>
+						)}
+					</View>
+				}
+			>
+				<ScrollView className="py-1" showsVerticalScrollIndicator={false}>
+					{/* Active Printer Badge */}
+					<View className="mb-3 rounded-2xl border border-slate-200/80 bg-slate-50 p-3.5 dark:border-zinc-800 dark:bg-zinc-900">
+						<View className="flex-row items-center justify-between">
+							<View className="flex-row items-center gap-2.5">
+								<View
+									className={`h-9 w-9 items-center justify-center rounded-xl ${
+										activePrinter
+											? "bg-emerald-500/15"
+											: "bg-slate-200 dark:bg-zinc-800"
+									}`}
+								>
+									<Ionicons
+										name="print"
+										size={18}
+										color={activePrinter ? "#10b981" : "#94a3b8"}
+									/>
+								</View>
+								<View>
+									<Text className="font-bold text-slate-900 text-xs dark:text-white">
+										{activePrinter
+											? activePrinter.device_name || "Paired Printer"
+											: "No Printer Paired"}
+									</Text>
+									<Text className="text-[10px] text-slate-400">
+										{activePrinter
+											? `MAC: ${activePrinter.inner_mac_address}`
+											: "Pair your Bluetooth printer below"}
+									</Text>
+								</View>
+							</View>
+
+							<View
+								className={`rounded-full px-2 py-0.5 ${
+									activePrinter
+										? "bg-emerald-100 dark:bg-emerald-950/60"
+										: "bg-slate-200 dark:bg-zinc-800"
+								}`}
+							>
+								<Text
+									className={`font-bold text-[9px] ${
+										activePrinter
+											? "text-emerald-700 dark:text-emerald-300"
+											: "text-slate-500"
+									}`}
+								>
+									{activePrinter ? "PAIRED" : "UNPAIRED"}
+								</Text>
+							</View>
+						</View>
+					</View>
+
+					{/* Bluetooth Device List */}
+					<Text className="mb-2 font-bold text-slate-700 text-xs dark:text-zinc-300">
+						Available Bluetooth Printers:
+					</Text>
+
+					{isScanningPrinters ? (
+						<View className="items-center py-8">
+							<ActivityIndicator size="small" color={themeAccent} />
+							<Text className="mt-2 text-slate-400 text-xs">
+								Scanning Bluetooth devices...
+							</Text>
+						</View>
+					) : scannedPrinters.length === 0 ? (
+						<View className="items-center py-6">
+							<Ionicons name="bluetooth-outline" size={32} color="#cbd5e1" />
+							<Text className="mt-2 text-center text-slate-500 text-xs">
+								Koi printer nahi mila. Phone settings me pehle printer pair
+								karein, fir "Scan" dabayein.
+							</Text>
+						</View>
+					) : (
+						<View className="gap-2 pb-4">
+							{scannedPrinters.map((dev) => {
+								const isConnected =
+									activePrinter?.inner_mac_address === dev.inner_mac_address;
+								const isConnecting = connectingMac === dev.inner_mac_address;
+
+								return (
+									<Pressable
+										key={dev.inner_mac_address}
+										onPress={() => !isConnected && handleConnectPrinter(dev)}
+										className={`flex-row items-center justify-between rounded-xl border p-3 ${
+											isConnected
+												? "border-emerald-500 bg-emerald-50/60 dark:border-emerald-600 dark:bg-emerald-950/30"
+												: "border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-800"
+										}`}
+									>
+										<View className="flex-1 pr-2">
+											<Text className="font-bold text-slate-800 text-xs dark:text-white">
+												{dev.device_name || "Unknown Printer"}
+											</Text>
+											<Text className="font-mono text-[10px] text-slate-400">
+												{dev.inner_mac_address}
+											</Text>
+										</View>
+
+										{isConnecting ? (
+											<ActivityIndicator size="small" color={themeAccent} />
+										) : isConnected ? (
+											<Ionicons
+												name="checkmark-circle"
+												size={18}
+												color="#10b981"
+											/>
+										) : (
+											<View className="rounded-md bg-slate-100 px-2 py-1 dark:bg-zinc-700">
+												<Text className="font-bold text-[10px] text-slate-700 dark:text-zinc-300">
+													Connect
+												</Text>
+											</View>
+										)}
+									</Pressable>
+								);
+							})}
+						</View>
+					)}
 				</ScrollView>
 			</HeroBottomSheet>
 		</Container>

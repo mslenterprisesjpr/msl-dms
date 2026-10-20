@@ -269,7 +269,23 @@ app.get(
 app.post(
 	"/",
 	requireAuth,
-	zValidator("json", createSaleBodySchema),
+	zValidator("json", createSaleBodySchema, (result, c) => {
+		if (!result.success) {
+			const errorMsg = result.error.issues
+				.map((i) => `${i.path.join(".") || "field"}: ${i.message}`)
+				.join(", ");
+			console.error("❌ Sale creation validation error:", errorMsg);
+			return c.json(
+				{
+					status: 400,
+					message: `Validation failed: ${errorMsg}`,
+					error: `Validation failed: ${errorMsg}`,
+					issues: result.error.issues,
+				},
+				400,
+			);
+		}
+	}),
 	async (c) => {
 		const user = c.get("user") as User;
 		const organizationId = await resolveOrganizationId(c);
@@ -306,7 +322,7 @@ app.post(
 
 			// Check worker van stock first
 			const workerStock = await WorkerStock.findOne({
-				orgId: organizationId,
+				orgId: orgFilter,
 				workerId: user.id,
 				productId: item.productId,
 			});
@@ -315,12 +331,8 @@ app.post(
 			if (workerStock && workerStock.quantity >= quantity) {
 				deductFromWorkerStock = true;
 			} else if (user.role === "admin") {
-				// Admin can bill directly from central godown/warehouse stock
-				if ((product.stock || 0) < quantity) {
-					throw new HTTPException(400, {
-						message: `Insufficient warehouse stock for ${product.name}. Available: ${product.stock || 0}, Required: ${quantity}`,
-					});
-				}
+				// Admin can bill directly from central godown/warehouse stock even with backlog
+				deductFromWorkerStock = false;
 			} else {
 				throw new HTTPException(400, {
 					message: `Insufficient van stock for ${product.name}. Available in your van: ${workerStock?.quantity || 0}, Required: ${quantity}`,

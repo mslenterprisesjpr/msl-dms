@@ -430,13 +430,13 @@ export default function CreateBillScreen() {
 				customerId: selectedCustomer._id,
 				items: cart.map((item) => ({
 					productId: item.productId,
-					cases: item.cases,
-					units: item.units,
-					price: item.price,
+					cases: Math.max(0, Math.floor(Number(item.cases) || 0)),
+					units: Math.max(0, Math.floor(Number(item.units) || 0)),
+					price: Math.max(0, Number(item.price) || 0),
 				})),
-				discount,
+				discount: Math.max(0, Number(discount) || 0),
 				paymentMethod,
-				paidAmount: calculatedPaidAmount,
+				paidAmount: Math.max(0, Number(calculatedPaidAmount) || 0),
 				note: note.trim() || undefined,
 			};
 
@@ -459,10 +459,23 @@ export default function CreateBillScreen() {
 			}
 		} catch (error: any) {
 			console.error("Sale creation error:", error);
-			const errMessage =
-				error?.response?.data?.message ||
-				error?.message ||
-				"Failed to generate bill";
+			const data = error?.response?.data;
+			let errMessage = "Failed to generate bill";
+			if (typeof data?.message === "string") {
+				errMessage = data.message;
+			} else if (typeof data?.error === "string") {
+				errMessage = data.error;
+			} else if (data?.issues && Array.isArray(data.issues)) {
+				errMessage = data.issues
+					.map((i: any) => `${i.path?.join(".") || "field"}: ${i.message}`)
+					.join(", ");
+			} else if (data?.error?.issues && Array.isArray(data.error.issues)) {
+				errMessage = data.error.issues
+					.map((i: any) => `${i.path?.join(".") || "field"}: ${i.message}`)
+					.join(", ");
+			} else if (error?.message) {
+				errMessage = error.message;
+			}
 			Alert.alert("Billing Failed", errMessage);
 		} finally {
 			setIsSubmitting(false);

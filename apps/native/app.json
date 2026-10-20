@@ -2,7 +2,7 @@
 	"expo": {
 		"name": "msl",
 		"slug": "msl",
-		"version": "1.0.0",
+		"version": "1.0.2",
 		"orientation": "portrait",
 		"icon": "./assets/images/msl-logo.png",
 		"scheme": "msl",
@@ -17,7 +17,14 @@
 				"foregroundImage": "./assets/images/msl-logo.png"
 			},
 			"predictiveBackGestureEnabled": false,
-			"package": "com.anonymous.msl"
+			"package": "com.anonymous.msl",
+			"permissions": [
+				"BLUETOOTH",
+				"BLUETOOTH_ADMIN",
+				"BLUETOOTH_CONNECT",
+				"BLUETOOTH_SCAN",
+				"ACCESS_FINE_LOCATION"
+			]
 		},
 		"web": {
 			"bundler": "metro",

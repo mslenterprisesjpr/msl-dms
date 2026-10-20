@@ -57,7 +57,7 @@ export const globalErrorHandler = (err: Error, c: Context) => {
 	if (err instanceof HTTPException) {
 		console.error("HTTPException:", err.message, err.cause);
 		return c.json(
-			{ status: err.status, error: err.message },
+			{ status: err.status, message: err.message, error: err.message },
 			err.status as ContentfulStatusCode,
 		);
 	}
