@@ -8,6 +8,7 @@ import {
 	RefreshControl,
 	ScrollView,
 	Text,
+	TextInput,
 	View,
 } from "react-native";
 
@@ -20,8 +21,17 @@ export default function StockScreen() {
 	const themeAccent = useThemeColor("accent");
 	const themeColorForeground = useThemeColor("foreground");
 	const { user } = useSession();
+	const isAdmin = user?.role === "admin";
 
-	const [activeTab, setActiveTab] = useState<"STOCK" | "LOW_STOCK">("STOCK");
+	// Mode: For worker, default to "VAN_STOCK" (Mera Van Stock), for Admin default to "WAREHOUSE"
+	const [stockMode, setStockMode] = useState<"VAN_STOCK" | "WAREHOUSE">(
+		isAdmin ? "WAREHOUSE" : "VAN_STOCK",
+	);
+
+	const [activeWarehouseTab, setActiveWarehouseTab] = useState<
+		"STOCK" | "LOW_STOCK"
+	>("STOCK");
+	const [vanSearch, setVanSearch] = useState("");
 	const [refreshing, setRefreshing] = useState(false);
 
 	// Queries
@@ -31,8 +41,11 @@ export default function StockScreen() {
 		refetch: refetchProducts,
 	} = useProducts({ limit: 100, isActive: true });
 
-	const { data: workerStockResponse, refetch: refetchWorkerStock } =
-		useWorkerStock();
+	const {
+		data: workerStockResponse,
+		isLoading: isWorkerStockLoading,
+		refetch: refetchWorkerStock,
+	} = useWorkerStock();
 
 	const onRefresh = async () => {
 		setRefreshing(true);
@@ -43,23 +56,67 @@ export default function StockScreen() {
 		}
 	};
 
-	const products = productsResponse?.data || [];
+	const warehouseProducts = productsResponse?.data || [];
+	const myVanProducts = workerStockResponse?.data || [];
 
-	// 100% REAL Calculations from Database
-	const stats = useMemo(() => {
+	// Worker Van Stock Aggregations (100% Real from Database)
+	const vanStats = useMemo(() => {
+		let totalUnits = 0;
+		let totalCases = 0;
+		let totalValue = 0;
+
+		myVanProducts.forEach((item) => {
+			const q = item.quantity || 0;
+			const cases = item.stockInCases || 0;
+			const rate = item.sellingRate || 0;
+			totalUnits += q;
+			totalCases += cases;
+			totalValue += q * rate;
+		});
+
+		return {
+			totalItems: myVanProducts.length,
+			totalUnits,
+			totalCases,
+			totalValue,
+		};
+	}, [myVanProducts]);
+
+	// Filtered Van Products for Search
+	const filteredVanProducts = useMemo(() => {
+		if (!vanSearch.trim()) return myVanProducts;
+		const q = vanSearch.toLowerCase().trim();
+		return myVanProducts.filter(
+			(p) =>
+				(p.productName || "").toLowerCase().includes(q) ||
+				(p.sku && p.sku.toLowerCase().includes(q)) ||
+				(p.packSize && p.packSize.toLowerCase().includes(q)),
+		);
+	}, [myVanProducts, vanSearch]);
+
+	// Warehouse Stats
+	const warehouseStats = useMemo(() => {
 		let totalUnits = 0;
 		let totalValue = 0;
+		let totalCases = 0;
 		let fastMovingCount = 0;
 		let slowMovingCount = 0;
-		const lowStockList: typeof products = [];
+		let outOfStockCount = 0;
+		const lowStockList: typeof warehouseProducts = [];
 
-		products.forEach((p) => {
+		warehouseProducts.forEach((p) => {
 			const s = p.stock || 0;
+			const unitsPerCase = p.unitsPerCase || 1;
 			totalUnits += s;
+			totalCases += Math.floor(s / unitsPerCase);
 			const rate = p.purchaseRate || p.sellingRate || 0;
 			totalValue += s * rate;
 
-			const minRequired = (p.minimumStock || 0) * (p.unitsPerCase || 1);
+			if (s <= 0) {
+				outOfStockCount++;
+			}
+
+			const minRequired = (p.minimumStock || 0) * unitsPerCase;
 			if (s <= minRequired || s <= 10) {
 				lowStockList.push(p);
 				slowMovingCount++;
@@ -68,69 +125,126 @@ export default function StockScreen() {
 			}
 		});
 
-		const totalItems = products.length;
-		const stockValue = totalValue;
-		const lowStockCount = lowStockList.length;
+		const totalItems = warehouseProducts.length;
+		const healthyCount = Math.max(0, totalItems - lowStockList.length);
 
 		return {
 			totalItems,
 			totalUnits,
-			stockValue,
-			lowStockCount,
+			totalCases,
+			stockValue: totalValue,
+			lowStockCount: lowStockList.length,
 			lowStockList,
 			fastMoving: fastMovingCount,
 			slowMoving: slowMovingCount,
+			outOfStockCount,
+			healthyCount,
+			healthyPct:
+				totalItems > 0 ? Math.round((healthyCount / totalItems) * 100) : 0,
+			lowPct:
+				totalItems > 0
+					? Math.round((lowStockList.length / totalItems) * 100)
+					: 0,
 		};
-	}, [products]);
-
-	// Real 7 Days Trend Data dynamically computed from current date
-	const trendData = useMemo(() => {
-		const today = new Date();
-		const days = [];
-
-		for (let i = 6; i >= 0; i--) {
-			const d = new Date(today);
-			d.setDate(today.getDate() - i);
-			const dayNum = d.getDate().toString();
-			const monthName = d.toLocaleString("en-US", { month: "short" });
-
-			// Proportional height relative to current live stock value
-			const ratio =
-				stats.stockValue > 0 ? Math.min(1, 0.5 + (0.5 * (7 - i)) / 7) : 0;
-			const heightPct = stats.stockValue > 0 ? Math.round(ratio * 80) : 4;
-
-			days.push({
-				id: `${monthName}-${dayNum}-${i}`,
-				day: dayNum,
-				month: monthName,
-				heightPct,
-			});
-		}
-		return days;
-	}, [stats.stockValue]);
-
-	// Dynamic Y-Axis Labels based on real stock value
-	const yLabels = useMemo(() => {
-		const max = stats.stockValue;
-		if (max <= 0) return ["300K", "200K", "100K", "0"];
-
-		const formatK = (val: number) => {
-			if (val >= 1000000) return `${(val / 1000000).toFixed(1)}M`;
-			if (val >= 1000) return `${Math.round(val / 1000)}K`;
-			return Math.round(val).toString();
-		};
-
-		return [formatK(max), formatK(max * 0.66), formatK(max * 0.33), "0"];
-	}, [stats.stockValue]);
+	}, [warehouseProducts]);
 
 	return (
 		<Container className="flex-1 bg-slate-50 dark:bg-zinc-950">
+			{/* ══════════════════════════════════════════════════════════════════
+			    HEADER & VIEW SWITCHER (Van Stock vs Warehouse Stock)
+			══════════════════════════════════════════════════════════════════ */}
+			<View className="border-slate-200/80 border-b bg-white px-4 pt-2.5 pb-3 dark:border-zinc-800 dark:bg-zinc-900">
+				<View className="mb-2.5 flex-row items-center justify-between">
+					<View>
+						<Text className="font-black text-slate-900 text-xl tracking-tight dark:text-white">
+							{stockMode === "VAN_STOCK"
+								? "🚚 Mera Van Stock"
+								: "🏭 Godown Inventory"}
+						</Text>
+						<Text className="font-medium text-slate-400 text-xs dark:text-zinc-500">
+							{stockMode === "VAN_STOCK"
+								? "Live inventory currently loaded in your delivery vehicle"
+								: "Central warehouse & Godown stock level overview"}
+						</Text>
+					</View>
+
+					<View className="rounded-full bg-slate-100 px-2.5 py-1 dark:bg-zinc-800">
+						<Text className="font-bold text-[10px] text-slate-600 uppercase tracking-wider dark:text-zinc-400">
+							{isAdmin ? "👑 Admin" : "👤 Worker"}
+						</Text>
+					</View>
+				</View>
+
+				{/* Mode Switcher Pills */}
+				<View className="flex-row gap-2">
+					<Pressable
+						onPress={() => setStockMode("VAN_STOCK")}
+						className={`flex-1 flex-row items-center justify-center rounded-xl py-2 ${
+							stockMode === "VAN_STOCK"
+								? "bg-slate-900 dark:bg-white"
+								: "border border-slate-200/80 bg-slate-50/60 dark:border-zinc-800 dark:bg-zinc-800/40"
+						}`}
+					>
+						<Ionicons
+							name="car-sport"
+							size={15}
+							color={
+								stockMode === "VAN_STOCK"
+									? themeColorForeground === "#ffffff"
+										? "#09090b"
+										: "#ffffff"
+									: "#64748b"
+							}
+						/>
+						<Text
+							className={`ml-1.5 font-bold text-xs ${
+								stockMode === "VAN_STOCK"
+									? "text-white dark:text-zinc-900"
+									: "text-slate-600 dark:text-zinc-400"
+							}`}
+						>
+							Mera Van Stock ({myVanProducts.length})
+						</Text>
+					</Pressable>
+
+					<Pressable
+						onPress={() => setStockMode("WAREHOUSE")}
+						className={`flex-1 flex-row items-center justify-center rounded-xl py-2 ${
+							stockMode === "WAREHOUSE"
+								? "bg-slate-900 dark:bg-white"
+								: "border border-slate-200/80 bg-slate-50/60 dark:border-zinc-800 dark:bg-zinc-800/40"
+						}`}
+					>
+						<Ionicons
+							name="business"
+							size={15}
+							color={
+								stockMode === "WAREHOUSE"
+									? themeColorForeground === "#ffffff"
+										? "#09090b"
+										: "#ffffff"
+									: "#64748b"
+							}
+						/>
+						<Text
+							className={`ml-1.5 font-bold text-xs ${
+								stockMode === "WAREHOUSE"
+									? "text-white dark:text-zinc-900"
+									: "text-slate-600 dark:text-zinc-400"
+							}`}
+						>
+							Godown Stock ({warehouseProducts.length})
+						</Text>
+					</Pressable>
+				</View>
+			</View>
+
 			<ScrollView
 				className="flex-1"
 				contentContainerStyle={{
 					paddingHorizontal: 16,
 					paddingTop: 12,
-					paddingBottom: 32,
+					paddingBottom: 40,
 				}}
 				showsVerticalScrollIndicator={false}
 				refreshControl={
@@ -141,381 +255,567 @@ export default function StockScreen() {
 					/>
 				}
 			>
-				{/* 1. TOP SEGMENT TABS (Stock vs Low Stock) */}
-				<View className="mb-4 flex-row gap-3">
-					{/* Stock Tab */}
-					<Pressable
-						onPress={() => setActiveTab("STOCK")}
-						className={`flex-1 items-center justify-center rounded-2xl py-3 shadow-sm ${
-							activeTab === "STOCK"
-								? "bg-accent"
-								: "border border-slate-200/60 bg-slate-100 dark:border-zinc-800 dark:bg-zinc-900"
-						}`}
-					>
-						<Text
-							className={`font-bold text-sm ${
-								activeTab === "STOCK"
-									? "text-accent-foreground"
-									: "text-slate-600 dark:text-zinc-300"
-							}`}
-						>
-							Stock
-						</Text>
-					</Pressable>
-
-					{/* Low Stock (Count) Tab */}
-					<Pressable
-						onPress={() => setActiveTab("LOW_STOCK")}
-						className={`flex-1 items-center justify-center rounded-2xl py-3 ${
-							activeTab === "LOW_STOCK"
-								? "bg-accent shadow-sm"
-								: "border border-slate-200/60 bg-slate-100 dark:border-zinc-800 dark:bg-zinc-900"
-						}`}
-					>
-						<Text
-							className={`font-bold text-sm ${
-								activeTab === "LOW_STOCK"
-									? "text-accent-foreground"
-									: "text-slate-600 dark:text-zinc-300"
-							}`}
-						>
-							Low Stock ({stats.lowStockCount})
-						</Text>
-					</Pressable>
-				</View>
-
-				{/* 2. MAIN VIEW BASED ON ACTIVE TAB */}
-				{activeTab === "STOCK" ? (
+				{/* ══════════════════════════════════════════════════════════════
+				    VIEW 1: MERA VAN STOCK (Cases-First Vehicle Inventory)
+				══════════════════════════════════════════════════════════════ */}
+				{stockMode === "VAN_STOCK" ? (
 					<>
-						{/* 2x2 METRICS GRID */}
-						{/* ROW 1: Total Items & Total Stock Value */}
-						<View className="mb-3 flex-row gap-3">
-							{/* Total Items (Mint Green Card) */}
-							<Pressable
-								onPress={() => router.push("/stock/list" as any)}
-								className="flex-1 rounded-2xl border border-emerald-100/80 bg-[#f0fdf4] p-3.5 shadow-sm active:opacity-90 dark:border-emerald-950/60 dark:bg-emerald-950/20"
-							>
-								<View className="flex-row items-center justify-between">
-									<View className="flex-row items-center">
-										<View className="mr-2 h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/15">
-											<Ionicons name="briefcase" size={15} color="#10b981" />
-										</View>
-										<Text className="font-semibold text-slate-700 text-xs dark:text-zinc-300">
-											Total Items
+						{/* 1. HERO VAN INVENTORY KPI BANNER */}
+						<Card className="mb-4 border-slate-200/80 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+							<View className="flex-row items-center justify-between border-slate-100 border-b pb-3 dark:border-zinc-800">
+								<View>
+									<Text className="font-semibold text-slate-400 text-xs uppercase tracking-wider dark:text-zinc-500">
+										Current Van Inventory Load
+									</Text>
+									<View className="mt-1 flex-row items-baseline gap-2">
+										<Text className="font-black text-3xl text-slate-900 tracking-tight dark:text-white">
+											{vanStats.totalCases} Crates / Cases
 										</Text>
 									</View>
-									<Ionicons name="chevron-forward" size={14} color="#10b981" />
 								</View>
-								<Text className="my-1 font-black text-2xl text-slate-900 tracking-tight dark:text-white">
-									{stats.totalItems}
-								</Text>
-								<View className="flex-row items-center">
-									<Text className="font-bold text-[11px] text-emerald-600 dark:text-emerald-400">
-										View List →
-									</Text>
-									<Text className="ml-1 font-medium text-[11px] text-slate-400 dark:text-zinc-500">
-										in catalog
-									</Text>
-								</View>
-							</Pressable>
 
-							{/* Total Stock Value (Soft Blue Card) */}
-							<View className="flex-1 rounded-2xl border border-sky-100/80 bg-[#f0f9ff] p-3.5 shadow-sm dark:border-sky-950/60 dark:bg-sky-950/20">
-								<View className="flex-row items-center">
-									<View className="mr-2 h-7 w-7 items-center justify-center rounded-lg bg-sky-500/15">
-										<Ionicons name="receipt" size={15} color="#0284c7" />
-									</View>
-									<Text className="font-semibold text-slate-700 text-xs dark:text-zinc-300">
-										Total Stock Value
-									</Text>
-								</View>
-								<Text className="my-1 font-black text-2xl text-slate-900 tracking-tight dark:text-white">
-									₹{stats.stockValue.toLocaleString("en-IN")}
-								</Text>
-								<View className="flex-row items-center">
-									<Text className="font-bold text-[11px] text-emerald-600 dark:text-emerald-400">
-										{stats.totalUnits.toLocaleString("en-IN")}
-									</Text>
-									<Text className="ml-1 font-medium text-[11px] text-slate-400 dark:text-zinc-500">
-										total units
-									</Text>
-								</View>
-							</View>
-						</View>
-
-						{/* ROW 2: Fast Moving & Slow Moving */}
-						<View className="mb-4 flex-row gap-3">
-							{/* Fast Moving (Warm Cream/Orange Card) */}
-							<View className="flex-1 rounded-2xl border border-orange-100/80 bg-[#fff7ed] p-3.5 shadow-sm dark:border-orange-950/60 dark:bg-orange-950/20">
-								<View className="flex-row items-center">
-									<View className="mr-2 h-7 w-7 items-center justify-center rounded-lg bg-orange-500/15">
-										<Ionicons name="bar-chart" size={15} color="#f97316" />
-									</View>
-									<Text className="font-semibold text-slate-700 text-xs dark:text-zinc-300">
-										Fast Moving
-									</Text>
-								</View>
-								<Text className="my-1 font-black text-2xl text-slate-900 tracking-tight dark:text-white">
-									{stats.fastMoving}
-								</Text>
-								<View className="flex-row items-center">
-									<Text className="font-bold text-[11px] text-emerald-600 dark:text-emerald-400">
-										In stock
-									</Text>
-									<Text className="ml-1 font-medium text-[11px] text-slate-400 dark:text-zinc-500">
-										sufficient qty
+								<View className="rounded-2xl bg-teal-50 px-3 py-1.5 dark:bg-teal-950/40">
+									<Text className="font-black text-teal-800 text-xs dark:text-teal-300">
+										{vanStats.totalUnits} Total Units
 									</Text>
 								</View>
 							</View>
 
-							{/* Slow Moving (Soft Purple Card) */}
-							<View className="flex-1 rounded-2xl border border-purple-100/80 bg-[#faf5ff] p-3.5 shadow-sm dark:border-purple-950/60 dark:bg-purple-950/20">
-								<View className="flex-row items-center">
-									<View className="mr-2 h-7 w-7 items-center justify-center rounded-lg bg-purple-500/15">
-										<Ionicons name="time" size={15} color="#9333ea" />
-									</View>
-									<Text className="font-semibold text-slate-700 text-xs dark:text-zinc-300">
-										Slow Moving
+							{/* Financial Valuation & Quick Stats */}
+							<View className="mt-3 flex-row items-center justify-between">
+								<View>
+									<Text className="font-semibold text-[11px] text-slate-400">
+										Stock Value in Vehicle:
 									</Text>
-								</View>
-								<Text className="my-1 font-black text-2xl text-slate-900 tracking-tight dark:text-white">
-									{stats.slowMoving}
-								</Text>
-								<View className="flex-row items-center">
-									<Text className="font-bold text-[11px] text-amber-500 dark:text-amber-400">
-										Low / Reorder
-									</Text>
-									<Text className="ml-1 font-medium text-[11px] text-slate-400 dark:text-zinc-500">
-										needs refill
-									</Text>
-								</View>
-							</View>
-						</View>
-
-						{/* 3. STOCK VALUE TREND CARD */}
-						<View className="mb-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-							{/* Header */}
-							<View className="mb-4 flex-row items-center justify-between">
-								<View className="flex-row items-center">
-									<Ionicons name="stats-chart" size={18} color={themeAccent} />
-									<Text className="ml-2 font-bold text-base text-slate-900 dark:text-white">
-										Stock Value Trend
+									<Text className="font-black text-emerald-600 text-lg dark:text-emerald-400">
+										₹{vanStats.totalValue.toLocaleString("en-IN")}
 									</Text>
 								</View>
 
-								{/* 7 Days Selector Pill */}
-								<View className="flex-row items-center rounded-xl border border-slate-200/80 px-2.5 py-1 dark:border-zinc-700">
-									<Text className="font-semibold text-slate-700 text-xs dark:text-zinc-300">
-										7 Days
-									</Text>
-									<Ionicons
-										name="chevron-down"
-										size={14}
-										color="#64748b"
-										style={{ marginLeft: 3 }}
-									/>
+								<View className="flex-row items-center gap-2">
+									<Pressable
+										onPress={() => router.push("/stock/return" as any)}
+										className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 active:bg-rose-100 dark:border-rose-950 dark:bg-rose-950/30"
+									>
+										<Text className="font-bold text-rose-700 text-xs dark:text-rose-300">
+											🔄 Return Stock
+										</Text>
+									</Pressable>
+
+									<Pressable
+										onPress={() => router.push("/stock/issue" as any)}
+										className="rounded-xl bg-accent px-3 py-2 active:opacity-90"
+									>
+										<Text className="font-bold text-accent-foreground text-xs">
+											+ Load Van
+										</Text>
+									</Pressable>
 								</View>
 							</View>
+						</Card>
 
-							{/* Bar Chart Container */}
-							<View className="h-48 flex-row">
-								{/* Left Y-Axis Labels */}
-								<View className="h-36 justify-between pr-2">
-									<Text className="font-semibold text-[10px] text-slate-400 dark:text-zinc-500">
-										{yLabels[0]}
-									</Text>
-									<Text className="font-semibold text-[10px] text-slate-400 dark:text-zinc-500">
-										{yLabels[1]}
-									</Text>
-									<Text className="font-semibold text-[10px] text-slate-400 dark:text-zinc-500">
-										{yLabels[2]}
-									</Text>
-									<Text className="font-semibold text-[10px] text-slate-400 dark:text-zinc-500">
-										{yLabels[3]}
-									</Text>
-								</View>
-
-								{/* Chart Grid & Bars Area */}
-								<View className="flex-1 justify-end">
-									{/* Horizontal Background Grid Lines */}
-									<View className="absolute inset-0 h-36 justify-between">
-										<View className="h-px bg-slate-100 dark:bg-zinc-800" />
-										<View className="h-px bg-slate-100 dark:bg-zinc-800" />
-										<View className="h-px bg-slate-100 dark:bg-zinc-800" />
-										<View className="h-px bg-slate-200 dark:bg-zinc-700" />
-									</View>
-
-									{/* 7 Vertical Bars */}
-									<View className="h-36 flex-row items-end justify-between px-1">
-										{trendData.map((item) => (
-											<View
-												key={`bar-${item.id}`}
-												className="items-center"
-												style={{ width: 28 }}
-											>
-												<View
-													className="w-4 rounded-t-md bg-accent"
-													style={{ height: `${item.heightPct}%` }}
-												/>
-											</View>
-										))}
-									</View>
-
-									{/* X-Axis Dates Underneath */}
-									<View className="mt-2 flex-row justify-between px-1">
-										{trendData.map((item) => (
-											<View
-												key={`label-${item.id}`}
-												className="items-center"
-												style={{ width: 28 }}
-											>
-												<Text className="font-bold text-[10px] text-slate-700 dark:text-zinc-300">
-													{item.day}
-												</Text>
-												<Text className="font-medium text-[9px] text-slate-400 dark:text-zinc-500">
-													{item.month}
-												</Text>
-											</View>
-										))}
-									</View>
-								</View>
-							</View>
-						</View>
-
-						{/* 4. VAN STOCK & DAY-END CLOSING BANNER */}
-						<Pressable
-							onPress={() => router.push("/stock/workers" as any)}
-							className="mb-4 flex-row items-center justify-between rounded-2xl border border-sky-200/80 bg-[#f0f9ff] p-4 shadow-sm active:opacity-90 dark:border-sky-900/60 dark:bg-sky-950/30"
-						>
-							<View className="flex-1 flex-row items-center pr-3">
-								<View className="mr-3 h-11 w-11 items-center justify-center rounded-2xl bg-sky-500/15">
-									<Ionicons name="car-sport" size={22} color="#0284c7" />
-								</View>
-								<View className="flex-1">
-									<Text className="font-bold text-slate-900 text-sm dark:text-white">
-										Van Stock & Day-End Closing
-									</Text>
-									<Text className="mt-0.5 font-medium text-slate-500 text-xs dark:text-zinc-400">
-										Track live field inventory, cash in hand & settle workers
-									</Text>
-								</View>
-							</View>
-							<View className="h-8 w-8 items-center justify-center rounded-full bg-white shadow-xs dark:bg-zinc-800">
-								<Ionicons name="chevron-forward" size={16} color="#0284c7" />
-							</View>
-						</Pressable>
-
-						{/* 5. QUICK ACTIONS SECTION */}
-						<View className="mb-2">
-							<Text className="mb-3 font-bold text-base text-slate-900 dark:text-white">
-								Quick Actions
-							</Text>
-
-							{/* 3 Buttons Grid */}
-							<View className="flex-row gap-3">
-								{/* Button 1: Add Stock */}
-								<Pressable
-									onPress={() => router.push("/stock/entry" as any)}
-									className="flex-1 items-center justify-center rounded-2xl bg-accent px-2 py-4 shadow-sm active:opacity-90"
-								>
-									<Ionicons name="add" size={24} color="#ffffff" />
-									<Text className="mt-1 font-bold text-accent-foreground text-xs">
-										Add Stock
-									</Text>
+						{/* 2. SEARCH IN VAN STOCK */}
+						<View className="mb-3 flex-row items-center rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-xs dark:border-zinc-800 dark:bg-zinc-900">
+							<Ionicons name="search" size={16} color="#94a3b8" />
+							<TextInput
+								value={vanSearch}
+								onChangeText={setVanSearch}
+								placeholder="Search products in your van..."
+								placeholderTextColor="#94a3b8"
+								className="ml-2 flex-1 font-medium text-slate-900 text-xs dark:text-white"
+							/>
+							{vanSearch.length > 0 && (
+								<Pressable onPress={() => setVanSearch("")}>
+									<Ionicons name="close-circle" size={16} color="#94a3b8" />
 								</Pressable>
+							)}
+						</View>
 
-								{/* Button 2: Stock Transfer (Teal) */}
+						{/* 3. LIVE VEHICLE PRODUCT BREAKDOWN */}
+						<View className="mb-2 flex-row items-center justify-between">
+							<Text className="font-bold text-slate-400 text-xs uppercase tracking-wider dark:text-zinc-500">
+								Items on Vehicle ({filteredVanProducts.length})
+							</Text>
+							<Text className="font-medium text-[11px] text-slate-400 dark:text-zinc-500">
+								Cases First Wholesale Format
+							</Text>
+						</View>
+
+						{isWorkerStockLoading ? (
+							<View className="items-center py-16">
+								<ActivityIndicator size="small" color={themeAccent} />
+								<Text className="mt-2 text-slate-400 text-xs">
+									Loading vehicle inventory...
+								</Text>
+							</View>
+						) : filteredVanProducts.length === 0 ? (
+							<View className="items-center rounded-3xl border border-slate-100 bg-white p-8 dark:border-zinc-800 dark:bg-zinc-900">
+								<Ionicons name="car-outline" size={48} color="#cbd5e1" />
+								<Text className="mt-3 font-bold text-base text-slate-800 dark:text-zinc-200">
+									Your Van is Empty
+								</Text>
+								<Text className="mt-1 text-center text-slate-400 text-xs">
+									Aapki gaadi me abhi koi stock nahi hai. Warehouse se stock
+									load karne ke liye niche tap karein.
+								</Text>
+
 								<Pressable
 									onPress={() => router.push("/stock/issue" as any)}
-									className="flex-1 items-center justify-center rounded-2xl bg-[#0d9488] px-2 py-4 shadow-sm active:opacity-90"
-								>
-									<Ionicons name="swap-horizontal" size={22} color="#ffffff" />
-									<Text className="mt-1 font-bold text-white text-xs">
-										Stock Transfer
-									</Text>
-								</Pressable>
-
-								{/* Button 3: Stock Report (Light / Neutral) */}
-								<Pressable
-									onPress={() => router.push("/reports" as any)}
-									className="flex-1 items-center justify-center rounded-2xl border border-slate-200 bg-white px-2 py-4 shadow-sm active:opacity-90 dark:border-zinc-800 dark:bg-zinc-900"
+									className="mt-4 flex-row items-center rounded-2xl bg-accent px-5 py-2.5 shadow-sm active:opacity-90"
 								>
 									<Ionicons
-										name="document-text-outline"
-										size={22}
-										color={themeColorForeground}
+										name="add"
+										size={18}
+										color="#ffffff"
+										style={{ marginRight: 4 }}
 									/>
-									<Text className="mt-1 font-bold text-slate-800 text-xs dark:text-zinc-200">
-										Stock Report
+									<Text className="font-bold text-accent-foreground text-xs">
+										Issue Stock from Warehouse
 									</Text>
 								</Pressable>
 							</View>
-						</View>
+						) : (
+							<View className="gap-2.5">
+								{filteredVanProducts.map((p, index) => {
+									const itemVal = (p.quantity || 0) * (p.sellingRate || 0);
+									const pKey =
+										p._id ||
+										(typeof p.productId === "string"
+											? p.productId
+											: p.productId?._id) ||
+										index;
+
+									return (
+										<Card
+											key={String(pKey)}
+											className="border-slate-200/80 bg-white p-3.5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
+										>
+											<View className="flex-row items-start justify-between">
+												<View className="flex-1 pr-3">
+													<Text className="font-bold text-slate-900 text-sm dark:text-white">
+														{p.productName || "Product"}
+													</Text>
+													<Text className="mt-0.5 text-[11px] text-slate-400 dark:text-zinc-500">
+														{p.sku ? `SKU: ${p.sku} • ` : ""}
+														{p.packSize ? `${p.packSize} • ` : ""}
+														{p.unitsPerCase} pcs/case
+													</Text>
+												</View>
+
+												{/* Cases Badge */}
+												<View className="items-end">
+													<View className="flex-row items-center rounded-xl bg-teal-50 px-2.5 py-1 dark:bg-teal-950/60">
+														<Ionicons
+															name="cube"
+															size={12}
+															color="#0d9488"
+															style={{ marginRight: 4 }}
+														/>
+														<Text className="font-black text-sm text-teal-800 dark:text-teal-200">
+															{p.stockInCases || 0} cs
+														</Text>
+														{(p.remainingUnits || 0) > 0 && (
+															<Text className="ml-1 font-bold text-teal-700 text-xs dark:text-teal-300">
+																+{p.remainingUnits}
+															</Text>
+														)}
+													</View>
+													<Text className="mt-0.5 font-medium text-[10px] text-slate-400">
+														{p.quantity} total {p.unit}
+													</Text>
+												</View>
+											</View>
+
+											{/* Bottom Valuation & Quick Bill Action */}
+											<View className="mt-3 flex-row items-center justify-between border-slate-100 border-t pt-2.5 dark:border-zinc-800">
+												<Text className="font-semibold text-slate-600 text-xs dark:text-zinc-400">
+													Value: ₹{itemVal.toLocaleString("en-IN")} (@ ₹
+													{p.sellingRate})
+												</Text>
+
+												<View className="flex-row items-center gap-2">
+													<Pressable
+														onPress={() => router.push("/stock/return" as any)}
+														className="rounded-lg bg-slate-100 px-2.5 py-1 active:bg-slate-200 dark:bg-zinc-800"
+													>
+														<Text className="font-bold text-[11px] text-slate-700 dark:text-zinc-300">
+															Return
+														</Text>
+													</Pressable>
+
+													<Pressable
+														onPress={() =>
+															router.push("/billing/create" as any)
+														}
+														className="rounded-lg bg-emerald-600 px-2.5 py-1 active:opacity-90"
+													>
+														<Text className="font-bold text-[11px] text-white">
+															+ Bill
+														</Text>
+													</Pressable>
+												</View>
+											</View>
+										</Card>
+									);
+								})}
+							</View>
+						)}
 					</>
 				) : (
-					/* 5. LOW STOCK LIST VIEW (When Low Stock Tab is Active) */
-					<View className="gap-2.5">
-						<View className="mb-2 flex-row items-center justify-between">
-							<Text className="font-bold text-slate-800 text-sm dark:text-zinc-200">
-								Items Requiring Reorder
-							</Text>
-							<Text className="font-semibold text-red-500 text-xs">
-								{stats.lowStockCount} items low
-							</Text>
+					/* ══════════════════════════════════════════════════════════════
+					    VIEW 2: GODOWN / WAREHOUSE STOCK
+					══════════════════════════════════════════════════════════════ */
+					<>
+						{/* Segment Tabs (Stock vs Low Stock) */}
+						<View className="mb-4 flex-row gap-3">
+							<Pressable
+								onPress={() => setActiveWarehouseTab("STOCK")}
+								className={`flex-1 items-center justify-center rounded-2xl py-3 shadow-sm ${
+									activeWarehouseTab === "STOCK"
+										? "bg-accent"
+										: "border border-slate-200/60 bg-slate-100 dark:border-zinc-800 dark:bg-zinc-900"
+								}`}
+							>
+								<Text
+									className={`font-bold text-sm ${
+										activeWarehouseTab === "STOCK"
+											? "text-accent-foreground"
+											: "text-slate-600 dark:text-zinc-300"
+									}`}
+								>
+									Godown Catalog ({warehouseStats.totalItems})
+								</Text>
+							</Pressable>
+
+							<Pressable
+								onPress={() => setActiveWarehouseTab("LOW_STOCK")}
+								className={`flex-1 items-center justify-center rounded-2xl py-3 ${
+									activeWarehouseTab === "LOW_STOCK"
+										? "bg-accent shadow-sm"
+										: "border border-slate-200/60 bg-slate-100 dark:border-zinc-800 dark:bg-zinc-900"
+								}`}
+							>
+								<Text
+									className={`font-bold text-sm ${
+										activeWarehouseTab === "LOW_STOCK"
+											? "text-accent-foreground"
+											: "text-slate-600 dark:text-zinc-300"
+									}`}
+								>
+									Low Stock ({warehouseStats.lowStockCount})
+								</Text>
+							</Pressable>
 						</View>
 
-						{isProductsLoading ? (
-							<View className="items-center py-12">
-								<ActivityIndicator size="small" color={themeAccent} />
-							</View>
-						) : stats.lowStockList.length === 0 ? (
-							<View className="items-center rounded-2xl border border-slate-100 bg-white p-6 py-12 dark:border-zinc-800 dark:bg-zinc-900">
-								<Ionicons name="checkmark-circle" size={36} color="#10b981" />
-								<Text className="mt-2 font-bold text-slate-900 text-sm dark:text-white">
-									All Stock Levels are Healthy
-								</Text>
-								<Text className="text-slate-400 text-xs">
-									No items are currently below minimum stock threshold.
-								</Text>
-							</View>
-						) : (
-							stats.lowStockList.map((p) => {
-								const stock = p.stock || 0;
-								const min = (p.minimumStock || 0) * (p.unitsPerCase || 1);
-
-								return (
-									<Card
-										key={p._id}
-										className="border border-slate-100 bg-white p-3.5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
+						{activeWarehouseTab === "STOCK" ? (
+							<>
+								{/* 2x2 METRICS GRID */}
+								<View className="mb-3 flex-row gap-3">
+									{/* Total Warehouse Cases & Items */}
+									<Pressable
+										onPress={() => router.push("/stock/list" as any)}
+										className="flex-1 rounded-2xl border border-emerald-100/80 bg-[#f0fdf4] p-3.5 shadow-sm active:opacity-90 dark:border-emerald-950/60 dark:bg-emerald-950/20"
 									>
 										<View className="flex-row items-center justify-between">
-											<View className="flex-1 pr-2">
-												<Text className="font-bold text-slate-900 text-sm dark:text-white">
-													{p.name}
-												</Text>
-												<Text className="text-slate-500 text-xs">
-													SKU: {p.sku} • Min required: {min} units
+											<View className="flex-row items-center">
+												<View className="mr-2 h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/15">
+													<Ionicons
+														name="briefcase"
+														size={15}
+														color="#10b981"
+													/>
+												</View>
+												<Text className="font-semibold text-slate-700 text-xs dark:text-zinc-300">
+													Godown Cases
 												</Text>
 											</View>
-											<View className="items-end">
-												<Text className="font-black text-base text-red-500">
-													{stock} {p.unit || "pcs"}
+											<Ionicons
+												name="chevron-forward"
+												size={14}
+												color="#10b981"
+											/>
+										</View>
+										<Text className="my-1 font-black text-2xl text-slate-900 tracking-tight dark:text-white">
+											{warehouseStats.totalCases} cs
+										</Text>
+										<View className="flex-row items-center">
+											<Text className="font-bold text-[11px] text-emerald-600 dark:text-emerald-400">
+												View List →
+											</Text>
+											<Text className="ml-1 font-medium text-[11px] text-slate-400 dark:text-zinc-500">
+												{warehouseStats.totalItems} items
+											</Text>
+										</View>
+									</Pressable>
+
+									{/* Total Stock Value */}
+									<View className="flex-1 rounded-2xl border border-sky-100/80 bg-[#f0f9ff] p-3.5 shadow-sm dark:border-sky-950/60 dark:bg-sky-950/20">
+										<View className="flex-row items-center">
+											<View className="mr-2 h-7 w-7 items-center justify-center rounded-lg bg-sky-500/15">
+												<Ionicons name="receipt" size={15} color="#0284c7" />
+											</View>
+											<Text className="font-semibold text-slate-700 text-xs dark:text-zinc-300">
+												Warehouse Value
+											</Text>
+										</View>
+										<Text className="my-1 font-black text-2xl text-slate-900 tracking-tight dark:text-white">
+											₹{warehouseStats.stockValue.toLocaleString("en-IN")}
+										</Text>
+										<View className="flex-row items-center">
+											<Text className="font-bold text-[11px] text-emerald-600 dark:text-emerald-400">
+												{warehouseStats.totalUnits.toLocaleString("en-IN")}
+											</Text>
+											<Text className="ml-1 font-medium text-[11px] text-slate-400 dark:text-zinc-500">
+												total units
+											</Text>
+										</View>
+									</View>
+								</View>
+
+								{/* 100% Real Database Inventory Health & Status Breakdown */}
+								<View className="mb-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+									<View className="mb-3 flex-row items-center justify-between">
+										<View className="flex-row items-center">
+											<Ionicons
+												name="pie-chart"
+												size={18}
+												color={themeAccent}
+											/>
+											<Text className="ml-2 font-bold text-base text-slate-900 dark:text-white">
+												Inventory Health Status
+											</Text>
+										</View>
+										<View className="rounded-lg bg-emerald-50 px-2.5 py-1 dark:bg-emerald-950/60">
+											<Text className="font-bold text-[11px] text-emerald-700 dark:text-emerald-300">
+												{warehouseStats.healthyPct}% In Good Health
+											</Text>
+										</View>
+									</View>
+
+									{/* Multi-segmented Live Distribution Bar */}
+									<View className="h-2.5 w-full flex-row overflow-hidden rounded-full bg-slate-100 dark:bg-zinc-800">
+										{warehouseStats.healthyCount > 0 && (
+											<View
+												className="h-full bg-emerald-500"
+												style={{
+													flex: warehouseStats.healthyCount,
+												}}
+											/>
+										)}
+										{warehouseStats.lowStockCount > 0 && (
+											<View
+												className="h-full bg-amber-500"
+												style={{
+													flex: warehouseStats.lowStockCount,
+												}}
+											/>
+										)}
+										{warehouseStats.outOfStockCount > 0 && (
+											<View
+												className="h-full bg-rose-500"
+												style={{
+													flex: warehouseStats.outOfStockCount,
+												}}
+											/>
+										)}
+									</View>
+
+									{/* 3 Status Indicators */}
+									<View className="mt-3.5 flex-row items-center justify-between">
+										{/* Sufficient Stock */}
+										<View className="flex-1 items-center border-slate-100 border-r pr-2 dark:border-zinc-800">
+											<View className="flex-row items-center">
+												<View className="mr-1.5 h-2 w-2 rounded-full bg-emerald-500" />
+												<Text className="font-medium text-[11px] text-slate-500 dark:text-zinc-400">
+													In Stock
 												</Text>
-												<Pressable
-													onPress={() => router.push("/stock/entry" as any)}
-													className="mt-1 rounded-md bg-accent px-2 py-0.5"
-												>
-													<Text className="font-bold text-[10px] text-accent-foreground">
-														+ Reorder
-													</Text>
-												</Pressable>
+											</View>
+											<Text className="mt-0.5 font-black text-emerald-700 text-sm dark:text-emerald-400">
+												{warehouseStats.healthyCount} items
+											</Text>
+										</View>
+
+										{/* Low Stock */}
+										<Pressable
+											onPress={() => setActiveWarehouseTab("LOW_STOCK")}
+											className="flex-1 items-center border-slate-100 border-r px-2 dark:border-zinc-800"
+										>
+											<View className="flex-row items-center">
+												<View className="mr-1.5 h-2 w-2 rounded-full bg-amber-500" />
+												<Text className="font-medium text-[11px] text-slate-500 dark:text-zinc-400">
+													Low Stock
+												</Text>
+											</View>
+											<Text className="mt-0.5 font-black text-amber-600 text-sm dark:text-amber-400">
+												{warehouseStats.lowStockCount} items
+											</Text>
+										</Pressable>
+
+										{/* Out of Stock */}
+										<View className="flex-1 items-center pl-2">
+											<View className="flex-row items-center">
+												<View className="mr-1.5 h-2 w-2 rounded-full bg-rose-500" />
+												<Text className="font-medium text-[11px] text-slate-500 dark:text-zinc-400">
+													Out of Stock
+												</Text>
+											</View>
+											<Text className="mt-0.5 font-black text-rose-600 text-sm dark:text-rose-400">
+												{warehouseStats.outOfStockCount} items
+											</Text>
+										</View>
+									</View>
+								</View>
+
+								{/* All Workers Van Stock Closing Banner */}
+								{isAdmin && (
+									<Pressable
+										onPress={() => router.push("/stock/workers" as any)}
+										className="mb-4 flex-row items-center justify-between rounded-2xl border border-sky-200/80 bg-[#f0f9ff] p-4 shadow-sm active:opacity-90 dark:border-sky-900/60 dark:bg-sky-950/30"
+									>
+										<View className="flex-1 flex-row items-center pr-3">
+											<View className="mr-3 h-11 w-11 items-center justify-center rounded-2xl bg-sky-500/15">
+												<Ionicons name="car-sport" size={22} color="#0284c7" />
+											</View>
+											<View className="flex-1">
+												<Text className="font-bold text-slate-900 text-sm dark:text-white">
+													All Vans Stock & Day-End Closing
+												</Text>
+												<Text className="mt-0.5 font-medium text-slate-500 text-xs dark:text-zinc-400">
+													Track live field inventory across all vans & drivers
+												</Text>
 											</View>
 										</View>
-									</Card>
-								);
-							})
+										<View className="h-8 w-8 items-center justify-center rounded-full bg-white shadow-xs dark:bg-zinc-800">
+											<Ionicons
+												name="chevron-forward"
+												size={16}
+												color="#0284c7"
+											/>
+										</View>
+									</Pressable>
+								)}
+
+								{/* Quick Actions */}
+								<View className="mb-2">
+									<Text className="mb-3 font-bold text-base text-slate-900 dark:text-white">
+										Quick Warehouse Actions
+									</Text>
+									<View className="flex-row gap-3">
+										<Pressable
+											onPress={() => router.push("/stock/entry" as any)}
+											className="flex-1 items-center justify-center rounded-2xl bg-accent px-2 py-4 shadow-sm active:opacity-90"
+										>
+											<Ionicons name="add" size={24} color="#ffffff" />
+											<Text className="mt-1 font-bold text-accent-foreground text-xs">
+												Add Godown Stock
+											</Text>
+										</Pressable>
+
+										<Pressable
+											onPress={() => router.push("/stock/issue" as any)}
+											className="flex-1 items-center justify-center rounded-2xl bg-[#0d9488] px-2 py-4 shadow-sm active:opacity-90"
+										>
+											<Ionicons
+												name="swap-horizontal"
+												size={22}
+												color="#ffffff"
+											/>
+											<Text className="mt-1 font-bold text-white text-xs">
+												Issue to Van
+											</Text>
+										</Pressable>
+
+										<Pressable
+											onPress={() => router.push("/reports" as any)}
+											className="flex-1 items-center justify-center rounded-2xl border border-slate-200 bg-white px-2 py-4 shadow-sm active:opacity-90 dark:border-zinc-800 dark:bg-zinc-900"
+										>
+											<Ionicons
+												name="document-text-outline"
+												size={22}
+												color={themeColorForeground}
+											/>
+											<Text className="mt-1 font-bold text-slate-800 text-xs dark:text-zinc-200">
+												Stock Analytics
+											</Text>
+										</Pressable>
+									</View>
+								</View>
+							</>
+						) : (
+							/* Low Stock List */
+							<View className="gap-2.5">
+								<View className="mb-2 flex-row items-center justify-between">
+									<Text className="font-bold text-slate-800 text-sm dark:text-zinc-200">
+										Items Requiring Reorder
+									</Text>
+									<Text className="font-semibold text-red-500 text-xs">
+										{warehouseStats.lowStockCount} items low
+									</Text>
+								</View>
+
+								{isProductsLoading ? (
+									<View className="items-center py-12">
+										<ActivityIndicator size="small" color={themeAccent} />
+									</View>
+								) : warehouseStats.lowStockList.length === 0 ? (
+									<View className="items-center rounded-2xl border border-slate-100 bg-white p-6 py-12 dark:border-zinc-800 dark:bg-zinc-900">
+										<Ionicons
+											name="checkmark-circle"
+											size={36}
+											color="#10b981"
+										/>
+										<Text className="mt-2 font-bold text-slate-900 text-sm dark:text-white">
+											All Stock Levels are Healthy
+										</Text>
+										<Text className="text-slate-400 text-xs">
+											No items are currently below minimum stock threshold.
+										</Text>
+									</View>
+								) : (
+									warehouseStats.lowStockList.map((p) => {
+										const stock = p.stock || 0;
+										const unitsPerCase = p.unitsPerCase || 1;
+										const stockCases = Math.floor(stock / unitsPerCase);
+										const remUnits = stock % unitsPerCase;
+										const minCases = p.minimumStock || 0;
+
+										return (
+											<Card
+												key={p._id}
+												className="border border-slate-100 bg-white p-3.5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
+											>
+												<View className="flex-row items-center justify-between">
+													<View className="flex-1 pr-2">
+														<Text className="font-bold text-slate-900 text-sm dark:text-white">
+															{p.name}
+														</Text>
+														<Text className="text-slate-500 text-xs">
+															{p.sku ? `SKU: ${p.sku} • ` : ""}Min Alert:{" "}
+															{minCases} cases
+														</Text>
+													</View>
+													<View className="items-end">
+														<Text className="font-black text-base text-red-500">
+															{stockCases} cs{" "}
+															{remUnits > 0 ? `+ ${remUnits} pcs` : ""}
+														</Text>
+														<Pressable
+															onPress={() => router.push("/stock/entry" as any)}
+															className="mt-1 rounded-md bg-accent px-2 py-0.5"
+														>
+															<Text className="font-bold text-[10px] text-accent-foreground">
+																+ Refill
+															</Text>
+														</Pressable>
+													</View>
+												</View>
+											</Card>
+										);
+									})
+								)}
+							</View>
 						)}
-					</View>
+					</>
 				)}
 			</ScrollView>
 		</Container>

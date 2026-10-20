@@ -5,7 +5,6 @@ import React, { useMemo, useState } from "react";
 import {
 	ActivityIndicator,
 	Alert,
-	Modal,
 	Pressable,
 	RefreshControl,
 	ScrollView,
@@ -16,6 +15,7 @@ import {
 } from "react-native";
 
 import { Container } from "@/components/container";
+import { HeroBottomSheet } from "@/components/hero-bottom-sheet";
 import {
 	useAllWorkersStock,
 	useCloseDay,
@@ -540,149 +540,121 @@ export default function WorkersLiveStockScreen() {
 				</View>
 			</ScrollView>
 
-			{/* 4. DAY-END CLOSING & SETTLEMENT MODAL */}
-			<Modal
+			{/* 4. HEROUI NATIVE BOTTOM SHEET: DAY-END CLOSING & SETTLEMENT */}
+			<HeroBottomSheet
 				visible={settleModalVisible}
-				transparent
-				animationType="fade"
-				onRequestClose={() => setSettleModalVisible(false)}
-			>
-				<View className="flex-1 items-center justify-center bg-black/60 p-4">
-					<View className="w-full max-w-md rounded-3xl bg-white p-5 shadow-xl dark:bg-zinc-900">
-						{/* Modal Header */}
-						<View className="flex-row items-center justify-between border-slate-100 border-b pb-3 dark:border-zinc-800">
-							<View>
-								<Text className="font-bold text-lg text-slate-900 dark:text-white">
-									Day-End Settlement
-								</Text>
-								<Text className="font-medium text-slate-400 text-xs dark:text-zinc-500">
-									Worker: {selectedWorker?.workerName}
-								</Text>
-							</View>
-							<Pressable
-								onPress={() => setSettleModalVisible(false)}
-								className="h-8 w-8 items-center justify-center rounded-full bg-slate-100 dark:bg-zinc-800"
-							>
-								<Ionicons name="close" size={18} color={themeColorForeground} />
-							</Pressable>
-						</View>
-
-						<ScrollView
-							className="max-h-[420px] py-4"
-							showsVerticalScrollIndicator={false}
+				onClose={() => setSettleModalVisible(false)}
+				title="Day-End Settlement"
+				subtitle={`Worker: ${selectedWorker?.workerName || "Worker"}`}
+				snapPoints={["70%", "90%"]}
+				footer={
+					<View className="flex-row items-center gap-3">
+						<Pressable
+							onPress={() => setSettleModalVisible(false)}
+							className="flex-1 items-center justify-center rounded-2xl border border-slate-200 py-3 active:opacity-80 dark:border-zinc-800"
 						>
-							{/* Summary Metric Strip */}
-							<View className="mb-4 rounded-2xl bg-amber-50 p-3.5 dark:bg-amber-950/20">
-								<View className="flex-row items-center justify-between">
-									<Text className="font-semibold text-amber-800 text-xs dark:text-amber-300">
-										Today's Cash To Handover
-									</Text>
-									<Text className="font-black text-amber-700 text-lg dark:text-amber-400">
-										₹
-										{(
-											selectedWorker?.todayStats?.cashCollected ?? 0
-										).toLocaleString("en-IN")}
-									</Text>
-								</View>
-								<Text className="mt-1 font-medium text-[11px] text-amber-700/80 dark:text-amber-300/70">
-									Total Sales: ₹
-									{(selectedWorker?.todayStats?.totalSales ?? 0).toLocaleString(
-										"en-IN",
-									)}{" "}
-									• UPI: ₹
-									{(
-										selectedWorker?.todayStats?.upiCollected ?? 0
-									).toLocaleString("en-IN")}
+							<Text className="font-bold text-slate-700 text-xs dark:text-zinc-300">
+								Cancel
+							</Text>
+						</Pressable>
+
+						<Pressable
+							onPress={handleConfirmSettlement}
+							disabled={closeDayMutation.isPending}
+							className="flex-1 items-center justify-center rounded-2xl bg-accent py-3 shadow-sm active:opacity-90"
+						>
+							{closeDayMutation.isPending ? (
+								<ActivityIndicator size="small" color="#ffffff" />
+							) : (
+								<Text className="font-bold text-white text-xs">
+									Confirm & Close Day
 								</Text>
-							</View>
+							)}
+						</Pressable>
+					</View>
+				}
+			>
+				<ScrollView className="py-1" showsVerticalScrollIndicator={false}>
+					{/* Summary Metric Strip */}
+					<View className="mb-4 rounded-2xl bg-amber-50 p-3.5 dark:bg-amber-950/20">
+						<View className="flex-row items-center justify-between">
+							<Text className="font-semibold text-amber-800 text-xs dark:text-amber-300">
+								Today's Cash To Handover
+							</Text>
+							<Text className="font-black text-amber-700 text-lg dark:text-amber-400">
+								₹
+								{(
+									selectedWorker?.todayStats?.cashCollected ?? 0
+								).toLocaleString("en-IN")}
+							</Text>
+						</View>
+						<Text className="mt-1 font-medium text-[11px] text-amber-700/80 dark:text-amber-300/70">
+							Total Sales: ₹
+							{(selectedWorker?.todayStats?.totalSales ?? 0).toLocaleString(
+								"en-IN",
+							)}{" "}
+							• UPI: ₹
+							{(selectedWorker?.todayStats?.upiCollected ?? 0).toLocaleString(
+								"en-IN",
+							)}
+						</Text>
+					</View>
 
-							{/* Cash Received Input Field */}
-							<View className="mb-4">
-								<Text className="mb-1.5 font-bold text-slate-700 text-xs dark:text-zinc-300">
-									Actual Cash Received from Worker (₹)
-								</Text>
-								<View className="flex-row items-center rounded-xl border border-slate-200 bg-white px-3 py-2.5 dark:border-zinc-800 dark:bg-zinc-800">
-									<Text className="mr-1 font-bold text-base text-slate-500">
-										₹
-									</Text>
-									<TextInput
-										keyboardType="numeric"
-										value={cashReceivedInput}
-										onChangeText={setCashReceivedInput}
-										placeholder="0"
-										placeholderTextColor="#94a3b8"
-										className="flex-1 font-bold text-base text-slate-900 dark:text-white"
-									/>
-								</View>
-							</View>
-
-							{/* Return Remaining Stock Toggle */}
-							<View className="mb-4 rounded-2xl border border-slate-200 p-3.5 dark:border-zinc-800">
-								<View className="flex-row items-center justify-between">
-									<View className="flex-1 pr-3">
-										<Text className="font-bold text-slate-800 text-xs dark:text-white">
-											Return Remaining Stock to Warehouse
-										</Text>
-										<Text className="mt-0.5 font-medium text-[11px] text-slate-400 dark:text-zinc-500">
-											{selectedWorker && selectedWorker.totalUnits > 0
-												? `Clear van (${selectedWorker.totalUnits} units) back into warehouse stock`
-												: "Van is already empty"}
-										</Text>
-									</View>
-									<Switch
-										value={returnStockToWarehouse}
-										onValueChange={setReturnStockToWarehouse}
-										trackColor={{ false: "#cbd5e1", true: themeAccent }}
-										disabled={
-											!selectedWorker || selectedWorker.totalUnits === 0
-										}
-									/>
-								</View>
-							</View>
-
-							{/* Optional Notes */}
-							<View className="mb-2">
-								<Text className="mb-1.5 font-bold text-slate-700 text-xs dark:text-zinc-300">
-									Closing Note / Remarks (Optional)
-								</Text>
-								<TextInput
-									value={settleNote}
-									onChangeText={setSettleNote}
-									placeholder="e.g. Cash verified, van cleared..."
-									placeholderTextColor="#94a3b8"
-									className="rounded-xl border border-slate-200 bg-white p-3 font-medium text-slate-900 text-xs dark:border-zinc-800 dark:bg-zinc-800 dark:text-white"
-								/>
-							</View>
-						</ScrollView>
-
-						{/* Modal Buttons */}
-						<View className="flex-row items-center gap-3 border-slate-100 border-t pt-3 dark:border-zinc-800">
-							<Pressable
-								onPress={() => setSettleModalVisible(false)}
-								className="flex-1 items-center justify-center rounded-2xl border border-slate-200 py-3 active:opacity-80 dark:border-zinc-800"
-							>
-								<Text className="font-bold text-slate-700 text-xs dark:text-zinc-300">
-									Cancel
-								</Text>
-							</Pressable>
-
-							<Pressable
-								onPress={handleConfirmSettlement}
-								disabled={closeDayMutation.isPending}
-								className="flex-1 items-center justify-center rounded-2xl bg-accent py-3 shadow-sm active:opacity-90"
-							>
-								{closeDayMutation.isPending ? (
-									<ActivityIndicator size="small" color="#ffffff" />
-								) : (
-									<Text className="font-bold text-white text-xs">
-										Confirm & Close Day
-									</Text>
-								)}
-							</Pressable>
+					{/* Cash Received Input Field */}
+					<View className="mb-4">
+						<Text className="mb-1.5 font-bold text-slate-700 text-xs dark:text-zinc-300">
+							Actual Cash Received from Worker (₹)
+						</Text>
+						<View className="flex-row items-center rounded-xl border border-slate-200 bg-white px-3 py-2.5 dark:border-zinc-800 dark:bg-zinc-800">
+							<Text className="mr-1 font-bold text-base text-slate-500">₹</Text>
+							<TextInput
+								keyboardType="numeric"
+								value={cashReceivedInput}
+								onChangeText={setCashReceivedInput}
+								placeholder="0"
+								placeholderTextColor="#94a3b8"
+								className="flex-1 font-bold text-base text-slate-900 dark:text-white"
+							/>
 						</View>
 					</View>
-				</View>
-			</Modal>
+
+					{/* Return Remaining Stock Toggle */}
+					<View className="mb-4 rounded-2xl border border-slate-200 p-3.5 dark:border-zinc-800">
+						<View className="flex-row items-center justify-between">
+							<View className="flex-1 pr-3">
+								<Text className="font-bold text-slate-800 text-xs dark:text-white">
+									Return Remaining Stock to Warehouse
+								</Text>
+								<Text className="mt-0.5 font-medium text-[11px] text-slate-400 dark:text-zinc-500">
+									{selectedWorker && selectedWorker.totalUnits > 0
+										? `Clear van (${selectedWorker.totalUnits} units) back into warehouse stock`
+										: "Van is already empty"}
+								</Text>
+							</View>
+							<Switch
+								value={returnStockToWarehouse}
+								onValueChange={setReturnStockToWarehouse}
+								trackColor={{ false: "#cbd5e1", true: themeAccent }}
+								disabled={!selectedWorker || selectedWorker.totalUnits === 0}
+							/>
+						</View>
+					</View>
+
+					{/* Optional Notes */}
+					<View className="mb-2">
+						<Text className="mb-1.5 font-bold text-slate-700 text-xs dark:text-zinc-300">
+							Closing Note / Remarks (Optional)
+						</Text>
+						<TextInput
+							value={settleNote}
+							onChangeText={setSettleNote}
+							placeholder="e.g. Cash verified, van cleared..."
+							placeholderTextColor="#94a3b8"
+							className="rounded-xl border border-slate-200 bg-white p-3 font-medium text-slate-900 text-xs dark:border-zinc-800 dark:bg-zinc-800 dark:text-white"
+						/>
+					</View>
+				</ScrollView>
+			</HeroBottomSheet>
 		</Container>
 	);
 }
