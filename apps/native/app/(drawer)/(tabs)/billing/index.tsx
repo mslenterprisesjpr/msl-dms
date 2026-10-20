@@ -6,7 +6,6 @@ import {
 	ActivityIndicator,
 	Image,
 	Linking,
-	Modal,
 	Pressable,
 	RefreshControl,
 	ScrollView,
@@ -16,6 +15,7 @@ import {
 } from "react-native";
 
 import { Container } from "@/components/container";
+import { HeroBottomSheet } from "@/components/hero-bottom-sheet";
 import { useCustomers } from "@/hooks/queries/use-customers";
 import { useSales } from "@/hooks/queries/use-sales";
 import type { Customer } from "@/types/customer";
@@ -338,7 +338,12 @@ export default function BillingScreen() {
 									{filteredSales.map((sale) => (
 										<Pressable
 											key={sale._id}
-											onPress={() => setSelectedInvoiceAction(sale)}
+											onPress={() =>
+												router.push({
+													pathname: "/billing/[id]" as any,
+													params: { id: sale._id },
+												})
+											}
 											className="flex-row items-center border-slate-100 border-b bg-white px-4 py-3.5 active:bg-slate-50 dark:border-zinc-800 dark:bg-zinc-950"
 										>
 											{/* 1. Left Graphic / Box (boxy receipt icon matching product bottle graphic container) */}
@@ -702,302 +707,269 @@ export default function BillingScreen() {
 				)}
 			</View>
 
-			{/* ================= MODAL: QUICK INVOICE ACTION SHEET ================= */}
-			<Modal
+			{/* ================= HEROUI NATIVE BOTTOM SHEET: QUICK INVOICE ACTION SHEET ================= */}
+			<HeroBottomSheet
 				visible={selectedInvoiceAction !== null}
-				animationType="slide"
-				transparent
-				onRequestClose={() => setSelectedInvoiceAction(null)}
+				onClose={() => setSelectedInvoiceAction(null)}
+				title={
+					selectedInvoiceAction?.invoiceNo ||
+					(selectedInvoiceAction
+						? `#BILL-${selectedInvoiceAction._id.slice(-4).toUpperCase()}`
+						: "Bill Actions")
+				}
+				subtitle={
+					selectedInvoiceAction?.createdAt
+						? new Date(selectedInvoiceAction.createdAt).toLocaleDateString([], {
+								day: "numeric",
+								month: "short",
+								year: "numeric",
+								hour: "2-digit",
+								minute: "2-digit",
+							})
+						: undefined
+				}
+				snapPoints={["60%", "75%"]}
 			>
-				<View className="flex-1 justify-end bg-black/50">
-					<View className="rounded-t-3xl bg-white p-5 dark:bg-zinc-900">
-						{selectedInvoiceAction && (
-							<>
-								<View className="mb-3 flex-row items-center justify-between">
-									<View className="flex-1 pr-2">
-										<Text className="font-bold text-base text-slate-900 dark:text-white">
-											{selectedInvoiceAction.invoiceNo ||
-												`#BILL-${selectedInvoiceAction._id.slice(-4).toUpperCase()}`}
-										</Text>
-										<Text className="text-slate-400 text-xs">
-											{selectedInvoiceAction.createdAt
-												? new Date(
-														selectedInvoiceAction.createdAt,
-													).toLocaleDateString([], {
-														day: "numeric",
-														month: "short",
-														year: "numeric",
-														hour: "2-digit",
-														minute: "2-digit",
-													})
-												: ""}
-										</Text>
-									</View>
-									<Pressable
-										onPress={() => setSelectedInvoiceAction(null)}
-										className="h-8 w-8 items-center justify-center rounded-full bg-slate-100 dark:bg-zinc-800"
-									>
-										<Ionicons name="close" size={18} color="#64748b" />
-									</Pressable>
-								</View>
+				{selectedInvoiceAction && (
+					<View className="flex-1">
+						{/* Invoice Financial Snapshot Cards */}
+						<View className="mb-3 flex-row gap-2">
+							<View className="flex-1 rounded-xl bg-slate-50 p-2.5 dark:bg-zinc-800/60">
+								<Text className="font-semibold text-[10px] text-slate-400">
+									TOTAL BILL
+								</Text>
+								<Text className="font-bold text-base text-slate-900 dark:text-white">
+									₹{(selectedInvoiceAction.total || 0).toLocaleString("en-IN")}
+								</Text>
+								<Text className="text-[10px] text-slate-400">Gross</Text>
+							</View>
 
-								{/* Invoice Financial Snapshot Cards */}
-								<View className="my-3 flex-row gap-2">
-									<View className="flex-1 rounded-xl bg-slate-50 p-2.5 dark:bg-zinc-800/60">
-										<Text className="font-semibold text-[10px] text-slate-400">
-											TOTAL BILL
-										</Text>
-										<Text className="font-bold text-base text-slate-900 dark:text-white">
-											₹
-											{(selectedInvoiceAction.total || 0).toLocaleString(
-												"en-IN",
-											)}
-										</Text>
-										<Text className="text-[10px] text-slate-400">Gross</Text>
-									</View>
-
-									<View className="flex-1 rounded-xl bg-slate-50 p-2.5 dark:bg-zinc-800/60">
-										<Text className="font-semibold text-[10px] text-emerald-600">
-											PAID
-										</Text>
-										<Text className="font-bold text-base text-emerald-600 dark:text-emerald-400">
-											₹
-											{(selectedInvoiceAction.paidAmount || 0).toLocaleString(
-												"en-IN",
-											)}
-										</Text>
-										<Text className="text-[10px] text-emerald-600">
-											Received
-										</Text>
-									</View>
-
-									<View className="flex-1 rounded-xl bg-slate-50 p-2.5 dark:bg-zinc-800/60">
-										<Text className="font-semibold text-[10px] text-amber-600">
-											PENDING
-										</Text>
-										<Text className="font-bold text-amber-600 text-base dark:text-amber-400">
-											₹
-											{(
-												selectedInvoiceAction.pendingAmount || 0
-											).toLocaleString("en-IN")}
-										</Text>
-										<Text className="text-[10px] text-amber-600">Balance</Text>
-									</View>
-								</View>
-
-								{/* Action Buttons */}
-								<View className="mt-2 gap-2">
-									{selectedInvoiceAction.customerId && (
-										<Pressable
-											onPress={() => {
-												const cId =
-													typeof selectedInvoiceAction.customerId === "object"
-														? selectedInvoiceAction.customerId?._id
-														: selectedInvoiceAction.customerId;
-												setSelectedInvoiceAction(null);
-												router.push({
-													pathname: "/billing/customer-khata" as any,
-													params: { id: cId },
-												});
-											}}
-											className="flex-row items-center justify-center rounded-xl bg-sky-600 py-3 active:opacity-90"
-										>
-											<Ionicons name="book-outline" size={18} color="#ffffff" />
-											<Text className="ml-2 font-bold text-sm text-white">
-												📘 View Customer Khata (Ledger)
-											</Text>
-										</Pressable>
+							<View className="flex-1 rounded-xl bg-slate-50 p-2.5 dark:bg-zinc-800/60">
+								<Text className="font-semibold text-[10px] text-emerald-600">
+									PAID
+								</Text>
+								<Text className="font-bold text-base text-emerald-600 dark:text-emerald-400">
+									₹
+									{(selectedInvoiceAction.paidAmount || 0).toLocaleString(
+										"en-IN",
 									)}
+								</Text>
+								<Text className="text-[10px] text-emerald-600">Received</Text>
+							</View>
 
-									<Pressable
-										onPress={() => {
-											const saleId = selectedInvoiceAction._id;
-											setSelectedInvoiceAction(null);
-											router.push({
-												pathname: "/billing/create" as any,
-												params: { duplicateFrom: saleId },
-											});
-										}}
-										className="flex-row items-center justify-center rounded-xl bg-accent py-3 active:opacity-90"
-									>
-										<Ionicons name="copy-outline" size={18} color="#ffffff" />
-										<Text className="ml-2 font-bold text-accent-foreground text-sm">
-											Create Similar Bill
-										</Text>
-									</Pressable>
+							<View className="flex-1 rounded-xl bg-slate-50 p-2.5 dark:bg-zinc-800/60">
+								<Text className="font-semibold text-[10px] text-amber-600">
+									PENDING
+								</Text>
+								<Text className="font-bold text-amber-600 text-base dark:text-amber-400">
+									₹
+									{(selectedInvoiceAction.pendingAmount || 0).toLocaleString(
+										"en-IN",
+									)}
+								</Text>
+								<Text className="text-[10px] text-amber-600">Balance</Text>
+							</View>
+						</View>
 
-									<Pressable
-										onPress={() => setSelectedInvoiceAction(null)}
-										className="flex-row items-center justify-center rounded-xl border border-slate-200 bg-white py-3 active:bg-slate-50 dark:border-zinc-800 dark:bg-zinc-800"
-									>
-										<Ionicons
-											name="close"
-											size={18}
-											color={themeColorForeground}
-										/>
-										<Text className="ml-2 font-bold text-slate-800 text-sm dark:text-zinc-200">
-											Close
-										</Text>
-									</Pressable>
-								</View>
-							</>
-						)}
+						{/* Action Buttons */}
+						<View className="mt-2 gap-2">
+							<Pressable
+								onPress={() => {
+									const saleId = selectedInvoiceAction._id;
+									setSelectedInvoiceAction(null);
+									router.push({
+										pathname: "/billing/[id]" as any,
+										params: { id: saleId },
+									});
+								}}
+								className="flex-row items-center justify-center rounded-xl bg-accent py-3 active:opacity-90"
+							>
+								<Ionicons name="receipt-outline" size={18} color="#ffffff" />
+								<Text className="ml-2 font-bold text-accent-foreground text-sm">
+									🧾 View Bill Details & WhatsApp Slip
+								</Text>
+							</Pressable>
+
+							{selectedInvoiceAction.customerId && (
+								<Pressable
+									onPress={() => {
+										const cId =
+											typeof selectedInvoiceAction.customerId === "object"
+												? selectedInvoiceAction.customerId?._id
+												: selectedInvoiceAction.customerId;
+										setSelectedInvoiceAction(null);
+										router.push({
+											pathname: "/billing/customer-khata" as any,
+											params: { id: cId },
+										});
+									}}
+									className="flex-row items-center justify-center rounded-xl bg-sky-600 py-3 active:opacity-90"
+								>
+									<Ionicons name="book-outline" size={18} color="#ffffff" />
+									<Text className="ml-2 font-bold text-sm text-white">
+										📘 View Customer Khata (Ledger)
+									</Text>
+								</Pressable>
+							)}
+
+							<Pressable
+								onPress={() => {
+									const saleId = selectedInvoiceAction._id;
+									setSelectedInvoiceAction(null);
+									router.push({
+										pathname: "/billing/create" as any,
+										params: { duplicateFrom: saleId },
+									});
+								}}
+								className="flex-row items-center justify-center rounded-xl bg-accent py-3 active:opacity-90"
+							>
+								<Ionicons name="copy-outline" size={18} color="#ffffff" />
+								<Text className="ml-2 font-bold text-accent-foreground text-sm">
+									Create Similar Bill
+								</Text>
+							</Pressable>
+						</View>
 					</View>
-				</View>
-			</Modal>
+				)}
+			</HeroBottomSheet>
 
-			{/* ================= MODAL: QUICK CUSTOMER ACTION SHEET (Matches Product Catalog) ================= */}
-			<Modal
+			{/* ================= HEROUI NATIVE BOTTOM SHEET: QUICK CUSTOMER ACTION SHEET ================= */}
+			<HeroBottomSheet
 				visible={selectedCustomerAction !== null}
-				animationType="slide"
-				transparent
-				onRequestClose={() => setSelectedCustomerAction(null)}
+				onClose={() => setSelectedCustomerAction(null)}
+				title={selectedCustomerAction?.name || "Customer Actions"}
+				subtitle={
+					selectedCustomerAction
+						? `${selectedCustomerAction.phone || "No phone"} • ${
+								selectedCustomerAction.gstNumber
+									? `GST: ${selectedCustomerAction.gstNumber}`
+									: "Regular Party"
+							}`
+						: undefined
+				}
+				snapPoints={["60%", "75%"]}
 			>
-				<View className="flex-1 justify-end bg-black/50">
-					<View className="rounded-t-3xl bg-white p-5 dark:bg-zinc-900">
-						{selectedCustomerAction && (
-							<>
-								<View className="mb-3 flex-row items-center justify-between">
-									<View className="flex-1 pr-2">
-										<Text className="font-bold text-base text-slate-900 dark:text-white">
-											{selectedCustomerAction.name}
-										</Text>
-										<Text className="text-slate-400 text-xs">
-											{selectedCustomerAction.phone || "No phone"} •{" "}
-											{selectedCustomerAction.gstNumber
-												? `GST: ${selectedCustomerAction.gstNumber}`
-												: "Regular Party"}
-										</Text>
-									</View>
-									<Pressable
-										onPress={() => setSelectedCustomerAction(null)}
-										className="h-8 w-8 items-center justify-center rounded-full bg-slate-100 dark:bg-zinc-800"
-									>
-										<Ionicons name="close" size={18} color="#64748b" />
-									</Pressable>
-								</View>
+				{selectedCustomerAction && (
+					<View className="flex-1">
+						{/* Customer Info Snapshot Cards */}
+						<View className="mb-3 flex-row gap-2">
+							<View className="flex-1 rounded-xl bg-slate-50 p-2.5 dark:bg-zinc-800/60">
+								<Text className="font-semibold text-[10px] text-slate-400">
+									STATUS
+								</Text>
+								<Text className="font-bold text-emerald-600 text-sm dark:text-emerald-400">
+									{selectedCustomerAction.isActive !== false
+										? "Active"
+										: "Inactive"}
+								</Text>
+								<Text className="text-[10px] text-slate-400">Customer</Text>
+							</View>
+							<View className="flex-1 rounded-xl bg-slate-50 p-2.5 dark:bg-zinc-800/60">
+								<Text className="font-semibold text-[10px] text-slate-400">
+									GSTIN
+								</Text>
+								<Text
+									className="font-bold text-slate-900 text-sm dark:text-white"
+									numberOfLines={1}
+								>
+									{selectedCustomerAction.gstNumber || "N/A"}
+								</Text>
+								<Text className="text-[10px] text-slate-400">Tax ID</Text>
+							</View>
+							<View className="flex-1 rounded-xl bg-slate-50 p-2.5 dark:bg-zinc-800/60">
+								<Text className="font-semibold text-[10px] text-slate-400">
+									ADDRESS
+								</Text>
+								<Text
+									className="font-bold text-slate-900 text-sm dark:text-white"
+									numberOfLines={1}
+								>
+									{selectedCustomerAction.address || "No address"}
+								</Text>
+								<Text className="text-[10px] text-slate-400">Location</Text>
+							</View>
+						</View>
 
-								{/* Customer Info Snapshot Cards */}
-								<View className="my-3 flex-row gap-2">
-									<View className="flex-1 rounded-xl bg-slate-50 p-2.5 dark:bg-zinc-800/60">
-										<Text className="font-semibold text-[10px] text-slate-400">
-											STATUS
-										</Text>
-										<Text className="font-bold text-emerald-600 text-sm dark:text-emerald-400">
-											{selectedCustomerAction.isActive !== false
-												? "Active"
-												: "Inactive"}
-										</Text>
-										<Text className="text-[10px] text-slate-400">Customer</Text>
-									</View>
-									<View className="flex-1 rounded-xl bg-slate-50 p-2.5 dark:bg-zinc-800/60">
-										<Text className="font-semibold text-[10px] text-slate-400">
-											GSTIN
-										</Text>
-										<Text
-											className="font-bold text-slate-900 text-sm dark:text-white"
-											numberOfLines={1}
-										>
-											{selectedCustomerAction.gstNumber || "N/A"}
-										</Text>
-										<Text className="text-[10px] text-slate-400">Tax ID</Text>
-									</View>
-									<View className="flex-1 rounded-xl bg-slate-50 p-2.5 dark:bg-zinc-800/60">
-										<Text className="font-semibold text-[10px] text-slate-400">
-											ADDRESS
-										</Text>
-										<Text
-											className="font-bold text-slate-900 text-sm dark:text-white"
-											numberOfLines={1}
-										>
-											{selectedCustomerAction.address || "No address"}
-										</Text>
-										<Text className="text-[10px] text-slate-400">Location</Text>
-									</View>
-								</View>
+						{/* Action Buttons */}
+						<View className="mt-2 gap-2">
+							{/* 1. View Khata / Ledger (Primary Action) */}
+							<Pressable
+								onPress={() => {
+									const custId = selectedCustomerAction._id;
+									setSelectedCustomerAction(null);
+									router.push({
+										pathname: "/billing/customer-khata" as any,
+										params: { id: custId },
+									});
+								}}
+								className="flex-row items-center justify-center rounded-xl bg-sky-600 py-3 active:opacity-90"
+							>
+								<Ionicons name="book-outline" size={18} color="#ffffff" />
+								<Text className="ml-2 font-bold text-sm text-white">
+									📘 View Khata / Ledger (Statement)
+								</Text>
+							</Pressable>
 
-								{/* Action Buttons */}
-								<View className="mt-2 gap-2">
-									{/* 1. View Khata / Ledger (Primary Action) */}
-									<Pressable
-										onPress={() => {
-											const custId = selectedCustomerAction._id;
-											setSelectedCustomerAction(null);
-											router.push({
-												pathname: "/billing/customer-khata" as any,
-												params: { id: custId },
-											});
-										}}
-										className="flex-row items-center justify-center rounded-xl bg-sky-600 py-3 active:opacity-90"
-									>
-										<Ionicons name="book-outline" size={18} color="#ffffff" />
-										<Text className="ml-2 font-bold text-sm text-white">
-											📘 View Khata / Ledger (Statement)
-										</Text>
-									</Pressable>
+							{/* 2. Create New Bill */}
+							<Pressable
+								onPress={() => {
+									const custId = selectedCustomerAction._id;
+									setSelectedCustomerAction(null);
+									router.push({
+										pathname: "/billing/create" as any,
+										params: { customerId: custId },
+									});
+								}}
+								className="flex-row items-center justify-center rounded-xl bg-accent py-3 active:opacity-90"
+							>
+								<Ionicons name="document-text" size={18} color="#ffffff" />
+								<Text className="ml-2 font-bold text-accent-foreground text-sm">
+									+ Create Bill for Customer
+								</Text>
+							</Pressable>
 
-									{/* 2. Create New Bill */}
-									<Pressable
-										onPress={() => {
-											const custId = selectedCustomerAction._id;
-											setSelectedCustomerAction(null);
-											router.push({
-												pathname: "/billing/create" as any,
-												params: { customerId: custId },
-											});
-										}}
-										className="flex-row items-center justify-center rounded-xl bg-accent py-3 active:opacity-90"
-									>
-										<Ionicons name="document-text" size={18} color="#ffffff" />
-										<Text className="ml-2 font-bold text-accent-foreground text-sm">
-											+ Create Bill for Customer
-										</Text>
-									</Pressable>
+							{/* 3. Call Customer */}
+							{selectedCustomerAction.phone ? (
+								<Pressable
+									onPress={() => {
+										const phone = selectedCustomerAction.phone;
+										setSelectedCustomerAction(null);
+										Linking.openURL(`tel:${phone}`);
+									}}
+									className="flex-row items-center justify-center rounded-xl bg-emerald-600 py-3 active:opacity-90"
+								>
+									<Ionicons name="call" size={18} color="#ffffff" />
+									<Text className="ml-2 font-bold text-sm text-white">
+										Call {selectedCustomerAction.phone}
+									</Text>
+								</Pressable>
+							) : null}
 
-									{/* 2. Call Customer */}
-									{selectedCustomerAction.phone ? (
-										<Pressable
-											onPress={() => {
-												const phone = selectedCustomerAction.phone;
-												setSelectedCustomerAction(null);
-												Linking.openURL(`tel:${phone}`);
-											}}
-											className="flex-row items-center justify-center rounded-xl bg-emerald-600 py-3 active:opacity-90"
-										>
-											<Ionicons name="call" size={18} color="#ffffff" />
-											<Text className="ml-2 font-bold text-sm text-white">
-												Call {selectedCustomerAction.phone}
-											</Text>
-										</Pressable>
-									) : null}
-
-									{/* 3. Edit Details */}
-									<Pressable
-										onPress={() => {
-											const custId = selectedCustomerAction._id;
-											setSelectedCustomerAction(null);
-											router.push({
-												pathname: "/billing/customer-create" as any,
-												params: { id: custId },
-											});
-										}}
-										className="flex-row items-center justify-center rounded-xl border border-slate-200 bg-white py-3 active:bg-slate-50 dark:border-zinc-800 dark:bg-zinc-800"
-									>
-										<Ionicons
-											name="create-outline"
-											size={18}
-											color={themeColorForeground}
-										/>
-										<Text className="ml-2 font-bold text-slate-800 text-sm dark:text-zinc-200">
-											Edit Customer Details
-										</Text>
-									</Pressable>
-								</View>
-							</>
-						)}
+							{/* 4. Edit Details */}
+							<Pressable
+								onPress={() => {
+									const custId = selectedCustomerAction._id;
+									setSelectedCustomerAction(null);
+									router.push({
+										pathname: "/billing/customer-create" as any,
+										params: { id: custId },
+									});
+								}}
+								className="flex-row items-center justify-center rounded-xl border border-slate-200 bg-white py-3 active:bg-slate-50 dark:border-zinc-800 dark:bg-zinc-800"
+							>
+								<Ionicons
+									name="create-outline"
+									size={18}
+									color={themeColorForeground}
+								/>
+								<Text className="ml-2 font-bold text-slate-800 text-sm dark:text-zinc-200">
+									Edit Customer Details
+								</Text>
+							</Pressable>
+						</View>
 					</View>
-				</View>
-			</Modal>
+				)}
+			</HeroBottomSheet>
 		</Container>
 	);
 }

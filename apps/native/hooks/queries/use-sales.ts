@@ -7,6 +7,7 @@ import {
 import {
 	type CreateSaleDto,
 	type Sale,
+	type SaleDetail,
 	type SaleQuery,
 	saleService,
 	type UpdateSaleDto,
@@ -39,7 +40,7 @@ export const useSales = (
 export const useSale = (
 	id: string,
 	options?: Omit<
-		UseQueryOptions<Sale, Error>,
+		UseQueryOptions<SaleDetail, Error>,
 		"queryKey" | "queryFn" | "enabled"
 	>,
 ) => {

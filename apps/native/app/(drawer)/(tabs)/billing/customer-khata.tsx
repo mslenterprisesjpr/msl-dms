@@ -6,7 +6,6 @@ import {
 	ActivityIndicator,
 	Alert,
 	Linking,
-	Modal,
 	Pressable,
 	RefreshControl,
 	ScrollView,
@@ -15,9 +14,8 @@ import {
 	TextInput,
 	View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-
 import { Container } from "@/components/container";
+import { HeroBottomSheet } from "@/components/hero-bottom-sheet";
 import { useCustomerLedger } from "@/hooks/queries/use-customers";
 import { useCreatePayment } from "@/hooks/queries/use-payments";
 import { authClient } from "@/lib/auth-client";
@@ -809,23 +807,41 @@ export default function CustomerKhataScreen() {
 										</View>
 									</View>
 
-									{/* Bottom Action for Unpaid Bill */}
-									{isInvoice && isPending && (
+									{/* Bottom Action for Invoice / Unpaid Bill */}
+									{isInvoice && (
 										<View className="mt-2.5 flex-row items-center justify-between border-slate-100 border-t pt-2 dark:border-zinc-800/60">
-											<Text className="font-semibold text-rose-600 text-xs dark:text-rose-400">
-												Pending: ₹
-												{(item.pendingAmount || 0).toLocaleString("en-IN")}
-											</Text>
 											<Pressable
 												onPress={() =>
-													handleOpenPayment(item.id, item.pendingAmount)
+													router.push({
+														pathname: "/billing/[id]" as any,
+														params: { id: item.id },
+													})
 												}
-												className="rounded-lg bg-rose-50 px-2.5 py-1 active:opacity-75 dark:bg-rose-950/40"
+												className="flex-row items-center gap-1 active:opacity-75"
 											>
-												<Text className="font-bold text-[11px] text-rose-700 dark:text-rose-300">
-													Settle Bill ➔
+												<Ionicons
+													name="receipt-outline"
+													size={13}
+													color="#0284c7"
+												/>
+												<Text className="font-bold text-[11px] text-sky-600 dark:text-sky-400">
+													View Slip ➔
 												</Text>
 											</Pressable>
+
+											{isPending && (
+												<Pressable
+													onPress={() =>
+														handleOpenPayment(item.id, item.pendingAmount)
+													}
+													className="rounded-lg bg-rose-50 px-2.5 py-1 active:opacity-75 dark:bg-rose-950/40"
+												>
+													<Text className="font-bold text-[11px] text-rose-700 dark:text-rose-300">
+														Settle Bill (₹
+														{(item.pendingAmount || 0).toLocaleString("en-IN")})
+													</Text>
+												</Pressable>
+											)}
 										</View>
 									)}
 								</Card>
@@ -835,178 +851,151 @@ export default function CustomerKhataScreen() {
 				)}
 			</ScrollView>
 
-			{/* ================= MODAL: RECORD PAYMENT ================= */}
-			<Modal
+			{/* ================= HEROUI NATIVE BOTTOM SHEET: RECORD PAYMENT ================= */}
+			<HeroBottomSheet
 				visible={paymentModalVisible}
-				transparent
-				animationType="slide"
-				onRequestClose={() => setPaymentModalVisible(false)}
-			>
-				<View className="flex-1 justify-end bg-black/60">
-					<View className="rounded-t-3xl bg-white p-5 dark:bg-zinc-900">
-						{/* Modal Header */}
-						<View className="flex-row items-center justify-between border-slate-100 border-b pb-3 dark:border-zinc-800">
-							<View>
-								<Text className="font-bold text-lg text-slate-900 dark:text-white">
-									Record Customer Payment
-								</Text>
-								<Text className="font-medium text-slate-400 text-xs dark:text-zinc-500">
-									Customer: {customer.name}
-								</Text>
-							</View>
-							<Pressable
-								onPress={() => setPaymentModalVisible(false)}
-								className="h-8 w-8 items-center justify-center rounded-full bg-slate-100 dark:bg-zinc-800"
-							>
-								<Ionicons name="close" size={18} color={themeColorForeground} />
-							</Pressable>
-						</View>
-
-						<ScrollView
-							className="max-h-[440px] py-3"
-							showsVerticalScrollIndicator={false}
+				onClose={() => setPaymentModalVisible(false)}
+				title="Record Customer Payment"
+				subtitle={`Customer: ${customer.name}`}
+				snapPoints={["75%", "90%"]}
+				footer={
+					<View className="flex-row items-center gap-3">
+						<Pressable
+							onPress={() => setPaymentModalVisible(false)}
+							className="flex-1 items-center justify-center rounded-2xl border border-slate-200 py-3 active:opacity-80 dark:border-zinc-800"
 						>
-							{/* Select Unpaid Bill */}
-							<View className="mb-4">
-								<Text className="mb-1.5 font-bold text-slate-700 text-xs dark:text-zinc-300">
-									Apply to Unpaid Invoice *
-								</Text>
-								<ScrollView
-									horizontal
-									showsHorizontalScrollIndicator={false}
-									className="flex-row gap-2"
-								>
-									{unpaidInvoices.map((inv) => {
-										const isSelected = selectedSaleId === inv._id;
-										return (
-											<Pressable
-												key={inv._id}
-												onPress={() => {
-													setSelectedSaleId(inv._id);
-													setPaymentAmount(inv.pendingAmount.toString());
-												}}
-												className={`rounded-2xl border p-3 ${
-													isSelected
-														? "border-sky-500 bg-sky-50 dark:border-sky-500 dark:bg-sky-950/40"
-														: "border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-800"
-												}`}
-											>
-												<Text className="font-bold text-slate-800 text-xs dark:text-white">
-													Bill #{inv.invoiceNo}
-												</Text>
-												<Text className="mt-0.5 font-black text-rose-600 text-sm dark:text-rose-400">
-													Due: ₹
-													{(inv.pendingAmount || 0).toLocaleString("en-IN")}
-												</Text>
-												<Text className="font-medium text-[10px] text-slate-400">
-													Total: ₹{(inv.total || 0).toLocaleString("en-IN")}
-												</Text>
-											</Pressable>
-										);
-									})}
-								</ScrollView>
-							</View>
+							<Text className="font-bold text-slate-700 text-xs dark:text-zinc-300">
+								Cancel
+							</Text>
+						</Pressable>
 
-							{/* Amount to Pay */}
-							<View className="mb-4">
-								<Text className="mb-1.5 font-bold text-slate-700 text-xs dark:text-zinc-300">
-									Amount Received (₹) *
+						<Pressable
+							onPress={handleSubmitPayment}
+							disabled={createPaymentMutation.isPending}
+							className="flex-1 items-center justify-center rounded-2xl bg-emerald-600 py-3 shadow-sm active:opacity-90"
+						>
+							{createPaymentMutation.isPending ? (
+								<ActivityIndicator size="small" color="#ffffff" />
+							) : (
+								<Text className="font-bold text-white text-xs">
+									Confirm & Record Payment
 								</Text>
-								<View className="flex-row items-center rounded-xl border border-slate-200 bg-white px-3 py-2.5 dark:border-zinc-800 dark:bg-zinc-800">
-									<Text className="mr-1 font-bold text-base text-slate-500">
-										₹
-									</Text>
-									<TextInput
-										keyboardType="numeric"
-										value={paymentAmount}
-										onChangeText={setPaymentAmount}
-										placeholder="0"
-										placeholderTextColor="#94a3b8"
-										className="flex-1 font-bold text-lg text-slate-900 dark:text-white"
-									/>
-								</View>
-							</View>
-
-							{/* Payment Method Selector */}
-							<View className="mb-4">
-								<Text className="mb-1.5 font-bold text-slate-700 text-xs dark:text-zinc-300">
-									Payment Method *
-								</Text>
-								<View className="flex-row gap-2">
-									{(["CASH", "UPI", "CARD"] as const).map((method) => {
-										const isSelected = paymentMethod === method;
-										return (
-											<Pressable
-												key={method}
-												onPress={() => setPaymentMethod(method)}
-												className={`flex-1 items-center justify-center rounded-xl border py-2.5 ${
-													isSelected
-														? "border-emerald-600 bg-emerald-50 dark:border-emerald-500 dark:bg-emerald-950/40"
-														: "border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-800"
-												}`}
-											>
-												<Text
-													className={`font-bold text-xs ${
-														isSelected
-															? "text-emerald-700 dark:text-emerald-300"
-															: "text-slate-600 dark:text-zinc-400"
-													}`}
-												>
-													{method === "CASH"
-														? "💵 Cash"
-														: method === "UPI"
-															? "📱 UPI / QR"
-															: "💳 Card"}
-												</Text>
-											</Pressable>
-										);
-									})}
-								</View>
-							</View>
-
-							{/* Payment Note */}
-							<View className="mb-2">
-								<Text className="mb-1.5 font-bold text-slate-700 text-xs dark:text-zinc-300">
-									Note / Reference (Optional)
-								</Text>
-								<TextInput
-									value={paymentNote}
-									onChangeText={setPaymentNote}
-									placeholder="e.g. GPay ref #, cash received at shop..."
-									placeholderTextColor="#94a3b8"
-									className="rounded-xl border border-slate-200 bg-white p-2.5 font-medium text-slate-900 text-xs dark:border-zinc-800 dark:bg-zinc-800 dark:text-white"
-								/>
-							</View>
+							)}
+						</Pressable>
+					</View>
+				}
+			>
+				<ScrollView className="py-1" showsVerticalScrollIndicator={false}>
+					{/* Select Unpaid Bill */}
+					<View className="mb-4">
+						<Text className="mb-1.5 font-bold text-slate-700 text-xs dark:text-zinc-300">
+							Apply to Unpaid Invoice *
+						</Text>
+						<ScrollView
+							horizontal
+							showsHorizontalScrollIndicator={false}
+							className="flex-row gap-2"
+						>
+							{unpaidInvoices.map((inv) => {
+								const isSelected = selectedSaleId === inv._id;
+								return (
+									<Pressable
+										key={inv._id}
+										onPress={() => {
+											setSelectedSaleId(inv._id);
+											setPaymentAmount(inv.pendingAmount.toString());
+										}}
+										className={`rounded-2xl border p-3 ${
+											isSelected
+												? "border-sky-500 bg-sky-50 dark:border-sky-500 dark:bg-sky-950/40"
+												: "border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-800"
+										}`}
+									>
+										<Text className="font-bold text-slate-800 text-xs dark:text-white">
+											Bill #{inv.invoiceNo}
+										</Text>
+										<Text className="mt-0.5 font-black text-rose-600 text-sm dark:text-rose-400">
+											Due: ₹{(inv.pendingAmount || 0).toLocaleString("en-IN")}
+										</Text>
+										<Text className="font-medium text-[10px] text-slate-400">
+											Total: ₹{(inv.total || 0).toLocaleString("en-IN")}
+										</Text>
+									</Pressable>
+								);
+							})}
 						</ScrollView>
+					</View>
 
-						{/* Buttons */}
-						<View className="flex-row items-center gap-3 border-slate-100 border-t pt-3 dark:border-zinc-800">
-							<Pressable
-								onPress={() => setPaymentModalVisible(false)}
-								className="flex-1 items-center justify-center rounded-2xl border border-slate-200 py-3 active:opacity-80 dark:border-zinc-800"
-							>
-								<Text className="font-bold text-slate-700 text-xs dark:text-zinc-300">
-									Cancel
-								</Text>
-							</Pressable>
-
-							<Pressable
-								onPress={handleSubmitPayment}
-								disabled={createPaymentMutation.isPending}
-								className="flex-1 items-center justify-center rounded-2xl bg-emerald-600 py-3 shadow-sm active:opacity-90"
-							>
-								{createPaymentMutation.isPending ? (
-									<ActivityIndicator size="small" color="#ffffff" />
-								) : (
-									<Text className="font-bold text-white text-xs">
-										Confirm & Record Payment
-									</Text>
-								)}
-							</Pressable>
+					{/* Amount to Pay */}
+					<View className="mb-4">
+						<Text className="mb-1.5 font-bold text-slate-700 text-xs dark:text-zinc-300">
+							Amount Received (₹) *
+						</Text>
+						<View className="flex-row items-center rounded-xl border border-slate-200 bg-white px-3 py-2.5 dark:border-zinc-800 dark:bg-zinc-800">
+							<Text className="mr-1 font-bold text-base text-slate-500">₹</Text>
+							<TextInput
+								keyboardType="numeric"
+								value={paymentAmount}
+								onChangeText={setPaymentAmount}
+								placeholder="0"
+								placeholderTextColor="#94a3b8"
+								className="flex-1 font-bold text-lg text-slate-900 dark:text-white"
+							/>
 						</View>
 					</View>
-				</View>
-			</Modal>
+
+					{/* Payment Method Selector */}
+					<View className="mb-4">
+						<Text className="mb-1.5 font-bold text-slate-700 text-xs dark:text-zinc-300">
+							Payment Method *
+						</Text>
+						<View className="flex-row gap-2">
+							{(["CASH", "UPI", "CARD"] as const).map((method) => {
+								const isSelected = paymentMethod === method;
+								return (
+									<Pressable
+										key={method}
+										onPress={() => setPaymentMethod(method)}
+										className={`flex-1 items-center justify-center rounded-xl border py-2.5 ${
+											isSelected
+												? "border-emerald-600 bg-emerald-50 dark:border-emerald-500 dark:bg-emerald-950/40"
+												: "border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-800"
+										}`}
+									>
+										<Text
+											className={`font-bold text-xs ${
+												isSelected
+													? "text-emerald-700 dark:text-emerald-300"
+													: "text-slate-600 dark:text-zinc-400"
+											}`}
+										>
+											{method === "CASH"
+												? "💵 Cash"
+												: method === "UPI"
+													? "📱 UPI / QR"
+													: "💳 Card"}
+										</Text>
+									</Pressable>
+								);
+							})}
+						</View>
+					</View>
+
+					{/* Payment Note */}
+					<View className="mb-2">
+						<Text className="mb-1.5 font-bold text-slate-700 text-xs dark:text-zinc-300">
+							Note / Reference (Optional)
+						</Text>
+						<TextInput
+							value={paymentNote}
+							onChangeText={setPaymentNote}
+							placeholder="e.g. GPay ref #, cash received at shop..."
+							placeholderTextColor="#94a3b8"
+							className="rounded-xl border border-slate-200 bg-white p-2.5 font-medium text-slate-900 text-xs dark:border-zinc-800 dark:bg-zinc-800 dark:text-white"
+						/>
+					</View>
+				</ScrollView>
+			</HeroBottomSheet>
 		</Container>
 	);
 }

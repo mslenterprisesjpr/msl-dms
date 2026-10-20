@@ -22,6 +22,10 @@ export default function BillingLayout() {
 				name="customer-khata"
 				options={detailHeaderOptions("Customer Khata / Ledger")}
 			/>
+			<Stack.Screen
+				name="[id]"
+				options={detailHeaderOptions("Invoice Details & Slip")}
+			/>
 		</Stack>
 	);
 }

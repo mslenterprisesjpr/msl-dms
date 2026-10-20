@@ -35,21 +35,62 @@ export interface SaleQuery {
 	endDate?: string;
 }
 
+export interface SaleItem {
+	_id: string;
+	saleId: string;
+	productId:
+		| {
+				_id: string;
+				name: string;
+				sku?: string;
+				unit?: string;
+				unitsPerCase?: number;
+				packSize?: string;
+		  }
+		| string;
+	quantity: number;
+	cases?: number;
+	units?: number;
+	price: number;
+	total: number;
+	quantityDisplay?: string;
+}
+
+export interface SaleDetail extends Sale {
+	customerId:
+		| {
+				_id: string;
+				name: string;
+				phone?: string;
+				address?: string;
+				gstNumber?: string;
+		  }
+		| any;
+	items: SaleItem[];
+	payments: any[];
+}
+
 export interface CreateSaleDto {
-	invoiceNo: string;
-	orderId?: string;
+	invoiceNo?: string;
 	customerId: string;
-	workerId: string;
+	workerId?: string;
 	saleDate?: string;
+	items?: Array<{
+		productId: string;
+		cases: number;
+		units: number;
+		price: number;
+	}>;
 	subtotal: number;
 	discount?: number;
 	total: number;
 	paidAmount?: number;
 	pendingAmount?: number;
+	paymentMethod?: "CASH" | "UPI" | "CARD" | "CREDIT";
 	paymentStatus?: Sale["paymentStatus"];
 	status?: Sale["status"];
 	note?: string;
-	createdBy: string;
+	createdBy?: string;
 }
 
 export interface UpdateSaleDto extends Partial<CreateSaleDto> {}
@@ -63,13 +104,13 @@ export const saleService = {
 	},
 
 	getSaleById: async (id: string) => {
-		const { data } = await apiClient.get<Sale>(`/sales/${id}`);
-		return data;
+		const { data } = await apiClient.get<any>(`/sales/${id}`);
+		return (data?.data || data) as SaleDetail;
 	},
 
 	createSale: async (dto: CreateSaleDto) => {
-		const { data } = await apiClient.post<Sale>("/sales", dto);
-		return data;
+		const { data } = await apiClient.post<any>("/sales", dto);
+		return (data?.sale || data?.data || data) as Sale;
 	},
 
 	updateSale: async (id: string, dto: UpdateSaleDto) => {

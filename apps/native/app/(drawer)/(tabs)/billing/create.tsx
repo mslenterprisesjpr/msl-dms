@@ -102,7 +102,7 @@ export default function CreateBillScreen() {
 			const pendingAmount = paymentMethod === "CREDIT" ? totalAmount : 0;
 			const paymentStatus = paymentMethod === "CREDIT" ? "PENDING" : "PAID";
 
-			await createSaleMutation.mutateAsync({
+			const newSale = await createSaleMutation.mutateAsync({
 				invoiceNo,
 				customerId,
 				workerId: user?.id || "DIRECT",
@@ -120,7 +120,15 @@ export default function CreateBillScreen() {
 				variant: "success",
 				label: `Bill ${invoiceNo} generated successfully!`,
 			});
-			router.back();
+
+			if (newSale?._id) {
+				router.replace({
+					pathname: "/billing/[id]" as any,
+					params: { id: newSale._id },
+				});
+			} else {
+				router.back();
+			}
 		} catch (error: any) {
 			console.error("Failed to generate bill:", error);
 			toast.show({
