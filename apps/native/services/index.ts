@@ -5,6 +5,7 @@ export * from "./order.service";
 export * from "./organization.service";
 export * from "./payment.service";
 export * from "./product.service";
+export * from "./report.service";
 export * from "./sale.service";
 export * from "./stock.service";
 export * from "./worker-stock.service";

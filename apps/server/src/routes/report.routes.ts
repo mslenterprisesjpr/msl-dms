@@ -2,10 +2,10 @@ import { zValidator } from "@hono/zod-validator";
 import type { AppSession as Session, AppUser as User } from "@msl/auth";
 import { Payment, Product, Sale, WorkerStock } from "@msl/db";
 import { Hono } from "hono";
+import mongoose from "mongoose";
 
 import { organizationFilter, resolveOrganizationId } from "@/lib/org-context";
 import { requireAuth } from "@/middleware/authentication.middleware";
-import { requireAdmin } from "@/middleware/authorization.middleware";
 import { dateRangeQuerySchema } from "@/schemas/report.schema";
 
 type Variables = {
@@ -48,13 +48,13 @@ function getDateRange(period: string, startDate?: string, endDate?: string) {
 	return { start, end };
 }
 
-// Sales Summary Report (ADMIN)
+// Sales Summary Report (All authenticated users - filtered by role if not admin)
 app.get(
 	"/sales-summary",
 	requireAuth,
-	requireAdmin,
 	zValidator("query", dateRangeQuerySchema),
 	async (c) => {
+		const user = c.get("user") as User;
 		const organizationId = await resolveOrganizationId(c);
 		const orgFilter = organizationFilter(organizationId);
 		const query = c.req.valid("query");
@@ -65,20 +65,26 @@ app.get(
 			query.endDate,
 		);
 
-		const dateFilter = {
+		const matchFilter: any = {
+			orgId: orgFilter,
+			status: { $ne: "CANCELLED" },
 			createdAt: { $gte: start, $lte: end },
 		};
+
+		const paymentFilter: any = {
+			orgId: orgFilter,
+			createdAt: { $gte: start, $lte: end },
+		};
+
+		if (user.role !== "admin") {
+			matchFilter.workerId = user.id;
+			paymentFilter.createdBy = user.id;
+		}
 
 		// Aggregate sales data
 		const [salesStats, paymentStats, topProducts] = await Promise.all([
 			Sale.aggregate([
-				{
-					$match: {
-						orgId: orgFilter,
-						status: { $ne: "CANCELLED" },
-						...dateFilter,
-					},
-				},
+				{ $match: matchFilter },
 				{
 					$group: {
 						_id: null,
@@ -91,12 +97,7 @@ app.get(
 				},
 			]),
 			Payment.aggregate([
-				{
-					$match: {
-						orgId: orgFilter,
-						...dateFilter,
-					},
-				},
+				{ $match: paymentFilter },
 				{
 					$group: {
 						_id: "$paymentMethod",
@@ -106,13 +107,7 @@ app.get(
 				},
 			]),
 			Sale.aggregate([
-				{
-					$match: {
-						orgId: orgFilter,
-						status: { $ne: "CANCELLED" },
-						...dateFilter,
-					},
-				},
+				{ $match: matchFilter },
 				{
 					$lookup: {
 						from: "saleitems",
@@ -126,6 +121,7 @@ app.get(
 					$group: {
 						_id: "$items.productId",
 						totalQuantity: { $sum: "$items.quantity" },
+						totalCases: { $sum: "$items.cases" },
 						totalRevenue: { $sum: "$items.total" },
 						salesCount: { $sum: 1 },
 					},
@@ -163,6 +159,7 @@ app.get(
 				productName: item.product.name,
 				sku: item.product.sku,
 				totalQuantity: item.totalQuantity,
+				totalCases: item.totalCases || 0,
 				totalRevenue: item.totalRevenue,
 				salesCount: item.salesCount,
 			})),
@@ -170,13 +167,13 @@ app.get(
 	},
 );
 
-// Worker Performance Report (ADMIN)
+// Worker Performance Report
 app.get(
 	"/worker-performance",
 	requireAuth,
-	requireAdmin,
 	zValidator("query", dateRangeQuerySchema),
 	async (c) => {
+		const user = c.get("user") as User;
 		const organizationId = await resolveOrganizationId(c);
 		const orgFilter = organizationFilter(organizationId);
 		const query = c.req.valid("query");
@@ -187,14 +184,18 @@ app.get(
 			query.endDate,
 		);
 
+		const matchFilter: any = {
+			orgId: orgFilter,
+			status: { $ne: "CANCELLED" },
+			createdAt: { $gte: start, $lte: end },
+		};
+
+		if (user.role !== "admin") {
+			matchFilter.workerId = user.id;
+		}
+
 		const workerPerformance = await Sale.aggregate([
-			{
-				$match: {
-					orgId: orgFilter,
-					status: { $ne: "CANCELLED" },
-					createdAt: { $gte: start, $lte: end },
-				},
-			},
+			{ $match: matchFilter },
 			{
 				$group: {
 					_id: "$workerId",
@@ -208,33 +209,52 @@ app.get(
 			{ $sort: { totalRevenue: -1 } },
 		]);
 
+		const userDocs = await mongoose.connection.db
+			?.collection("user")
+			.find({})
+			.toArray();
+
+		const userMap = new Map<string, any>();
+		userDocs?.forEach((u) => {
+			const idStr = u._id?.toString() || u.id;
+			userMap.set(idStr, u);
+		});
+
 		return c.json({
 			period: query.period,
 			startDate: start.toISOString(),
 			endDate: end.toISOString(),
-			workers: workerPerformance.map((worker) => ({
-				workerId: worker._id,
-				totalSales: worker.totalSales,
-				totalRevenue: worker.totalRevenue,
-				totalPaid: worker.totalPaid,
-				totalPending: worker.totalPending,
-				avgSaleValue: Math.round(worker.avgSaleValue),
-				collectionRate:
-					worker.totalRevenue > 0
-						? Math.round((worker.totalPaid / worker.totalRevenue) * 100)
-						: 0,
-			})),
+			workers: workerPerformance.map((worker) => {
+				const userObj = userMap.get(worker._id);
+				return {
+					workerId: worker._id,
+					workerName:
+						userObj?.name ||
+						(worker._id ? `Worker (${worker._id.slice(-4)})` : "Unassigned"),
+					workerEmail: userObj?.email || "",
+					workerImage: userObj?.image || null,
+					totalSales: worker.totalSales,
+					totalRevenue: worker.totalRevenue,
+					totalPaid: worker.totalPaid,
+					totalPending: worker.totalPending,
+					avgSaleValue: Math.round(worker.avgSaleValue),
+					collectionRate:
+						worker.totalRevenue > 0
+							? Math.round((worker.totalPaid / worker.totalRevenue) * 100)
+							: 0,
+				};
+			}),
 		});
 	},
 );
 
-// Product Sales Report (ADMIN)
+// Product Sales Report
 app.get(
 	"/product-sales",
 	requireAuth,
-	requireAdmin,
 	zValidator("query", dateRangeQuerySchema),
 	async (c) => {
+		const user = c.get("user") as User;
 		const organizationId = await resolveOrganizationId(c);
 		const orgFilter = organizationFilter(organizationId);
 		const query = c.req.valid("query");
@@ -245,14 +265,18 @@ app.get(
 			query.endDate,
 		);
 
+		const matchFilter: any = {
+			orgId: orgFilter,
+			status: { $ne: "CANCELLED" },
+			createdAt: { $gte: start, $lte: end },
+		};
+
+		if (user.role !== "admin") {
+			matchFilter.workerId = user.id;
+		}
+
 		const productSales = await Sale.aggregate([
-			{
-				$match: {
-					orgId: orgFilter,
-					status: { $ne: "CANCELLED" },
-					createdAt: { $gte: start, $lte: end },
-				},
-			},
+			{ $match: matchFilter },
 			{
 				$lookup: {
 					from: "saleitems",
@@ -375,8 +399,8 @@ app.get("/pending-payments", requireAuth, async (c) => {
 	});
 });
 
-// Stock Summary Report (ADMIN)
-app.get("/stock-summary", requireAuth, requireAdmin, async (c) => {
+// Stock Summary Report
+app.get("/stock-summary", requireAuth, async (c) => {
 	const organizationId = await resolveOrganizationId(c);
 	const orgFilter = organizationFilter(organizationId);
 
