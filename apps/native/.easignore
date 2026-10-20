@@ -4,6 +4,8 @@ android/build/
 android/app/build/
 android/.cxx/
 android/local.properties
+**/.gradle/
+**/build/
 
 # iOS build files
 ios/build/
@@ -11,7 +13,14 @@ ios/Pods/
 ios/*.xcworkspace/xcuserdata/
 ios/*.xcodeproj/xcuserdata/
 
-# Other
+# Development files
 .expo/
 node_modules/
 *.log
+.git/
+.vscode/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/

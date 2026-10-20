@@ -7,6 +7,7 @@ import {
 import {
 	type CreateCustomerDto,
 	type Customer,
+	type CustomerLedgerResponse,
 	type CustomersQuery,
 	type CustomersResponse,
 	customerService,
@@ -21,6 +22,7 @@ export const customerKeys = {
 		[...customerKeys.lists(), filters] as const,
 	details: () => [...customerKeys.all, "detail"] as const,
 	detail: (id: string) => [...customerKeys.details(), id] as const,
+	ledger: (id: string) => [...customerKeys.all, "ledger", id] as const,
 };
 
 // Queries
@@ -49,6 +51,22 @@ export const useCustomer = (
 		queryKey: customerKeys.detail(id),
 		queryFn: () => customerService.getById(id),
 		enabled: !!id,
+		...options,
+	});
+};
+
+export const useCustomerLedger = (
+	id: string,
+	options?: Omit<
+		UseQueryOptions<CustomerLedgerResponse, Error>,
+		"queryKey" | "queryFn" | "enabled"
+	>,
+) => {
+	return useQuery({
+		queryKey: customerKeys.ledger(id),
+		queryFn: () => customerService.getLedger(id),
+		enabled: !!id,
+		refetchOnMount: "always",
 		...options,
 	});
 };

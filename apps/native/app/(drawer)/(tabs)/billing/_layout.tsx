@@ -18,6 +18,10 @@ export default function BillingLayout() {
 				name="customer-create"
 				options={detailHeaderOptions("Add Customer")}
 			/>
+			<Stack.Screen
+				name="customer-khata"
+				options={detailHeaderOptions("Customer Khata / Ledger")}
+			/>
 		</Stack>
 	);
 }

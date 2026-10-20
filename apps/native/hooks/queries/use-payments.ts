@@ -62,6 +62,8 @@ export const useCreatePayment = () => {
 		mutationFn: (dto: CreatePaymentDto) => paymentService.createPayment(dto),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: paymentKeys.lists() });
+			queryClient.invalidateQueries({ queryKey: ["customers"] });
+			queryClient.invalidateQueries({ queryKey: ["sales"] });
 		},
 	});
 };

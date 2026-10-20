@@ -38,3 +38,36 @@ export interface CustomersResponse {
 		pages: number;
 	};
 }
+
+export interface CustomerLedgerTransaction {
+	id: string;
+	type: "INVOICE" | "PAYMENT";
+	date: string;
+	referenceNo: string;
+	title: string;
+	debit: number;
+	credit: number;
+	runningBalance: number;
+	status?: "PAID" | "PARTIAL" | "PENDING";
+	paidAmount?: number;
+	pendingAmount?: number;
+	paymentMethod?: string;
+	note?: string;
+	saleId?: string;
+}
+
+export interface CustomerLedgerSummary {
+	totalBilled: number;
+	totalPaid: number;
+	totalPending: number;
+	totalBillsCount: number;
+	unpaidBillsCount: number;
+}
+
+export interface CustomerLedgerResponse {
+	message: string;
+	customer: Customer;
+	summary: CustomerLedgerSummary;
+	timeline: CustomerLedgerTransaction[];
+	unpaidInvoices: any[];
+}

@@ -2,6 +2,9 @@ import { apiClient } from "@/lib/api-client";
 import type {
 	CreateCustomerDto,
 	Customer,
+	CustomerLedgerResponse,
+	CustomerLedgerSummary,
+	CustomerLedgerTransaction,
 	CustomersQuery,
 	CustomersResponse,
 	UpdateCustomerDto,
@@ -10,6 +13,9 @@ import type {
 export type {
 	CreateCustomerDto,
 	Customer,
+	CustomerLedgerResponse,
+	CustomerLedgerSummary,
+	CustomerLedgerTransaction,
 	CustomersQuery,
 	CustomersResponse,
 	UpdateCustomerDto,
@@ -62,6 +68,13 @@ export const customerService = {
 
 	delete: async (id: string) => {
 		const response = await apiClient.delete(`/customers/${id}`);
+		return response.data;
+	},
+
+	getLedger: async (id: string) => {
+		const response = await apiClient.get<CustomerLedgerResponse>(
+			`/customers/${id}/ledger`,
+		);
 		return response.data;
 	},
 };

@@ -650,6 +650,20 @@ export default function BillingScreen() {
 														onPress={(e) => {
 															e.stopPropagation();
 															router.push({
+																pathname: "/billing/customer-khata" as any,
+																params: { id: cust._id },
+															});
+														}}
+														hitSlop={6}
+														className="h-7 w-7 items-center justify-center rounded-lg bg-sky-50 active:bg-sky-100 dark:bg-sky-950/60"
+													>
+														<Ionicons name="book" size={13} color="#0284c7" />
+													</Pressable>
+
+													<Pressable
+														onPress={(e) => {
+															e.stopPropagation();
+															router.push({
 																pathname: "/billing/customer-create" as any,
 																params: { id: cust._id },
 															});
@@ -773,6 +787,28 @@ export default function BillingScreen() {
 
 								{/* Action Buttons */}
 								<View className="mt-2 gap-2">
+									{selectedInvoiceAction.customerId && (
+										<Pressable
+											onPress={() => {
+												const cId =
+													typeof selectedInvoiceAction.customerId === "object"
+														? selectedInvoiceAction.customerId?._id
+														: selectedInvoiceAction.customerId;
+												setSelectedInvoiceAction(null);
+												router.push({
+													pathname: "/billing/customer-khata" as any,
+													params: { id: cId },
+												});
+											}}
+											className="flex-row items-center justify-center rounded-xl bg-sky-600 py-3 active:opacity-90"
+										>
+											<Ionicons name="book-outline" size={18} color="#ffffff" />
+											<Text className="ml-2 font-bold text-sm text-white">
+												📘 View Customer Khata (Ledger)
+											</Text>
+										</Pressable>
+									)}
+
 									<Pressable
 										onPress={() => {
 											const saleId = selectedInvoiceAction._id;
@@ -882,7 +918,25 @@ export default function BillingScreen() {
 
 								{/* Action Buttons */}
 								<View className="mt-2 gap-2">
-									{/* 1. Create New Bill */}
+									{/* 1. View Khata / Ledger (Primary Action) */}
+									<Pressable
+										onPress={() => {
+											const custId = selectedCustomerAction._id;
+											setSelectedCustomerAction(null);
+											router.push({
+												pathname: "/billing/customer-khata" as any,
+												params: { id: custId },
+											});
+										}}
+										className="flex-row items-center justify-center rounded-xl bg-sky-600 py-3 active:opacity-90"
+									>
+										<Ionicons name="book-outline" size={18} color="#ffffff" />
+										<Text className="ml-2 font-bold text-sm text-white">
+											📘 View Khata / Ledger (Statement)
+										</Text>
+									</Pressable>
+
+									{/* 2. Create New Bill */}
 									<Pressable
 										onPress={() => {
 											const custId = selectedCustomerAction._id;
