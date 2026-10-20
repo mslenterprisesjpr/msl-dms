@@ -6,7 +6,6 @@ import {
 	ActivityIndicator,
 	Alert,
 	KeyboardAvoidingView,
-	Modal,
 	Platform,
 	Pressable,
 	RefreshControl,
@@ -18,6 +17,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Container } from "@/components/container";
+import { HeroBottomSheet } from "@/components/hero-bottom-sheet";
 import {
 	type ReturnStockDto,
 	useReturnStock,
@@ -1246,108 +1246,81 @@ export default function ReturnStockScreen() {
 					)}
 				</ScrollView>
 
-				{/* 5. WORKER PICKER MODAL (ADMIN ONLY) */}
-				<Modal
+				{/* 5. HEROUI NATIVE BOTTOM SHEET: WORKER PICKER (ADMIN ONLY) */}
+				<HeroBottomSheet
 					visible={workerPickerVisible}
-					transparent
-					animationType="fade"
-					onRequestClose={() => setWorkerPickerVisible(false)}
+					onClose={() => setWorkerPickerVisible(false)}
+					title="Select Field Worker"
+					subtitle="Pick a worker to inspect van stock & process return"
+					snapPoints={["60%", "85%"]}
 				>
-					<View className="flex-1 items-center justify-center bg-black/60 p-4">
-						<View className="w-full max-w-md rounded-3xl bg-white p-5 shadow-xl dark:bg-zinc-900">
-							<View className="flex-row items-center justify-between border-slate-100 border-b pb-3 dark:border-zinc-800">
-								<View>
-									<Text className="font-bold text-base text-slate-900 dark:text-white">
-										Select Field Worker
-									</Text>
-									<Text className="font-medium text-slate-400 text-xs dark:text-zinc-500">
-										Pick a worker to inspect van stock & process return
-									</Text>
-								</View>
-								<Pressable
-									onPress={() => setWorkerPickerVisible(false)}
-									className="h-8 w-8 items-center justify-center rounded-full bg-slate-100 dark:bg-zinc-800"
-								>
-									<Ionicons
-										name="close"
-										size={18}
-										color={themeColorForeground}
-									/>
-								</Pressable>
-							</View>
-
-							{/* Search in workers */}
-							<View className="my-3 flex-row items-center rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800">
-								<Ionicons
-									name="search"
-									size={14}
-									color="#94a3b8"
-									style={{ marginRight: 6 }}
-								/>
-								<TextInput
-									placeholder="Search worker by name or email..."
-									placeholderTextColor="#94a3b8"
-									value={workerSearch}
-									onChangeText={setWorkerSearch}
-									className="flex-1 font-medium text-slate-900 text-xs dark:text-white"
-								/>
-							</View>
-
-							{/* Members list */}
-							<ScrollView
-								className="max-h-[300px]"
-								showsVerticalScrollIndicator={false}
-							>
-								<View className="gap-2">
-									{filteredMembers.map((m) => {
-										const isSelected = selectedMember?.userId === m.userId;
-										return (
-											<Pressable
-												key={m.id}
-												onPress={() => {
-													setSelectedMember(m);
-													setSelectedStockItem(null);
-													setManifest([]);
-													setWorkerPickerVisible(false);
-												}}
-												className={`flex-row items-center justify-between rounded-2xl border p-3 ${
-													isSelected
-														? "border-sky-500 bg-sky-50 dark:border-sky-500 dark:bg-sky-950/30"
-														: "border-slate-100 bg-slate-50/50 active:bg-slate-100 dark:border-zinc-800 dark:bg-zinc-800/40"
-												}`}
-											>
-												<View className="flex-row items-center gap-3">
-													<View className="h-9 w-9 items-center justify-center rounded-xl bg-slate-200/60 dark:bg-zinc-700">
-														<Ionicons
-															name="person"
-															size={16}
-															color={themeColorForeground}
-														/>
-													</View>
-													<View>
-														<Text className="font-bold text-slate-900 text-xs dark:text-white">
-															{m.user.name}
-														</Text>
-														<Text className="font-medium text-[11px] text-slate-400 dark:text-zinc-500">
-															{m.user.email} • {m.role}
-														</Text>
-													</View>
-												</View>
-												{isSelected && (
-													<Ionicons
-														name="checkmark-circle"
-														size={20}
-														color="#0284c7"
-													/>
-												)}
-											</Pressable>
-										);
-									})}
-								</View>
-							</ScrollView>
-						</View>
+					{/* Search in workers */}
+					<View className="mb-3 flex-row items-center rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800">
+						<Ionicons
+							name="search"
+							size={14}
+							color="#94a3b8"
+							style={{ marginRight: 6 }}
+						/>
+						<TextInput
+							placeholder="Search worker by name or email..."
+							placeholderTextColor="#94a3b8"
+							value={workerSearch}
+							onChangeText={setWorkerSearch}
+							className="flex-1 font-medium text-slate-900 text-xs dark:text-white"
+						/>
 					</View>
-				</Modal>
+
+					{/* Members list */}
+					<ScrollView showsVerticalScrollIndicator={false}>
+						<View className="gap-2">
+							{filteredMembers.map((m) => {
+								const isSelected = selectedMember?.userId === m.userId;
+								return (
+									<Pressable
+										key={m.id}
+										onPress={() => {
+											setSelectedMember(m);
+											setSelectedStockItem(null);
+											setManifest([]);
+											setWorkerPickerVisible(false);
+										}}
+										className={`flex-row items-center justify-between rounded-2xl border p-3 ${
+											isSelected
+												? "border-sky-500 bg-sky-50 dark:border-sky-500 dark:bg-sky-950/30"
+												: "border-slate-100 bg-slate-50/50 active:bg-slate-100 dark:border-zinc-800 dark:bg-zinc-800/40"
+										}`}
+									>
+										<View className="flex-row items-center gap-3">
+											<View className="h-9 w-9 items-center justify-center rounded-xl bg-slate-200/60 dark:bg-zinc-700">
+												<Ionicons
+													name="person"
+													size={16}
+													color={themeColorForeground}
+												/>
+											</View>
+											<View>
+												<Text className="font-bold text-slate-900 text-xs dark:text-white">
+													{m.user.name}
+												</Text>
+												<Text className="font-medium text-[11px] text-slate-400 dark:text-zinc-500">
+													{m.user.email} • {m.role}
+												</Text>
+											</View>
+										</View>
+										{isSelected && (
+											<Ionicons
+												name="checkmark-circle"
+												size={20}
+												color="#0284c7"
+											/>
+										)}
+									</Pressable>
+								);
+							})}
+						</View>
+					</ScrollView>
+				</HeroBottomSheet>
 			</KeyboardAvoidingView>
 		</Container>
 	);

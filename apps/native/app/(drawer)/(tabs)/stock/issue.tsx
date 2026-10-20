@@ -6,7 +6,6 @@ import {
 	ActivityIndicator,
 	Alert,
 	KeyboardAvoidingView,
-	Modal,
 	Platform,
 	Pressable,
 	RefreshControl,
@@ -18,6 +17,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Container } from "@/components/container";
+import { HeroBottomSheet } from "@/components/hero-bottom-sheet";
 import { useProducts } from "@/hooks/queries/use-products";
 import { useIssueStock } from "@/hooks/queries/use-worker-stock";
 import {
@@ -66,6 +66,9 @@ export default function IssueStockScreen() {
 	// State
 	const [selectedMember, setSelectedMember] =
 		useState<OrganizationMember | null>(null);
+	const [workerPickerVisible, setWorkerPickerVisible] = useState(false);
+	const [workerSearch, setWorkerSearch] = useState("");
+
 	const [cart, setCart] = useState<CartItem[]>([]);
 	const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 	const [cases, setCases] = useState("");
@@ -100,7 +103,6 @@ export default function IssueStockScreen() {
 					return;
 				}
 			}
-			// Default to first member if none selected
 			setSelectedMember(members[0]);
 		}
 	}, [members, routeWorkerId, selectedMember]);
@@ -120,6 +122,18 @@ export default function IssueStockScreen() {
 		});
 	}, [products, cart, productSearch]);
 
+	// Filter workers
+	const filteredMembers = useMemo(() => {
+		if (!members) return [];
+		if (!workerSearch.trim()) return members;
+		const q = workerSearch.toLowerCase().trim();
+		return members.filter(
+			(m) =>
+				m.user.name?.toLowerCase().includes(q) ||
+				m.user.email?.toLowerCase().includes(q),
+		);
+	}, [members, workerSearch]);
+
 	// Calculations for current product input
 	const currentUnitsPerCase = selectedProduct?.unitsPerCase || 1;
 	const enteredCases = Math.max(0, Number.parseInt(cases || "0", 10) || 0);
@@ -127,6 +141,8 @@ export default function IssueStockScreen() {
 	const calculatedTotalUnits =
 		enteredCases * currentUnitsPerCase + enteredUnits;
 	const availableStock = selectedProduct?.stock || 0;
+	const availableCases = Math.floor(availableStock / currentUnitsPerCase);
+	const availableLoose = availableStock % currentUnitsPerCase;
 	const isStockExceeded = calculatedTotalUnits > availableStock;
 	const calculatedValue =
 		calculatedTotalUnits *
@@ -151,6 +167,12 @@ export default function IssueStockScreen() {
 			totalValue: totalVal,
 		};
 	}, [cart]);
+
+	// Quick step handlers for Cases
+	const handleStepCases = (delta: number) => {
+		const next = Math.max(0, enteredCases + delta);
+		setCases(next.toString());
+	};
 
 	const handleAddCurrentToCart = () => {
 		if (!selectedProduct) {
@@ -187,7 +209,7 @@ export default function IssueStockScreen() {
 
 		toast.show({
 			variant: "success",
-			label: `${selectedProduct.name} added to manifest`,
+			label: `${selectedProduct.name} added to dispatch manifest`,
 		});
 
 		// Reset inputs
@@ -251,7 +273,6 @@ export default function IssueStockScreen() {
 								label: `Stock successfully issued to ${workerDisplayName}!`,
 							});
 
-							// Reset & navigate back or to workers screen
 							setCart([]);
 							setSelectedProduct(null);
 							setCases("");
@@ -296,7 +317,7 @@ export default function IssueStockScreen() {
 					className="flex-1"
 					contentContainerStyle={{
 						padding: 16,
-						paddingBottom: insets.bottom + 100,
+						paddingBottom: insets.bottom + 120,
 					}}
 					showsVerticalScrollIndicator={false}
 					refreshControl={
@@ -307,7 +328,9 @@ export default function IssueStockScreen() {
 						/>
 					}
 				>
-					{/* STEP 1: SELECT WORKER */}
+					{/* ══════════════════════════════════════════════════════════════
+					    STEP 1: SELECT WORKER (Hero Card with Sheet Picker)
+					══════════════════════════════════════════════════════════════ */}
 					<View className="mb-5">
 						<View className="mb-2.5 flex-row items-center justify-between">
 							<View className="flex-row items-center">
@@ -315,103 +338,59 @@ export default function IssueStockScreen() {
 									<Text className="font-bold text-white text-xs">1</Text>
 								</View>
 								<Text className="font-bold text-base text-slate-900 dark:text-white">
-									Select Field Worker
+									Select Field Worker / Van
 								</Text>
 							</View>
-							{selectedMember && (
-								<Text className="font-semibold text-emerald-600 text-xs dark:text-emerald-400">
-									Selected:{" "}
-									{selectedMember?.user?.name ||
-										selectedMember?.user?.email ||
-										"Worker"}
-								</Text>
+
+							{members && members.length > 1 && (
+								<Pressable
+									onPress={() => setWorkerPickerVisible(true)}
+									className="rounded-lg bg-accent/10 px-2.5 py-1 active:bg-accent/20"
+								>
+									<Text className="font-bold text-accent text-xs">
+										Change Worker ▾
+									</Text>
+								</Pressable>
 							)}
 						</View>
 
-						{!members || members.length === 0 ? (
-							<Card className="items-center border border-slate-100 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-								<Text className="font-medium text-slate-400 text-xs dark:text-zinc-500">
-									No workers or delivery agents found in this organization.
-								</Text>
-							</Card>
-						) : (
-							<ScrollView
-								horizontal
-								showsHorizontalScrollIndicator={false}
-								className="-mx-1 px-1"
-							>
-								<View className="flex-row gap-2.5 py-1">
-									{members.map((member) => {
-										const isSelected = selectedMember?.id === member.id;
-										return (
-											<Pressable
-												key={member.id}
-												onPress={() => setSelectedMember(member)}
-												className={`flex-row items-center rounded-2xl border p-3 shadow-xs active:opacity-90 ${
-													isSelected
-														? "border-accent bg-accent/10 dark:border-accent dark:bg-accent/20"
-														: "border-slate-200/80 bg-white dark:border-zinc-800 dark:bg-zinc-900"
-												}`}
-											>
-												<View
-													className={`mr-2.5 h-10 w-10 items-center justify-center rounded-full ${
-														isSelected
-															? "bg-accent"
-															: "bg-slate-100 dark:bg-zinc-800"
-													}`}
-												>
-													<Text
-														className={`font-black text-sm ${
-															isSelected
-																? "text-white"
-																: "text-slate-700 dark:text-zinc-300"
-														}`}
-													>
-														{(member?.user?.name || member?.user?.email || "W")
-															.trim()
-															.charAt(0)
-															.toUpperCase()}
-													</Text>
-												</View>
-												<View className="pr-2">
-													<Text
-														numberOfLines={1}
-														className={`font-bold text-sm ${
-															isSelected
-																? "text-accent"
-																: "text-slate-900 dark:text-white"
-														}`}
-													>
-														{member?.user?.name ||
-															member?.user?.email ||
-															`Worker ${member.id?.slice(-4) || ""}`}
-													</Text>
-													<Text
-														numberOfLines={1}
-														className="font-medium text-slate-400 text-xs dark:text-zinc-500"
-													>
-														{member?.user?.email ||
-															(member.role === "admin"
-																? "Admin / Driver"
-																: "Field Agent")}
-													</Text>
-												</View>
-												{isSelected && (
-													<Ionicons
-														name="checkmark-circle"
-														size={18}
-														color={themeAccent}
-													/>
-												)}
-											</Pressable>
-										);
-									})}
+						{/* Active Worker Card */}
+						<Pressable
+							onPress={() => setWorkerPickerVisible(true)}
+							className="rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-sm active:opacity-90 dark:border-zinc-800 dark:bg-zinc-900"
+						>
+							<View className="flex-row items-center justify-between">
+								<View className="flex-row items-center">
+									<View className="mr-3 h-11 w-11 items-center justify-center rounded-2xl bg-accent/15">
+										<Ionicons name="person" size={22} color={themeAccent} />
+									</View>
+									<View>
+										<Text className="font-bold text-base text-slate-900 dark:text-white">
+											{selectedMember?.user?.name ||
+												selectedMember?.user?.email ||
+												"Select Worker"}
+										</Text>
+										<Text className="text-slate-400 text-xs">
+											{selectedMember?.user?.email || "Delivery Van Rep"} •{" "}
+											{selectedMember?.role === "admin"
+												? "Admin"
+												: "Field Worker"}
+										</Text>
+									</View>
 								</View>
-							</ScrollView>
-						)}
+
+								<Ionicons
+									name="chevron-forward"
+									size={18}
+									color={themeColorForeground}
+								/>
+							</View>
+						</Pressable>
 					</View>
 
-					{/* STEP 2: SELECT PRODUCT & CONFIGURE QUANTITY */}
+					{/* ══════════════════════════════════════════════════════════════
+					    STEP 2: SELECT PRODUCT & CONFIGURE CASES
+					══════════════════════════════════════════════════════════════ */}
 					<View className="mb-5">
 						<View className="mb-2.5 flex-row items-center justify-between">
 							<View className="flex-row items-center">
@@ -419,19 +398,19 @@ export default function IssueStockScreen() {
 									<Text className="font-bold text-white text-xs">2</Text>
 								</View>
 								<Text className="font-bold text-base text-slate-900 dark:text-white">
-									Select Product & Quantity
+									Select Product & Dispatch Load
 								</Text>
 							</View>
 						</View>
 
-						{/* Product Selector Card */}
+						{/* Product Selector Button Card */}
 						<Pressable
 							onPress={() => setShowProductModal(true)}
 							className="mb-3 flex-row items-center justify-between rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-sm active:opacity-90 dark:border-zinc-800 dark:bg-zinc-900"
 						>
 							<View className="flex-1 flex-row items-center pr-3">
-								<View className="mr-3 h-10 w-10 items-center justify-center rounded-xl bg-accent/15">
-									<Ionicons name="cube-outline" size={20} color={themeAccent} />
+								<View className="mr-3 h-11 w-11 items-center justify-center rounded-2xl bg-accent/15">
+									<Ionicons name="cube-outline" size={22} color={themeAccent} />
 								</View>
 								<View className="flex-1">
 									<Text
@@ -440,12 +419,12 @@ export default function IssueStockScreen() {
 									>
 										{selectedProduct
 											? selectedProduct.name
-											: "Tap to choose a product..."}
+											: "Tap to choose product from catalog..."}
 									</Text>
 									<Text className="mt-0.5 font-medium text-slate-400 text-xs dark:text-zinc-500">
 										{selectedProduct
 											? `${selectedProduct.packSize ? `${selectedProduct.packSize} • ` : ""}${selectedProduct.unitsPerCase} units/case • Stock: ${selectedProduct.stock} ${selectedProduct.unit || "pcs"}`
-											: `${products.length} products available in catalog`}
+											: `${availableProducts.length} items available in warehouse`}
 									</Text>
 								</View>
 							</View>
@@ -459,104 +438,136 @@ export default function IssueStockScreen() {
 						{/* Quantity Input Section (When product is selected) */}
 						{selectedProduct && (
 							<Card className="border border-slate-100 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-								{/* Available Warehouse Stock Info Banner */}
-								<View className="mb-4 flex-row items-center justify-between rounded-xl bg-slate-50 p-3 dark:bg-zinc-800/60">
+								{/* Warehouse Available Stock Strip */}
+								<View className="mb-4 flex-row items-center justify-between rounded-2xl bg-slate-50 p-3.5 dark:bg-zinc-800/60">
 									<View>
-										<Text className="font-medium text-slate-500 text-xs dark:text-zinc-400">
-											Warehouse Stock
+										<Text className="font-semibold text-slate-500 text-xs dark:text-zinc-400">
+											Warehouse Godown Stock:
 										</Text>
-										<Text className="font-black text-emerald-600 text-lg dark:text-emerald-400">
-											{selectedProduct.stock || 0}{" "}
-											{selectedProduct.unit || "pcs"}
-										</Text>
+										<View className="mt-0.5 flex-row items-baseline gap-1.5">
+											<Text className="font-black text-emerald-600 text-xl dark:text-emerald-400">
+												{availableCases} Cases
+											</Text>
+											{availableLoose > 0 && (
+												<Text className="font-bold text-emerald-700 text-xs dark:text-emerald-300">
+													+{availableLoose} loose
+												</Text>
+											)}
+										</View>
 									</View>
+
 									<View className="items-end">
-										<Text className="font-medium text-slate-400 text-xs dark:text-zinc-500">
-											Packing Size
+										<Text className="font-semibold text-slate-400 text-xs">
+											Case Packing
 										</Text>
 										<Text className="font-bold text-slate-700 text-xs dark:text-zinc-300">
-											{selectedProduct.unitsPerCase} pcs / case
+											{currentUnitsPerCase} pcs / case
+										</Text>
+										<Text className="font-semibold text-[11px] text-slate-400">
+											Rate: ₹
+											{selectedProduct.sellingRate ||
+												selectedProduct.purchaseRate ||
+												0}
 										</Text>
 									</View>
 								</View>
 
-								{/* Dual Inputs: Cases & Loose Units */}
-								<View className="mb-3 flex-row gap-3">
-									{/* Cases Input */}
-									<View className="flex-1">
-										<Text className="mb-1.5 font-bold text-slate-700 text-xs dark:text-zinc-300">
-											Cases / Crates
-										</Text>
-										<View className="flex-row items-center rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2.5 dark:border-zinc-700 dark:bg-zinc-800">
+								{/* PRIMARY CASES STEPPER (Cases-First) */}
+								<View className="mb-3">
+									<Text className="mb-1.5 font-bold text-slate-700 text-xs uppercase tracking-wider dark:text-zinc-300">
+										Cases to Dispatch *
+									</Text>
+
+									<View className="flex-row items-center gap-2">
+										<Pressable
+											onPress={() => handleStepCases(-1)}
+											disabled={enteredCases <= 0}
+											className="h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 active:bg-slate-200 disabled:opacity-40 dark:bg-zinc-800"
+										>
+											<Ionicons
+												name="remove"
+												size={24}
+												color={themeColorForeground}
+											/>
+										</Pressable>
+
+										<View className="flex-1 flex-row items-center rounded-2xl border border-slate-200 bg-slate-50/60 px-4 py-2 dark:border-zinc-700 dark:bg-zinc-800">
 											<TextInput
-												placeholder="0"
-												placeholderTextColor="#94a3b8"
-												keyboardType="number-pad"
 												value={cases}
 												onChangeText={setCases}
-												className="flex-1 font-bold text-base text-slate-900 dark:text-white"
-											/>
-											<Text className="font-semibold text-slate-400 text-xs">
-												cases
-											</Text>
-										</View>
-									</View>
-
-									{/* Loose Units Input */}
-									<View className="flex-1">
-										<Text className="mb-1.5 font-bold text-slate-700 text-xs dark:text-zinc-300">
-											Loose Units / Bottles
-										</Text>
-										<View className="flex-row items-center rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2.5 dark:border-zinc-700 dark:bg-zinc-800">
-											<TextInput
 												placeholder="0"
 												placeholderTextColor="#94a3b8"
 												keyboardType="number-pad"
-												value={units}
-												onChangeText={setUnits}
-												className="flex-1 font-bold text-base text-slate-900 dark:text-white"
+												className="flex-1 text-center font-black text-2xl text-slate-900 dark:text-white"
 											/>
-											<Text className="font-semibold text-slate-400 text-xs">
-												{selectedProduct.unit || "pcs"}
+											<Text className="font-bold text-slate-400 text-xs">
+												Cases
 											</Text>
 										</View>
+
+										<Pressable
+											onPress={() => handleStepCases(1)}
+											className="h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 active:bg-slate-200 dark:bg-zinc-800"
+										>
+											<Ionicons
+												name="add"
+												size={24}
+												color={themeColorForeground}
+											/>
+										</Pressable>
 									</View>
 								</View>
 
-								{/* Quick Preset Buttons */}
-								<View className="mb-4 flex-row flex-wrap gap-2">
+								{/* QUICK PRESET BUTTONS FOR CASES */}
+								<View className="mb-3 flex-row flex-wrap gap-2">
 									{[1, 2, 5, 10].map((preset) => (
 										<Pressable
 											key={preset}
 											onPress={() => setCases(preset.toString())}
-											className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 active:bg-slate-100 dark:border-zinc-800 dark:bg-zinc-800"
+											className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 active:bg-slate-100 dark:border-zinc-800 dark:bg-zinc-800"
 										>
-											<Text className="font-semibold text-slate-700 text-xs dark:text-zinc-300">
-												+{preset} Case{preset > 1 ? "s" : ""}
+											<Text className="font-bold text-slate-700 text-xs dark:text-zinc-300">
+												+{preset} cs
 											</Text>
 										</Pressable>
 									))}
 									<Pressable
 										onPress={() => {
-											const maxCases = Math.floor(
-												availableStock / currentUnitsPerCase,
-											);
-											const remUnits = availableStock % currentUnitsPerCase;
-											setCases(maxCases.toString());
-											setUnits(remUnits.toString());
+											setCases(availableCases.toString());
+											setUnits(availableLoose.toString());
 										}}
-										className="rounded-lg border border-accent/40 bg-accent/10 px-2.5 py-1 active:bg-accent/20"
+										className="rounded-xl border border-accent/40 bg-accent/10 px-3 py-1.5 active:bg-accent/20"
 									>
-										<Text className="font-bold text-accent text-xs">
-											All Stock
+										<Text className="font-black text-accent text-xs">
+											All Stock ({availableCases} cs)
 										</Text>
 									</Pressable>
 								</View>
 
-								{/* Live Total Calculated Badge */}
+								{/* SECONDARY FRACTIONAL LOOSE PIECES */}
+								<View className="mb-3">
+									<Text className="mb-1 font-semibold text-slate-500 text-xs dark:text-zinc-400">
+										+ Additional Loose Pieces (Optional):
+									</Text>
+									<View className="flex-row items-center rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800">
+										<TextInput
+											placeholder="0"
+											placeholderTextColor="#94a3b8"
+											keyboardType="number-pad"
+											value={units}
+											onChangeText={setUnits}
+											className="flex-1 font-bold text-base text-slate-900 dark:text-white"
+										/>
+										<Text className="font-semibold text-slate-400 text-xs">
+											{selectedProduct.unit || "pcs"}
+										</Text>
+									</View>
+								</View>
+
+								{/* LIVE CALCULATION PILL */}
 								{calculatedTotalUnits > 0 && (
 									<View
-										className={`mb-4 rounded-xl p-3 ${
+										className={`mb-3.5 rounded-2xl p-3 ${
 											isStockExceeded
 												? "bg-red-50 dark:bg-red-950/30"
 												: "bg-emerald-50 dark:bg-emerald-950/30"
@@ -604,14 +615,14 @@ export default function IssueStockScreen() {
 								<Pressable
 									onPress={handleAddCurrentToCart}
 									disabled={calculatedTotalUnits <= 0 || isStockExceeded}
-									className={`flex-row items-center justify-center rounded-xl py-3 active:opacity-90 ${
+									className={`flex-row items-center justify-center rounded-2xl py-3.5 active:opacity-90 ${
 										calculatedTotalUnits <= 0 || isStockExceeded
 											? "bg-slate-200 dark:bg-zinc-800"
 											: "bg-accent shadow-sm"
 									}`}
 								>
 									<Ionicons
-										name="add-circle-outline"
+										name="add-circle"
 										size={18}
 										color={
 											calculatedTotalUnits <= 0 || isStockExceeded
@@ -627,14 +638,16 @@ export default function IssueStockScreen() {
 												: "text-white"
 										}`}
 									>
-										Add to Van Manifest
+										+ Add to Van Dispatch Manifest
 									</Text>
 								</Pressable>
 							</Card>
 						)}
 					</View>
 
-					{/* STEP 3: VAN MANIFEST (ITEMS ADDED) */}
+					{/* ══════════════════════════════════════════════════════════════
+					    STEP 3: VAN DISPATCH MANIFEST (ITEMS QUEUED)
+					══════════════════════════════════════════════════════════════ */}
 					{cart.length > 0 && (
 						<View className="mb-5">
 							<View className="mb-2.5 flex-row items-center justify-between">
@@ -643,7 +656,7 @@ export default function IssueStockScreen() {
 										<Text className="font-bold text-white text-xs">3</Text>
 									</View>
 									<Text className="font-bold text-base text-slate-900 dark:text-white">
-										Van Manifest ({cart.length} items)
+										Dispatch Manifest ({cart.length} items)
 									</Text>
 								</View>
 								<Pressable
@@ -663,7 +676,7 @@ export default function IssueStockScreen() {
 										Total Dispatch Load
 									</Text>
 									<Text className="font-black text-lg text-sky-900 dark:text-sky-200">
-										{cartSummary.totalUnits} Units
+										{cartSummary.totalCases} cs ({cartSummary.totalUnits} units)
 									</Text>
 								</View>
 								<View className="items-end">
@@ -681,7 +694,7 @@ export default function IssueStockScreen() {
 								{cart.map((item) => (
 									<Card
 										key={item.product._id}
-										className="border border-slate-100 bg-white p-3 shadow-xs dark:border-zinc-800 dark:bg-zinc-900"
+										className="border border-slate-100 bg-white p-3.5 shadow-xs dark:border-zinc-800 dark:bg-zinc-900"
 									>
 										<View className="flex-row items-center justify-between">
 											<View className="flex-1 pr-3">
@@ -719,7 +732,9 @@ export default function IssueStockScreen() {
 						</View>
 					)}
 
-					{/* STEP 4: DISPATCH NOTE */}
+					{/* ══════════════════════════════════════════════════════════════
+					    STEP 4: DISPATCH NOTE
+					══════════════════════════════════════════════════════════════ */}
 					{cart.length > 0 && (
 						<View className="mb-4">
 							<Text className="mb-2 font-bold text-slate-700 text-xs dark:text-zinc-300">
@@ -751,8 +766,8 @@ export default function IssueStockScreen() {
 										"Worker"}
 								</Text>
 								<Text className="font-black text-base text-slate-900 dark:text-white">
-									{cartSummary?.totalUnits ?? 0} Units (₹
-									{(cartSummary?.totalValue ?? 0).toLocaleString("en-IN")})
+									{cartSummary.totalCases} cs ({cartSummary?.totalUnits ?? 0}{" "}
+									pcs)
 								</Text>
 							</View>
 
@@ -781,121 +796,177 @@ export default function IssueStockScreen() {
 					</View>
 				)}
 
-				{/* PRODUCT PICKER MODAL */}
-				<Modal
+				{/* ══════════════════════════════════════════════════════════════
+				    HEROUI NATIVE BOTTOM SHEET: PRODUCT PICKER
+				══════════════════════════════════════════════════════════════ */}
+				<HeroBottomSheet
 					visible={showProductModal}
-					animationType="slide"
-					transparent
-					onRequestClose={() => setShowProductModal(false)}
+					onClose={() => setShowProductModal(false)}
+					title="Select Product to Issue"
+					subtitle="Choose an item from the warehouse catalog"
+					snapPoints={["70%", "90%"]}
 				>
-					<View className="flex-1 justify-end bg-black/60">
-						<View
-							style={{
-								maxHeight: "80%",
-								paddingBottom: Math.max(insets.bottom, 16),
-							}}
-							className="rounded-t-3xl bg-white p-4 shadow-xl dark:bg-zinc-900"
-						>
-							{/* Modal Header */}
-							<View className="mb-3 flex-row items-center justify-between border-slate-100 border-b pb-3 dark:border-zinc-800">
-								<Text className="font-bold text-lg text-slate-900 dark:text-white">
-									Select Product
-								</Text>
-								<Pressable
-									onPress={() => setShowProductModal(false)}
-									className="h-8 w-8 items-center justify-center rounded-full bg-slate-100 dark:bg-zinc-800"
-								>
-									<Ionicons
-										name="close"
-										size={18}
-										color={themeColorForeground}
-									/>
-								</Pressable>
-							</View>
-
-							{/* Search Bar */}
-							<View className="mb-3 flex-row items-center rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-zinc-700 dark:bg-zinc-800">
-								<Ionicons
-									name="search"
-									size={18}
-									color="#94a3b8"
-									style={{ marginRight: 8 }}
-								/>
-								<TextInput
-									placeholder="Search product by name or pack size..."
-									placeholderTextColor="#94a3b8"
-									value={productSearch}
-									onChangeText={setProductSearch}
-									className="flex-1 font-medium text-slate-900 text-sm dark:text-white"
-								/>
-								{productSearch.length > 0 && (
-									<Pressable onPress={() => setProductSearch("")}>
-										<Ionicons name="close-circle" size={16} color="#94a3b8" />
-									</Pressable>
-								)}
-							</View>
-
-							{/* Products List */}
-							<ScrollView
-								showsVerticalScrollIndicator={false}
-								className="gap-2"
-							>
-								{availableProducts.length === 0 ? (
-									<View className="items-center py-10">
-										<Ionicons name="cube-outline" size={36} color="#94a3b8" />
-										<Text className="mt-2 font-medium text-slate-400 text-xs dark:text-zinc-500">
-											No products match your search
-										</Text>
-									</View>
-								) : (
-									availableProducts.map((p) => {
-										const inStock = (p.stock || 0) > 0;
-										return (
-											<Pressable
-												key={p._id}
-												onPress={() => {
-													setSelectedProduct(p);
-													setCases("");
-													setUnits("");
-													setShowProductModal(false);
-												}}
-												className="mb-2 flex-row items-center justify-between rounded-2xl border border-slate-100 bg-slate-50/80 p-3.5 active:bg-slate-100 dark:border-zinc-800 dark:bg-zinc-800/60"
-											>
-												<View className="flex-1 pr-3">
-													<Text
-														numberOfLines={1}
-														className="font-bold text-slate-900 text-sm dark:text-white"
-													>
-														{p.name}
-													</Text>
-													<Text className="mt-0.5 font-medium text-slate-400 text-xs dark:text-zinc-500">
-														{p.packSize ? `${p.packSize} • ` : ""}
-														{p.unitsPerCase} pcs/case
-													</Text>
-												</View>
-
-												<View className="items-end">
-													<Text
-														className={`font-black text-sm ${
-															inStock
-																? "text-emerald-600 dark:text-emerald-400"
-																: "text-red-500"
-														}`}
-													>
-														{p.stock || 0} {p.unit || "pcs"}
-													</Text>
-													<Text className="font-semibold text-[11px] text-slate-400 dark:text-zinc-500">
-														₹{p.sellingRate || p.purchaseRate || 0}
-													</Text>
-												</View>
-											</Pressable>
-										);
-									})
-								)}
-							</ScrollView>
-						</View>
+					{/* Search Bar */}
+					<View className="mb-3 flex-row items-center rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-zinc-700 dark:bg-zinc-800">
+						<Ionicons
+							name="search"
+							size={18}
+							color="#94a3b8"
+							style={{ marginRight: 8 }}
+						/>
+						<TextInput
+							placeholder="Search product by name or pack size..."
+							placeholderTextColor="#94a3b8"
+							value={productSearch}
+							onChangeText={setProductSearch}
+							className="flex-1 font-medium text-slate-900 text-sm dark:text-white"
+						/>
+						{productSearch.length > 0 && (
+							<Pressable onPress={() => setProductSearch("")}>
+								<Ionicons name="close-circle" size={16} color="#94a3b8" />
+							</Pressable>
+						)}
 					</View>
-				</Modal>
+
+					{/* Products List */}
+					<ScrollView showsVerticalScrollIndicator={false}>
+						{availableProducts.length === 0 ? (
+							<View className="items-center py-10">
+								<Ionicons name="cube-outline" size={36} color="#94a3b8" />
+								<Text className="mt-2 font-medium text-slate-400 text-xs dark:text-zinc-500">
+									No products match your search
+								</Text>
+							</View>
+						) : (
+							<View className="gap-2">
+								{availableProducts.map((p) => {
+									const inStock = (p.stock || 0) > 0;
+									const pCases = Math.floor(
+										(p.stock || 0) / (p.unitsPerCase || 1),
+									);
+									const pUnits = (p.stock || 0) % (p.unitsPerCase || 1);
+
+									return (
+										<Pressable
+											key={p._id}
+											onPress={() => {
+												setSelectedProduct(p);
+												setCases("");
+												setUnits("");
+												setShowProductModal(false);
+											}}
+											className="flex-row items-center justify-between rounded-2xl border border-slate-100 bg-slate-50/80 p-3.5 active:bg-slate-100 dark:border-zinc-800 dark:bg-zinc-800/60"
+										>
+											<View className="flex-1 pr-3">
+												<Text
+													numberOfLines={1}
+													className="font-bold text-slate-900 text-sm dark:text-white"
+												>
+													{p.name}
+												</Text>
+												<Text className="mt-0.5 font-medium text-slate-400 text-xs dark:text-zinc-500">
+													{p.packSize ? `${p.packSize} • ` : ""}
+													{p.unitsPerCase} pcs/case
+												</Text>
+											</View>
+
+											<View className="items-end">
+												<Text
+													className={`font-black text-sm ${
+														inStock
+															? "text-emerald-600 dark:text-emerald-400"
+															: "text-red-500"
+													}`}
+												>
+													{pCases} cs {pUnits > 0 ? `+ ${pUnits} pcs` : ""}
+												</Text>
+												<Text className="font-semibold text-[11px] text-slate-400 dark:text-zinc-500">
+													Rate: ₹{p.sellingRate || p.purchaseRate || 0}
+												</Text>
+											</View>
+										</Pressable>
+									);
+								})}
+							</View>
+						)}
+					</ScrollView>
+				</HeroBottomSheet>
+
+				{/* ══════════════════════════════════════════════════════════════
+				    HEROUI NATIVE BOTTOM SHEET: WORKER PICKER
+				══════════════════════════════════════════════════════════════ */}
+				<HeroBottomSheet
+					visible={workerPickerVisible}
+					onClose={() => setWorkerPickerVisible(false)}
+					title="Select Field Worker / Van"
+					subtitle="Pick a delivery agent or worker to issue stock to"
+					snapPoints={["60%", "85%"]}
+				>
+					{/* Search in workers */}
+					<View className="mb-3 flex-row items-center rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800">
+						<Ionicons
+							name="search"
+							size={14}
+							color="#94a3b8"
+							style={{ marginRight: 6 }}
+						/>
+						<TextInput
+							placeholder="Search worker by name or email..."
+							placeholderTextColor="#94a3b8"
+							value={workerSearch}
+							onChangeText={setWorkerSearch}
+							className="flex-1 font-medium text-slate-900 text-xs dark:text-white"
+						/>
+					</View>
+
+					{/* Members list */}
+					<ScrollView showsVerticalScrollIndicator={false}>
+						<View className="gap-2">
+							{filteredMembers.map((m) => {
+								const isSelected = selectedMember?.userId === m.userId;
+								return (
+									<Pressable
+										key={m.id}
+										onPress={() => {
+											setSelectedMember(m);
+											setWorkerPickerVisible(false);
+										}}
+										className={`flex-row items-center justify-between rounded-2xl border p-3 ${
+											isSelected
+												? "border-sky-500 bg-sky-50 dark:border-sky-500 dark:bg-sky-950/30"
+												: "border-slate-100 bg-slate-50/50 active:bg-slate-100 dark:border-zinc-800 dark:bg-zinc-800/40"
+										}`}
+									>
+										<View className="flex-row items-center gap-3">
+											<View className="h-9 w-9 items-center justify-center rounded-xl bg-slate-200/60 dark:bg-zinc-700">
+												<Ionicons
+													name="person"
+													size={16}
+													color={themeColorForeground}
+												/>
+											</View>
+											<View>
+												<Text className="font-bold text-slate-900 text-xs dark:text-white">
+													{m.user.name}
+												</Text>
+												<Text className="font-medium text-[11px] text-slate-400 dark:text-zinc-500">
+													{m.user.email} • {m.role}
+												</Text>
+											</View>
+										</View>
+										{isSelected && (
+											<Ionicons
+												name="checkmark-circle"
+												size={20}
+												color="#0284c7"
+											/>
+										)}
+									</Pressable>
+								);
+							})}
+						</View>
+					</ScrollView>
+				</HeroBottomSheet>
 			</Container>
 		</KeyboardAvoidingView>
 	);
