@@ -1,6 +1,7 @@
 import type { AppSession as Session, AppUser as User } from "@msl/auth";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
+import { ObjectId } from "mongodb";
 
 import { resolveOrganizationId } from "@/lib/org-context";
 import { requireAuth } from "@/middleware/authentication.middleware";
@@ -288,9 +289,15 @@ app.patch("/metadata", requireAuth, requireAdmin, async (c) => {
 		}
 
 		// Get existing org - check both id and _id fields for compatibility
-		const existingOrg = await db.collection("organization").findOne({
-			$or: [{ id: organizationId }, { _id: organizationId }],
-		});
+		let orgQuery: any = { id: organizationId };
+
+		if (ObjectId.isValid(organizationId)) {
+			orgQuery = {
+				$or: [{ id: organizationId }, { _id: new ObjectId(organizationId) }],
+			};
+		}
+
+		const existingOrg = await db.collection("organization").findOne(orgQuery);
 
 		console.log("Found org:", existingOrg ? "YES" : "NO");
 
@@ -320,17 +327,22 @@ app.patch("/metadata", requireAuth, requireAdmin, async (c) => {
 		}
 
 		// Update in MongoDB - use $or for compatibility with different id fields
-		const updateResult = await db.collection("organization").updateOne(
-			{
-				$or: [{ id: organizationId }, { _id: organizationId }],
-			},
-			{
+		let updateQuery: any = { id: organizationId };
+
+		if (ObjectId.isValid(organizationId)) {
+			updateQuery = {
+				$or: [{ id: organizationId }, { _id: new ObjectId(organizationId) }],
+			};
+		}
+
+		const updateResult = await db
+			.collection("organization")
+			.updateOne(updateQuery, {
 				$set: {
 					metadata: updatedMetadata,
 					updatedAt: new Date(),
 				},
-			},
-		);
+			});
 
 		console.log("MongoDB update result:", updateResult);
 		console.log("Updated metadata:", updatedMetadata);
