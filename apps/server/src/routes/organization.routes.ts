@@ -260,7 +260,7 @@ app.get("/current", requireAuth, async (c) => {
 		const organizationId = await resolveOrganizationId(c);
 
 		const org = await db.collection("organization").findOne({
-			$or: [{ _id: organizationId }, { id: organizationId }],
+			id: organizationId,
 		});
 
 		if (!org) {
@@ -298,7 +298,7 @@ app.patch("/update-metadata", requireAuth, requireAdmin, async (c) => {
 
 		// Get existing org to preserve current metadata
 		const existingOrg = await db.collection("organization").findOne({
-			$or: [{ _id: organizationId }, { id: organizationId }],
+			id: organizationId,
 		});
 
 		if (!existingOrg) {
@@ -332,7 +332,7 @@ app.patch("/update-metadata", requireAuth, requireAdmin, async (c) => {
 
 		// Update organization
 		const result = await db.collection("organization").findOneAndUpdate(
-			{ $or: [{ _id: organizationId }, { id: organizationId }] },
+			{ id: organizationId },
 			{
 				$set: {
 					metadata: updatedMetadata,
