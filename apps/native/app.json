@@ -2,7 +2,7 @@
 	"expo": {
 		"name": "msl",
 		"slug": "msl",
-		"version": "1.0.2",
+		"version": "1.0.3.alpha",
 		"orientation": "portrait",
 		"icon": "./assets/images/msl-logo.png",
 		"scheme": "msl",
@@ -44,7 +44,8 @@
 						"backgroundColor": "#090d16"
 					}
 				}
-			]
+			],
+			"expo-sharing"
 		],
 		"experiments": {
 			"typedRoutes": true,

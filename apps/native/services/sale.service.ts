@@ -87,6 +87,11 @@ export interface CreateSaleDto {
 	paidAmount?: number;
 	pendingAmount?: number;
 	paymentMethod?: "CASH" | "UPI" | "CARD" | "CREDIT";
+	payments?: Array<{
+		amount: number;
+		paymentMethod: "CASH" | "UPI" | "CARD" | "CREDIT";
+		note?: string;
+	}>;
 	paymentStatus?: Sale["paymentStatus"];
 	status?: Sale["status"];
 	note?: string;

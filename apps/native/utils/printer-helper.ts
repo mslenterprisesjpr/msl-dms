@@ -13,12 +13,9 @@ import { PermissionsAndroid, Platform } from "react-native";
 
 const LAST_PRINTER_KEY = "@msl_last_pos_printer";
 
-// SMALL_FONT = true -> Font B (small). Perfect for 58mm mobile thermal printers.
-export const SMALL_FONT = true;
-
-// 58mm paper: normal 32 chars, small font 42 chars
-// 80mm paper: normal 48 chars, small font 64 chars
-export const LINE_WIDTH = SMALL_FONT ? 42 : 32;
+// 2-inch (58mm) mobile thermal printers: standard 32 characters per line
+export const SMALL_FONT = false;
+export const LINE_WIDTH = 32;
 
 // ESC ! 1 -> Font B (small condensed font)
 const SMALL_FONT_CMD = "\x1B!\x01";
@@ -58,6 +55,11 @@ export interface ReceiptData {
 	paidAmount?: number;
 	pendingAmount?: number;
 	paymentStatus?: string;
+	payments?: Array<{
+		amount: number;
+		paymentMethod: string;
+		paymentDate?: string;
+	}>;
 	note?: string;
 }
 
@@ -164,8 +166,10 @@ export const printRaw = (text: string) =>
 const line = (ch = "-") => ch.repeat(LINE_WIDTH);
 
 export const leftRight = (left: string, right: string): string => {
-	const space = Math.max(LINE_WIDTH - left.length - right.length, 1);
-	return left + " ".repeat(space) + right + "\n";
+	const maxLeft = Math.max(0, LINE_WIDTH - right.length - 1);
+	const safeLeft = left.length > maxLeft ? left.slice(0, maxLeft) : left;
+	const space = Math.max(LINE_WIDTH - safeLeft.length - right.length, 1);
+	return safeLeft + " ".repeat(space) + right + "\n";
 };
 
 export const formatCurrency = (amount: number): string =>
@@ -185,12 +189,12 @@ export const formatTime = (date: Date): string =>
 		hour12: true,
 	});
 
-/* --------- Column helpers: Item(18) Qty(5) Rate(8) Amt(8) = 39+3 = 42 --------- */
+/* --------- Column helpers for 2-inch (32 chars): Item(14) Qty(5) Rate(6) Amt(7) = 32 --------- */
 
-const C_ITEM = 18;
+const C_ITEM = 14;
 const C_QTY = 5;
-const C_RATE = 8;
-const C_AMT = 8;
+const C_RATE = 6;
+const C_AMT = 7;
 
 const padR = (s: string, n: number) => s.slice(0, n).padEnd(n);
 const padL = (s: string, n: number) => s.slice(0, n).padStart(n);
@@ -213,14 +217,14 @@ export const buildReceiptText = (data: ReceiptData): string => {
 	if (data.storeAddress) r += `<C>${data.storeAddress}</C>\n`;
 	if (data.gstin) r += `<C>GSTIN: ${data.gstin}</C>\n`;
 	if (data.phone) r += `<C>Ph: ${data.phone}</C>\n`;
-	r += `<C>${line("=")}</C>\n`;
+	r += `${line("=")}\n`;
 
 	// ── Bill & Customer details ───────────────────────────────────────────────
 	r += `Invoice: #${data.billNumber}\n`;
 	r += `Date   : ${formatDate(data.date)} ${formatTime(data.date)}\n`;
 	if (data.customerName) r += `Party  : ${data.customerName}\n`;
 	if (data.customerPhone) r += `Phone  : ${data.customerPhone}\n`;
-	if (data.customerGst) r += `GSTIN  : ${data.customerGst}\n`;
+	if (data.customerGst) r += `Party GSTIN: ${data.customerGst}\n`;
 	r += `${line("-")}\n`;
 
 	// ── Items table ───────────────────────────────────────────────────────────
@@ -255,19 +259,8 @@ export const buildReceiptText = (data: ReceiptData): string => {
 	r += `${line("-")}\n`;
 
 	// ── Financial totals ─────────────────────────────────────────────────────
-	const subtotal = data.subtotal || computedSubtotal;
-	const discount = data.discount || 0;
-	const taxableValue = subtotal - discount;
-
-	r += leftRight("Subtotal:", `Rs ${subtotal.toFixed(2)}`);
-	if (discount > 0) {
-		r += leftRight("Discount:", `-Rs ${discount.toFixed(2)}`);
-	}
-	r += leftRight("Taxable Value:", `Rs ${taxableValue.toFixed(2)}`);
-	r += `${line("-")}\n`;
-
-	// ── GST Breakup (slab-wise) ───────────────────────────────────────────────
-	// Group items by gstRate and compute CGST + SGST per slab
+	// Compute Base / Taxable amounts by backing out GST from item totals (inclusive pricing)
+	let totalTaxable = 0;
 	type GstSlabEntry = {
 		taxable: number;
 		cgst: number;
@@ -278,25 +271,45 @@ export const buildReceiptText = (data: ReceiptData): string => {
 	const gstSlabs = new Map<number, GstSlabEntry>();
 
 	data.items.forEach((item) => {
+		const itemGross = item.total ?? item.quantity * item.price;
 		const rate = item.gstRate ?? 0;
-		if (rate <= 0) return;
-		const itemTot = item.total ?? item.quantity * item.price;
-		const cgstPct = item.cgst ?? rate / 2;
-		const sgstPct = item.sgst ?? rate / 2;
-		const gstAmt = (itemTot * rate) / 100;
-		const entry = gstSlabs.get(rate) ?? {
-			taxable: 0,
-			cgst: 0,
-			sgst: 0,
-			cgstPct,
-			sgstPct,
-		};
-		entry.taxable += itemTot;
-		entry.cgst += gstAmt / 2;
-		entry.sgst += gstAmt / 2;
-		gstSlabs.set(rate, entry);
+
+		let itemTaxable = itemGross;
+		let itemGst = 0;
+		if (rate > 0) {
+			itemTaxable = itemGross / (1 + rate / 100);
+			itemGst = itemGross - itemTaxable;
+		}
+		totalTaxable += itemTaxable;
+
+		if (rate > 0) {
+			const cgstPct = item.cgst ?? rate / 2;
+			const sgstPct = item.sgst ?? rate / 2;
+			const entry = gstSlabs.get(rate) ?? {
+				taxable: 0,
+				cgst: 0,
+				sgst: 0,
+				cgstPct,
+				sgstPct,
+			};
+			entry.taxable += itemTaxable;
+			entry.cgst += itemGst / 2;
+			entry.sgst += itemGst / 2;
+			gstSlabs.set(rate, entry);
+		}
 	});
 
+	const discount = data.discount || 0;
+	const taxableValue = Math.max(0, totalTaxable - discount);
+
+	r += leftRight("Subtotal (Taxable)", totalTaxable.toFixed(2));
+	if (discount > 0) {
+		r += leftRight("Discount", `-${discount.toFixed(2)}`);
+	}
+	r += leftRight("Taxable Value", taxableValue.toFixed(2));
+	r += `${line("-")}\n`;
+
+	// ── GST Breakup (slab-wise) ───────────────────────────────────────────────
 	if (gstSlabs.size > 0) {
 		r += "<CB>GST Breakup</CB>\n";
 		gstSlabs.forEach((entry, rate) => {
@@ -317,23 +330,46 @@ export const buildReceiptText = (data: ReceiptData): string => {
 	const roundOff = Math.round(data.total) - data.total;
 	const roundedTotal = Math.round(data.total);
 
-	r += leftRight("Grand Total:", `Rs ${data.total.toFixed(2)}`);
-	if (Math.abs(roundOff) > 0.001) {
-		r += leftRight(
-			"Round Off:",
-			`${roundOff > 0 ? "+" : ""}${roundOff.toFixed(2)}`,
-		);
-	}
-	r += `<CB>${leftRight("Rounded Total:", `Rs ${roundedTotal}`).trim()}</CB>\n`;
+	r += leftRight("Grand Total", data.total.toFixed(2));
+	r += leftRight(
+		"Round Off",
+		`${roundOff > 0 ? "+" : ""}${roundOff.toFixed(2)}`,
+	);
+	r += `<CB>${leftRight("Rounded Total", roundedTotal.toFixed(2)).trim()}</CB>\n`;
 	r += `${line("-")}\n`;
 
-	// ── Payment ───────────────────────────────────────────────────────────────
-	if (data.paidAmount !== undefined) {
-		r += leftRight("Paid:", `Rs ${data.paidAmount.toFixed(2)}`);
+	// ── Payment Breakup (CASH, UPI, CARD, etc. + Balance Due) ──────────────────
+	const methodTotals: Record<string, number> = {};
+	if (data.payments && data.payments.length > 0) {
+		data.payments.forEach((p) => {
+			const m = (p.paymentMethod || "CASH").toUpperCase();
+			methodTotals[m] = (methodTotals[m] || 0) + (p.amount || 0);
+		});
 	}
+
+	const methodsList = Object.keys(methodTotals);
+	if (methodsList.length > 0) {
+		methodsList.forEach((method) => {
+			r += leftRight(`Paid (${method})`, methodTotals[method].toFixed(2));
+		});
+		if (methodsList.length > 1) {
+			const totalPaid =
+				data.paidAmount ??
+				Object.values(methodTotals).reduce((a, b) => a + b, 0);
+			r += leftRight("Total Paid", totalPaid.toFixed(2));
+		}
+	} else if (data.paidAmount !== undefined && data.paidAmount > 0) {
+		r += leftRight("Paid", data.paidAmount.toFixed(2));
+	} else {
+		r += leftRight("Paid", "0.00");
+	}
+
 	if (data.pendingAmount && data.pendingAmount > 0) {
-		r += leftRight("Balance Due:", `Rs ${data.pendingAmount.toFixed(2)}`);
-		r += "Status: PAYMENT PENDING\n";
+		r += leftRight("Balance Due", data.pendingAmount.toFixed(2));
+		r +=
+			data.paidAmount && data.paidAmount > 0
+				? "Status: PARTIAL PAYMENT\n"
+				: "Status: PAYMENT PENDING\n";
 	} else {
 		r += "Status: FULLY PAID\n";
 	}
@@ -344,12 +380,41 @@ export const buildReceiptText = (data: ReceiptData): string => {
 	}
 
 	// ── Footer ────────────────────────────────────────────────────────────────
-	r += `<C>${line("=")}</C>\n`;
+	r += `${line("=")}\n`;
 	r += "<C>GST Included as applicable.</C>\n";
 	r += "<C>Thank You! Visit Again!</C>\n";
-	r += `<C>${line("=")}</C>\n\n\n\n`;
+	r += `${line("=")}\n\n\n\n`;
 
 	return r;
+};
+
+/**
+ * Clean up raw receipt text for on-screen monospace preview and image sharing:
+ * 1. Strips all hardware command tags (<CB>, </CB>, <C>, </C>, <B>, etc.).
+ * 2. Centers lines that had <C> or <CB> tags within LINE_WIDTH (32 columns).
+ * 3. Keeps all column formatting and spacing perfectly intact without line wrapping.
+ */
+export const formatReceiptForDisplay = (rawText: string): string => {
+	return rawText
+		.split("\n")
+		.map((rawLine) => {
+			const hasCenterTag = /<\/?C[BD]?>/i.test(rawLine);
+			const stripped = rawLine.replace(/<[^>]+>/g, "");
+			const trimmed = stripped.trim();
+			// Center header/footer/breakup titles, but never center 2-column key-value lines
+			if (
+				hasCenterTag &&
+				trimmed.length > 0 &&
+				trimmed.length < LINE_WIDTH &&
+				!/\s{4,}/.test(stripped)
+			) {
+				const pad = Math.max(0, Math.floor((LINE_WIDTH - trimmed.length) / 2));
+				return " ".repeat(pad) + trimmed;
+			}
+			return stripped;
+		})
+		.join("\n")
+		.trim();
 };
 
 /* ------------------------------ Public APIs ------------------------------ */
@@ -368,7 +433,12 @@ export const printReceipt = async (data: ReceiptData) => {
 /** Print Sale object from backend */
 export const printSaleInvoice = async (
 	sale: any,
-	options?: { storeName?: string; phone?: string },
+	options?: {
+		storeName?: string;
+		phone?: string;
+		gstin?: string;
+		address?: string;
+	},
 ) => {
 	const customer = typeof sale.customerId === "object" ? sale.customerId : null;
 	const customerName = customer?.name || "Counter Customer";
@@ -393,7 +463,9 @@ export const printSaleInvoice = async (
 
 	const receiptData: ReceiptData = {
 		storeName: options?.storeName || "MSL ENTERPRISES",
-		phone: options?.phone || "Jaipur, Rajasthan",
+		storeAddress: options?.address || "Jaipur, Rajasthan",
+		phone: options?.phone || "",
+		gstin: options?.gstin || "",
 		billNumber: sale.invoiceNo || sale._id.slice(-6).toUpperCase(),
 		date: new Date(sale.saleDate || sale.createdAt || new Date()),
 		customerName,
@@ -406,6 +478,7 @@ export const printSaleInvoice = async (
 		paidAmount: sale.paidAmount,
 		pendingAmount: sale.pendingAmount,
 		paymentStatus: sale.paymentStatus,
+		payments: sale.payments || [],
 		note: sale.note,
 	};
 

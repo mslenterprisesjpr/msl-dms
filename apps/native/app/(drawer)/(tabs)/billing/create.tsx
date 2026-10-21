@@ -74,10 +74,12 @@ export default function CreateBillScreen() {
 	// Financials & Payment state
 	const [discountText, setDiscountText] = useState("");
 	const [paymentMethod, setPaymentMethod] = useState<
-		"CASH" | "UPI" | "CARD" | "CREDIT"
+		"CASH" | "UPI" | "CARD" | "CREDIT" | "SPLIT"
 	>("CASH");
 	const [isPartialCustom, setIsPartialCustom] = useState(false);
 	const [paidAmountText, setPaidAmountText] = useState("");
+	const [splitCashText, setSplitCashText] = useState("");
+	const [splitUpiText, setSplitUpiText] = useState("");
 	const [note, setNote] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -385,13 +387,25 @@ export default function CreateBillScreen() {
 	// Determine final paid amount based on method and inputs
 	const calculatedPaidAmount = useMemo(() => {
 		if (paymentMethod === "CREDIT") return 0;
+		if (paymentMethod === "SPLIT") {
+			const cash = Number.parseFloat(splitCashText || "0") || 0;
+			const upi = Number.parseFloat(splitUpiText || "0") || 0;
+			return Math.min(netTotal, Math.max(0, cash + upi));
+		}
 		if (isPartialCustom) {
 			const customVal = Number.parseFloat(paidAmountText || "0") || 0;
 			return Math.min(netTotal, Math.max(0, customVal));
 		}
 		// Full payment for CASH, UPI, CARD
 		return netTotal;
-	}, [paymentMethod, isPartialCustom, paidAmountText, netTotal]);
+	}, [
+		paymentMethod,
+		isPartialCustom,
+		paidAmountText,
+		splitCashText,
+		splitUpiText,
+		netTotal,
+	]);
 
 	const calculatedPendingBalance = Math.max(0, netTotal - calculatedPaidAmount);
 
@@ -425,7 +439,25 @@ export default function CreateBillScreen() {
 
 		setIsSubmitting(true);
 		try {
-			// Backend expects: customerId, items (productId, cases, units, price), discount, paymentMethod, paidAmount, note
+			const paymentsList: Array<{
+				amount: number;
+				paymentMethod: "CASH" | "UPI" | "CARD" | "CREDIT";
+			}> = [];
+
+			if (paymentMethod === "SPLIT") {
+				const cash = Number.parseFloat(splitCashText || "0") || 0;
+				const upi = Number.parseFloat(splitUpiText || "0") || 0;
+				if (cash > 0)
+					paymentsList.push({ amount: cash, paymentMethod: "CASH" });
+				if (upi > 0) paymentsList.push({ amount: upi, paymentMethod: "UPI" });
+			} else if (paymentMethod !== "CREDIT" && calculatedPaidAmount > 0) {
+				paymentsList.push({
+					amount: calculatedPaidAmount,
+					paymentMethod,
+				});
+			}
+
+			// Backend expects: customerId, items (productId, cases, units, price), discount, paymentMethod, paidAmount, payments, note
 			const salePayload = {
 				customerId: selectedCustomer._id,
 				items: cart.map((item) => ({
@@ -435,8 +467,9 @@ export default function CreateBillScreen() {
 					price: Math.max(0, Number(item.price) || 0),
 				})),
 				discount: Math.max(0, Number(discount) || 0),
-				paymentMethod,
+				paymentMethod: paymentMethod === "SPLIT" ? "CASH" : paymentMethod,
 				paidAmount: Math.max(0, Number(calculatedPaidAmount) || 0),
+				payments: paymentsList.length > 0 ? paymentsList : undefined,
 				note: note.trim() || undefined,
 			};
 
@@ -897,7 +930,7 @@ export default function CreateBillScreen() {
 								Payment Mode:
 							</Text>
 							<View className="mb-3 flex-row gap-2">
-								{(["CASH", "UPI", "CREDIT"] as const).map((method) => {
+								{(["CASH", "UPI", "SPLIT", "CREDIT"] as const).map((method) => {
 									const isSelected = paymentMethod === method;
 									return (
 										<Pressable
@@ -910,28 +943,88 @@ export default function CreateBillScreen() {
 												isSelected
 													? method === "CREDIT"
 														? "bg-rose-600"
-														: "bg-slate-900 dark:bg-white"
+														: method === "SPLIT"
+															? "bg-purple-700"
+															: "bg-slate-900 dark:bg-white"
 													: "border border-slate-200 bg-slate-50 dark:border-zinc-800 dark:bg-zinc-800"
 											}`}
 										>
 											<Text
-												className={`font-black text-xs ${
+												className={`font-black text-[11px] ${
 													isSelected
-														? method === "CREDIT"
+														? method === "CREDIT" || method === "SPLIT"
 															? "text-white"
 															: "text-white dark:text-zinc-900"
 														: "text-slate-600 dark:text-zinc-400"
 												}`}
 											>
-												{method === "CREDIT" ? "⏳ UDHAR" : method}
+												{method === "CREDIT"
+													? "⏳ UDHAR"
+													: method === "SPLIT"
+														? "🔀 SPLIT"
+														: method}
 											</Text>
 										</Pressable>
 									);
 								})}
 							</View>
 
+							{/* Split Payment (Cash + UPI + Udhar) */}
+							{paymentMethod === "SPLIT" && (
+								<View className="mb-3 rounded-xl border border-purple-200/80 bg-purple-50/60 p-3 dark:border-purple-800/40 dark:bg-purple-950/20">
+									<Text className="mb-2 font-bold text-purple-900 text-xs dark:text-purple-300">
+										Split Payment (Cash + UPI + Udhar)
+									</Text>
+									<View className="mb-2 flex-row gap-2">
+										<View className="flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 dark:border-zinc-700 dark:bg-zinc-800">
+											<Text className="font-medium text-[10px] text-slate-500">
+												💵 Cash Amount
+											</Text>
+											<TextInput
+												keyboardType="numeric"
+												value={splitCashText}
+												onChangeText={setSplitCashText}
+												placeholder="0"
+												placeholderTextColor="#94a3b8"
+												className="font-bold text-slate-900 text-xs dark:text-white"
+											/>
+										</View>
+										<View className="flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 dark:border-zinc-700 dark:bg-zinc-800">
+											<Text className="font-medium text-[10px] text-slate-500">
+												📱 UPI Amount
+											</Text>
+											<TextInput
+												keyboardType="numeric"
+												value={splitUpiText}
+												onChangeText={setSplitUpiText}
+												placeholder="0"
+												placeholderTextColor="#94a3b8"
+												className="font-bold text-slate-900 text-xs dark:text-white"
+											/>
+										</View>
+									</View>
+									<View className="flex-row items-center justify-between border-purple-200/50 border-t pt-1.5 dark:border-purple-800/30">
+										<Text className="font-semibold text-[11px] text-purple-800 dark:text-purple-300">
+											Total Paid: ₹
+											{calculatedPaidAmount.toLocaleString("en-IN")}
+										</Text>
+										<Text
+											className={`font-bold text-[11px] ${
+												calculatedPendingBalance > 0
+													? "text-rose-600 dark:text-rose-400"
+													: "text-emerald-600 dark:text-emerald-400"
+											}`}
+										>
+											{calculatedPendingBalance > 0
+												? `Udhar: ₹${calculatedPendingBalance.toLocaleString("en-IN")}`
+												: "✓ Full Paid"}
+										</Text>
+									</View>
+								</View>
+							)}
+
 							{/* Partial Payment Option for CASH/UPI */}
-							{paymentMethod !== "CREDIT" && (
+							{paymentMethod !== "CREDIT" && paymentMethod !== "SPLIT" && (
 								<View className="mb-3 rounded-xl bg-slate-50 p-2.5 dark:bg-zinc-800/60">
 									<View className="flex-row items-center justify-between">
 										<Text className="font-semibold text-slate-600 text-xs dark:text-zinc-300">

@@ -1,11 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import * as Sharing from "expo-sharing";
 import { Card, useThemeColor, useToast } from "heroui-native";
 import React, { useEffect, useMemo, useState } from "react";
 import {
 	ActivityIndicator,
 	Alert,
 	Linking,
+	Platform,
 	Pressable,
 	RefreshControl,
 	ScrollView,
@@ -15,18 +17,23 @@ import {
 	View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { captureRef } from "react-native-view-shot";
 
 import { Container } from "@/components/container";
 import { HeroBottomSheet } from "@/components/hero-bottom-sheet";
 import { useCreatePayment } from "@/hooks/queries/use-payments";
 import { useSale } from "@/hooks/queries/use-sales";
 import { authClient } from "@/lib/auth-client";
+import { useOrganizationStore } from "@/lib/stores/organization-store";
 import type { SaleItem } from "@/services/sale.service";
 import {
+	buildReceiptText,
 	connectToPrinter,
+	formatReceiptForDisplay,
 	getSavedPrinter,
 	type PrinterDevice,
 	printSaleInvoice,
+	type ReceiptData,
 	scanBluetoothPrinters,
 } from "@/utils/printer-helper";
 
@@ -43,6 +50,19 @@ export default function InvoiceDetailScreen() {
 	}>();
 	const { data: session } = authClient.useSession();
 	const currentUserId = session?.user?.id || "";
+	const currentOrg = useOrganizationStore((s) => s.getCurrentOrg());
+	const sellerGstin =
+		(currentOrg?.metadata?.gstin as string) ||
+		(currentOrg?.metadata?.gstNumber as string) ||
+		(currentOrg as any)?.gstNumber ||
+		(currentOrg as any)?.gstin ||
+		"";
+	const sellerPhone =
+		(currentOrg?.metadata?.phone as string) || (currentOrg as any)?.phone || "";
+	const sellerAddr =
+		(currentOrg?.metadata?.address as string) ||
+		(currentOrg as any)?.address ||
+		"";
 
 	// Fetch Sale Detail
 	const { data: sale, isLoading, refetch } = useSale(id || "");
@@ -67,6 +87,9 @@ export default function InvoiceDetailScreen() {
 	const [scannedPrinters, setScannedPrinters] = useState<PrinterDevice[]>([]);
 	const [isScanningPrinters, setIsScanningPrinters] = useState(false);
 	const [connectingMac, setConnectingMac] = useState<string | null>(null);
+	const [showReceiptPreview, setShowReceiptPreview] = useState(true);
+	const [isSharingImage, setIsSharingImage] = useState(false);
+	const receiptCardRef = React.useRef<View>(null);
 
 	// Load saved printer on mount
 	useEffect(() => {
@@ -94,7 +117,12 @@ export default function InvoiceDetailScreen() {
 
 		setIsPrinting(true);
 		try {
-			const res = await printSaleInvoice(sale);
+			const res = await printSaleInvoice(sale, {
+				storeName: currentOrg?.name,
+				gstin: sellerGstin,
+				phone: sellerPhone,
+				address: sellerAddr,
+			});
 			if (res.success) {
 				toast.show({
 					variant: "success",
@@ -199,6 +227,56 @@ export default function InvoiceDetailScreen() {
 		return { totalCases, totalUnits, totalItems: items.length };
 	}, [items]);
 
+	// Live 2-Inch Thermal Receipt text (matches physical POS printout exactly)
+	const receiptPreviewText = useMemo(() => {
+		if (!sale) return "";
+		const receiptData: ReceiptData = {
+			storeName: currentOrg?.name || "MSL ENTERPRISES",
+			storeAddress: sellerAddr || "Jaipur, Rajasthan",
+			phone: sellerPhone || "",
+			gstin: sellerGstin || "",
+			billNumber: sale.invoiceNo || sale._id.slice(-6).toUpperCase(),
+			date: new Date(sale.saleDate || sale.createdAt || new Date()),
+			customerName,
+			customerPhone,
+			customerGst,
+			items: items.map((i) => {
+				const p = typeof i.productId === "object" ? i.productId : null;
+				return {
+					name: p?.name || "Product Item",
+					cases: i.cases || 0,
+					units: i.units || 0,
+					quantity: i.quantity || 0,
+					unit: p?.unit || "pcs",
+					price: i.price || 0,
+					total: i.total || (i.quantity || 0) * (i.price || 0),
+					gstRate: p?.gstRate ?? 0,
+					cgst: p?.cgst,
+					sgst: p?.sgst,
+				};
+			}),
+			subtotal: sale.subtotal || sale.total,
+			discount: sale.discount || 0,
+			total: sale.total,
+			paidAmount: sale.paidAmount,
+			pendingAmount: sale.pendingAmount,
+			paymentStatus: sale.paymentStatus,
+			payments: sale.payments || [],
+			note: sale.note,
+		};
+		return formatReceiptForDisplay(buildReceiptText(receiptData));
+	}, [
+		sale,
+		items,
+		currentOrg,
+		sellerAddr,
+		sellerGstin,
+		sellerPhone,
+		customerName,
+		customerPhone,
+		customerGst,
+	]);
+
 	// Open Payment Modal
 	const handleOpenPayment = () => {
 		if (pendingBalance <= 0) {
@@ -277,21 +355,24 @@ export default function InvoiceDetailScreen() {
 			hour12: true,
 		});
 
-		const sep = "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-		const dash = "────────────────────────────────\n";
+		const sep = "━━━━━━━━━━━━━━━━━━━━\n";
+		const dash = "────────────────────\n";
 
 		let text = "🧾 *POS GST INVOICE*\n";
-		text += "*MSL ENTERPRISES*\n";
+		text += `*${currentOrg?.name || "MSL ENTERPRISES"}*\n`;
+		if (sellerAddr) text += `${sellerAddr}\n`;
+		if (sellerGstin) text += `GSTIN: *${sellerGstin}*\n`;
+		if (sellerPhone) text += `Ph: ${sellerPhone}\n`;
 		text += sep;
 		text += `Invoice : *#${sale.invoiceNo}*\n`;
 		text += `Date    : ${dateStr} ${timeStr}\n`;
 		text += `Party   : *${customerName}*\n`;
 		if (customerPhone) text += `Phone   : ${customerPhone}\n`;
-		if (customerGst) text += `GSTIN   : ${customerGst}\n`;
+		if (customerGst) text += `Party GSTIN: *${customerGst}*\n`;
 		text += dash;
 
 		// Items
-		text += "*Item                  Qty  Rate    Amt*\n";
+		text += "*Item             Qty   Rate   Amt*\n";
 		text += dash;
 		items.forEach((item) => {
 			const prodName =
@@ -306,95 +387,180 @@ export default function InvoiceDetailScreen() {
 					: casesText || looseText || `${item.quantity}`;
 
 			const rateStr = `₹${item.price}`;
-			const totStr = `₹${item.total.toLocaleString("en-IN")}`;
+			const totStr = `₹${item.total.toFixed(2)}`;
 
-			if (prodName.length > 16) {
+			if (prodName.length > 13) {
 				text += `*${prodName}*\n`;
-				text += `  ${qtyStr.padEnd(6)}${rateStr.padEnd(10)}${totStr}\n`;
+				text += `  ${qtyStr.padEnd(7)}${rateStr.padStart(6)} ${totStr.padStart(8)}\n`;
 			} else {
-				text += `*${prodName}*  ${qtyStr}  ${rateStr}  ${totStr}\n`;
+				text += `*${prodName.padEnd(13)}* ${qtyStr.padStart(4)} ${rateStr.padStart(6)} ${totStr.padStart(7)}\n`;
 			}
 		});
 		text += dash;
 
-		// Financial totals
-		const subtotal = sale.subtotal || 0;
-		const discount = sale.discount || 0;
-		const taxableValue = subtotal - discount;
-
-		text += `Subtotal      : ₹${subtotal.toLocaleString("en-IN")}\n`;
-		if (discount > 0) {
-			text += `Discount      : -₹${discount.toLocaleString("en-IN")}\n`;
-		}
-		text += `Taxable Value : ₹${taxableValue.toLocaleString("en-IN")}\n`;
-		text += dash;
-
-		// GST Breakup per slab
+		// Compute Base / Taxable amounts by backing out GST from item totals (inclusive pricing)
+		let totalTaxable = 0;
 		type SlabMap = {
+			taxable: number;
 			cgst: number;
 			sgst: number;
 			cgstPct: number;
 			sgstPct: number;
 		};
 		const gstSlabs = new Map<number, SlabMap>();
+
 		items.forEach((item) => {
 			const prod = typeof item.productId === "object" ? item.productId : null;
 			const rate = prod?.gstRate ?? 0;
-			if (rate <= 0) return;
-			const cgstPct = prod?.cgst ?? rate / 2;
-			const sgstPct = prod?.sgst ?? rate / 2;
-			const gstAmt = (item.total * rate) / 100;
-			const entry = gstSlabs.get(rate) ?? {
-				cgst: 0,
-				sgst: 0,
-				cgstPct,
-				sgstPct,
-			};
-			entry.cgst += gstAmt / 2;
-			entry.sgst += gstAmt / 2;
-			gstSlabs.set(rate, entry);
+			const itemGross = item.total ?? item.quantity * item.price;
+
+			let itemTaxable = itemGross;
+			let itemGst = 0;
+			if (rate > 0) {
+				itemTaxable = itemGross / (1 + rate / 100);
+				itemGst = itemGross - itemTaxable;
+			}
+			totalTaxable += itemTaxable;
+
+			if (rate > 0) {
+				const cgstPct = prod?.cgst ?? rate / 2;
+				const sgstPct = prod?.sgst ?? rate / 2;
+				const entry = gstSlabs.get(rate) ?? {
+					taxable: 0,
+					cgst: 0,
+					sgst: 0,
+					cgstPct,
+					sgstPct,
+				};
+				entry.taxable += itemTaxable;
+				entry.cgst += itemGst / 2;
+				entry.sgst += itemGst / 2;
+				gstSlabs.set(rate, entry);
+			}
 		});
 
+		// Financial totals
+		const discount = sale.discount || 0;
+		const taxableValue = Math.max(0, totalTaxable - discount);
+
+		text += `Subtotal (Taxable) : ₹${totalTaxable.toFixed(2)}\n`;
+		if (discount > 0) {
+			text += `Discount           : -₹${discount.toFixed(2)}\n`;
+		}
+		text += `Taxable Value      : ₹${taxableValue.toFixed(2)}\n`;
+		text += dash;
+
+		// GST Breakup per slab
 		if (gstSlabs.size > 0) {
 			text += "*GST Breakup*\n";
 			gstSlabs.forEach((entry, rate) => {
 				const slab = `${rate}% slab`;
-				text += `CGST ${entry.cgstPct}% (${slab})  ₹${entry.cgst.toFixed(2)}\n`;
-				text += `SGST ${entry.sgstPct}% (${slab})  ₹${entry.sgst.toFixed(2)}\n`;
+				text += `CGST ${entry.cgstPct}% (${slab}) : ₹${entry.cgst.toFixed(2)}\n`;
+				text += `SGST ${entry.sgstPct}% (${slab}) : ₹${entry.sgst.toFixed(2)}\n`;
 			});
 			text += dash;
 		}
 
-		// Grand Total
+		// Grand Total & Round Off
 		const total = sale.total || 0;
 		const roundOff = Math.round(total) - total;
 		const roundedTotal = Math.round(total);
 
-		text += `Grand Total    : ₹${total.toLocaleString("en-IN")}\n`;
-		if (Math.abs(roundOff) > 0.001) {
-			text += `Round Off      : ${roundOff > 0 ? "+" : ""}${roundOff.toFixed(2)}\n`;
-		}
-		text += `*Rounded Total : ₹${roundedTotal.toLocaleString("en-IN")}*\n`;
+		text += `Grand Total        : ₹${total.toFixed(2)}\n`;
+		text += `Round Off          : ${roundOff > 0 ? "+" : ""}${roundOff.toFixed(2)}\n`;
+		text += `*Rounded Total     : ₹${roundedTotal.toFixed(2)}*\n`;
 		text += dash;
 
-		// Payment
-		text += `Paid      : ₹${(sale.paidAmount || 0).toLocaleString("en-IN")}\n`;
-		if (pendingBalance > 0) {
-			text += `*Balance Due : ₹${pendingBalance.toLocaleString("en-IN")}*\n`;
-			text += "Status: ⚠️ PAYMENT PENDING\n";
+		// Payment Breakup (CASH, UPI, CARD, etc. + Balance Due)
+		const methodTotals: Record<string, number> = {};
+		if (payments && payments.length > 0) {
+			payments.forEach((p) => {
+				const m = (p.paymentMethod || "CASH").toUpperCase();
+				methodTotals[m] = (methodTotals[m] || 0) + (p.amount || 0);
+			});
+		}
+
+		const methodsList = Object.keys(methodTotals);
+		if (methodsList.length > 0) {
+			methodsList.forEach((method) => {
+				const label = `Paid (${method})`;
+				text += `${label.padEnd(19)}: ₹${methodTotals[method].toFixed(2)}\n`;
+			});
+			if (methodsList.length > 1) {
+				const totalPaid =
+					sale.paidAmount ??
+					Object.values(methodTotals).reduce((a, b) => a + b, 0);
+				text += `Total Paid         : ₹${totalPaid.toFixed(2)}\n`;
+			}
+		} else if ((sale.paidAmount || 0) > 0) {
+			text += `Paid               : ₹${(sale.paidAmount || 0).toFixed(2)}\n`;
 		} else {
-			text += "Status: ✅ FULLY PAID\n";
+			text += "Paid               : ₹0.00\n";
+		}
+
+		if (pendingBalance > 0) {
+			text += `*Balance Due       : ₹${pendingBalance.toFixed(2)}*\n`;
+			text +=
+				(sale.paidAmount || 0) > 0
+					? "Status             : ⚠️ PARTIAL PAYMENT\n"
+					: "Status             : ⚠️ PAYMENT PENDING\n";
+		} else {
+			text += "Status             : ✅ FULLY PAID\n";
+		}
+
+		if (sale.note) {
+			text += dash;
+			text += `Note: ${sale.note}\n`;
 		}
 
 		text += sep;
 		text += "_GST Included as applicable._\n";
-		text += "_Thank you for your business! 🙏_";
+		text += "_Thank You! Visit Again! 🙏_\n";
 
 		return text;
 	};
 
-	// Share WhatsApp Slip
+	// Share WhatsApp Slip (Image First, Text Fallback)
 	const handleWhatsAppShare = async () => {
+		if (isSharingImage) return;
+
+		// 1. Ensure receipt card is visible and captured as Image
+		if (!showReceiptPreview) {
+			setShowReceiptPreview(true);
+			await new Promise((resolve) => setTimeout(resolve, 150));
+		}
+
+		if (receiptCardRef.current) {
+			setIsSharingImage(true);
+			try {
+				const uri = await captureRef(receiptCardRef, {
+					format: "png",
+					quality: 1,
+					result: "tmpfile",
+				});
+
+				const isAvailable = await Sharing.isAvailableAsync();
+				if (isAvailable && uri) {
+					await Sharing.shareAsync(uri, {
+						mimeType: "image/png",
+						dialogTitle: `Invoice #${sale?.invoiceNo || "Slip"}`,
+						UTI: "public.png",
+					});
+					setIsSharingImage(false);
+					return;
+				}
+			} catch (imageErr: any) {
+				console.log("ViewShot image capture/share notice:", imageErr);
+				toast.show({
+					variant: "warning",
+					label: "Rebuild dev client to share image. Sharing text.",
+				});
+			} finally {
+				setIsSharingImage(false);
+			}
+		}
+
+		// 2. Fallback to WhatsApp text share
 		const slip = generateSlipText();
 		if (!slip) return;
 
@@ -429,8 +595,34 @@ export default function InvoiceDetailScreen() {
 		}
 	};
 
-	// General Share / Print
+	// General Share / Print (Image First)
 	const handleGeneralShare = async () => {
+		if (!showReceiptPreview) {
+			setShowReceiptPreview(true);
+			await new Promise((resolve) => setTimeout(resolve, 150));
+		}
+
+		if (receiptCardRef.current) {
+			try {
+				const uri = await captureRef(receiptCardRef, {
+					format: "png",
+					quality: 1,
+					result: "tmpfile",
+				});
+				const isAvailable = await Sharing.isAvailableAsync();
+				if (isAvailable && uri) {
+					await Sharing.shareAsync(uri, {
+						mimeType: "image/png",
+						dialogTitle: `Invoice #${sale?.invoiceNo || "Slip"}`,
+						UTI: "public.png",
+					});
+					return;
+				}
+			} catch (e) {
+				console.log("General share image fallback to text:", e);
+			}
+		}
+
 		const slip = generateSlipText();
 		if (!slip) return;
 		try {
@@ -669,25 +861,32 @@ export default function InvoiceDetailScreen() {
 					{/* WhatsApp Share Button */}
 					<Pressable
 						onPress={handleWhatsAppShare}
+						disabled={isSharingImage}
 						className="flex-1 flex-row items-center justify-between rounded-2xl bg-[#25D366] p-3.5 shadow-sm active:opacity-90"
 					>
 						<View className="flex-1 flex-row items-center gap-2.5">
 							<View className="h-9 w-9 items-center justify-center rounded-xl bg-white/20">
-								<Ionicons name="logo-whatsapp" size={20} color="#ffffff" />
+								{isSharingImage ? (
+									<ActivityIndicator size="small" color="#ffffff" />
+								) : (
+									<Ionicons name="logo-whatsapp" size={20} color="#ffffff" />
+								)}
 							</View>
 							<View className="flex-1">
 								<Text className="font-black text-white text-xs">
-									WhatsApp Slip
+									{isSharingImage ? "Creating Image..." : "WhatsApp Slip"}
 								</Text>
 								<Text
 									className="font-medium text-[10px] text-white/80"
 									numberOfLines={1}
 								>
-									{customerPhone || "Share Invoice"}
+									{isSharingImage
+										? "Preparing image slip"
+										: customerPhone || "Share Image Slip"}
 								</Text>
 							</View>
 						</View>
-						<Ionicons name="send" size={15} color="#ffffff" />
+						<Ionicons name="image-outline" size={16} color="#ffffff" />
 					</Pressable>
 
 					{/* POS Thermal Print Button */}
@@ -734,6 +933,79 @@ export default function InvoiceDetailScreen() {
 						/>
 					</Pressable>
 				</View>
+
+				{/* 2.5 LIVE 2-INCH POS THERMAL RECEIPT SLIP PREVIEW */}
+				<Card className="mb-4 overflow-hidden border-slate-200/90 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+					<Pressable
+						onPress={() => setShowReceiptPreview(!showReceiptPreview)}
+						className="flex-row items-center justify-between p-3.5"
+					>
+						<View className="flex-1 flex-row items-center gap-2.5">
+							<View className="h-8 w-8 items-center justify-center rounded-lg bg-slate-100 dark:bg-zinc-800">
+								<Ionicons name="receipt-outline" size={17} color="#0f172a" />
+							</View>
+							<View className="flex-1">
+								<Text className="font-bold text-slate-900 text-xs dark:text-white">
+									2-Inch POS Thermal Slip Preview
+								</Text>
+								<Text className="text-[10px] text-slate-400">
+									Exact paper printout layout (32 columns)
+								</Text>
+							</View>
+						</View>
+						<View className="flex-row items-center gap-1.5 rounded-lg bg-slate-100 px-2 py-1 dark:bg-zinc-800">
+							<Text className="font-bold text-[10px] text-slate-600 dark:text-zinc-300">
+								{showReceiptPreview ? "Hide Slip" : "View Slip ➔"}
+							</Text>
+							<Ionicons
+								name={showReceiptPreview ? "chevron-up" : "chevron-down"}
+								size={14}
+								color="#64748b"
+							/>
+						</View>
+					</Pressable>
+
+					{showReceiptPreview && (
+						<View className="border-slate-100 border-t bg-slate-100/80 p-3.5 dark:border-zinc-800 dark:bg-zinc-950">
+							{/* Thermal Paper Slip Replica - Always White Paper with Black Ink */}
+							<View
+								ref={receiptCardRef}
+								collapsable={false}
+								className="w-full max-w-[340px] self-center overflow-hidden rounded-md border border-slate-300 bg-white shadow-md"
+							>
+								{/* Paper Top Perforation */}
+								<View className="flex-row items-center justify-between border-slate-200 border-b border-dashed bg-slate-50 px-3 py-1.5">
+									<Text className="font-bold text-[9px] text-slate-400 tracking-wider">
+										2-INCH (58MM) THERMAL ROLL
+									</Text>
+									<Text className="font-semibold text-[9px] text-slate-400">
+										32 COLS
+									</Text>
+								</View>
+
+								{/* Monospace Receipt Content */}
+								<View className="px-3 py-2.5">
+									<Text
+										className="font-normal text-[11px] text-slate-950 leading-4 tracking-tight"
+										style={{
+											fontFamily:
+												Platform.OS === "ios" ? "Courier" : "monospace",
+										}}
+									>
+										{receiptPreviewText}
+									</Text>
+								</View>
+
+								{/* Paper Bottom Perforation */}
+								<View className="items-center border-slate-200 border-t border-dashed bg-slate-50 py-1">
+									<Text className="font-bold text-[8px] text-slate-400 tracking-widest">
+										- - - - - TEAR HERE - - - - -
+									</Text>
+								</View>
+							</View>
+						</View>
+					)}
+				</Card>
 
 				{/* 3. BILLED PRODUCTS LIST (CASES-FIRST) */}
 				<Card className="mb-4 border-slate-200/80 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
@@ -839,11 +1111,35 @@ export default function InvoiceDetailScreen() {
 						)}
 
 						<View className="mt-1 flex-row items-center justify-between border-slate-100 border-t pt-2 dark:border-zinc-800">
-							<Text className="font-black text-base text-slate-900 dark:text-white">
+							<Text className="font-semibold text-slate-600 text-xs dark:text-zinc-400">
 								Grand Total
 							</Text>
+							<Text className="font-bold text-slate-800 text-sm dark:text-zinc-200">
+								₹{(sale.total || 0).toFixed(2)}
+							</Text>
+						</View>
+
+						{Math.abs(Math.round(sale.total || 0) - (sale.total || 0)) >
+							0.001 && (
+							<View className="flex-row items-center justify-between">
+								<Text className="font-medium text-slate-400 text-xs dark:text-zinc-500">
+									Round Off
+								</Text>
+								<Text className="font-medium text-slate-600 text-xs dark:text-zinc-400">
+									{Math.round(sale.total || 0) - (sale.total || 0) > 0
+										? "+"
+										: ""}
+									{(Math.round(sale.total || 0) - (sale.total || 0)).toFixed(2)}
+								</Text>
+							</View>
+						)}
+
+						<View className="flex-row items-center justify-between pt-1">
+							<Text className="font-black text-base text-slate-900 dark:text-white">
+								Rounded Total
+							</Text>
 							<Text className="font-black text-slate-900 text-xl dark:text-white">
-								₹{(sale.total || 0).toLocaleString("en-IN")}
+								₹{Math.round(sale.total || 0).toFixed(2)}
 							</Text>
 						</View>
 					</View>
@@ -857,8 +1153,18 @@ export default function InvoiceDetailScreen() {
 							<Text className="my-0.5 font-black text-emerald-700 text-lg dark:text-emerald-400">
 								₹{(sale.paidAmount || 0).toLocaleString("en-IN")}
 							</Text>
-							<Text className="font-medium text-[10px] text-emerald-600/80">
-								{payments.length} payment(s)
+							<Text
+								className="font-medium text-[10px] text-emerald-600/80"
+								numberOfLines={1}
+							>
+								{payments.length > 0
+									? payments
+											.map(
+												(p: any) =>
+													`${p.paymentMethod || "CASH"}: ₹${p.amount || 0}`,
+											)
+											.join(" • ")
+									: `${payments.length} payment(s)`}
 							</Text>
 						</View>
 

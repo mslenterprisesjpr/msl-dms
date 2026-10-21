@@ -32,6 +32,15 @@ export const createSaleBodySchema = z.object({
 	discount: z.coerce.number().min(0).default(0),
 	paymentMethod: z.enum(["CASH", "UPI", "CARD", "CREDIT"]).default("CASH"),
 	paidAmount: z.coerce.number().min(0).default(0),
+	payments: z
+		.array(
+			z.object({
+				amount: z.coerce.number().min(0),
+				paymentMethod: z.enum(["CASH", "UPI", "CARD", "CREDIT"]),
+				note: z.string().optional(),
+			}),
+		)
+		.optional(),
 	note: z.string().optional(),
 });
 

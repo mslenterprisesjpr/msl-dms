@@ -86,7 +86,7 @@ app.get(
 				.sort({ createdAt: -1 })
 				.skip(skip)
 				.limit(query.limit)
-				.populate("customerId", "name phone address"),
+				.populate("customerId", "name phone address gstNumber"),
 			Sale.countDocuments(filter),
 		]);
 
@@ -122,7 +122,7 @@ app.get("/pending-payment", requireAuth, async (c) => {
 
 	const sales = await Sale.find(filter)
 		.sort({ createdAt: -1 })
-		.populate("customerId", "name phone address")
+		.populate("customerId", "name phone address gstNumber")
 		.limit(50);
 
 	const totalPending = sales.reduce((sum, sale) => sum + sale.pendingAmount, 0);
@@ -157,7 +157,7 @@ app.get(
 			workerId,
 		})
 			.sort({ createdAt: -1 })
-			.populate("customerId", "name phone address")
+			.populate("customerId", "name phone address gstNumber")
 			.limit(100);
 
 		return c.json({
@@ -180,7 +180,7 @@ app.get(
 
 		const sale = await Sale.findOne({ orgId: orgFilter, invoiceNo }).populate(
 			"customerId",
-			"name phone address",
+			"name phone address gstNumber",
 		);
 
 		if (!sale) {
@@ -229,7 +229,7 @@ app.get(
 
 		const sale = await Sale.findOne({ _id: id, orgId: orgFilter }).populate(
 			"customerId",
-			"name phone address",
+			"name phone address gstNumber",
 		);
 
 		if (!sale) {
@@ -360,6 +360,11 @@ app.post(
 		// Generate invoice number
 		const invoiceNo = await generateInvoiceNumber(organizationId);
 
+		let totalPaid = body.paidAmount || 0;
+		if (body.payments && body.payments.length > 0) {
+			totalPaid = body.payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+		}
+
 		// Create sale
 		const sale = await Sale.create({
 			orgId: organizationId,
@@ -369,14 +374,10 @@ app.post(
 			subtotal,
 			discount: body.discount,
 			total,
-			paidAmount: body.paidAmount,
-			pendingAmount: Math.max(0, total - body.paidAmount),
+			paidAmount: totalPaid,
+			pendingAmount: Math.max(0, total - totalPaid),
 			paymentStatus:
-				body.paidAmount >= total
-					? "PAID"
-					: body.paidAmount > 0
-						? "PARTIAL"
-						: "PENDING",
+				totalPaid >= total ? "PAID" : totalPaid > 0 ? "PARTIAL" : "PENDING",
 			status: "CONFIRMED",
 			note: body.note,
 			createdBy: user.id,
@@ -425,8 +426,22 @@ app.post(
 			});
 		}
 
-		// Create payment if paid amount > 0
-		if (body.paidAmount > 0) {
+		// Create payments if paid amount > 0
+		if (body.payments && body.payments.length > 0) {
+			for (const p of body.payments) {
+				if (p.amount > 0) {
+					await Payment.create({
+						orgId: organizationId,
+						saleId: sale._id,
+						amount: p.amount,
+						paymentMethod: p.paymentMethod,
+						paymentDate: new Date(),
+						note: p.note || body.note,
+						createdBy: user.id,
+					});
+				}
+			}
+		} else if (body.paidAmount > 0) {
 			await Payment.create({
 				orgId: organizationId,
 				saleId: sale._id,
