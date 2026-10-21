@@ -28,9 +28,12 @@ export function useOrganizations() {
 			// Better Auth returns organizations directly in data, not data.organizations
 			const orgs = Array.isArray(data) ? data : [];
 
-			console.log("Setting organizations:", orgs.length, "orgs");
-			console.log("Organizations:", JSON.stringify(orgs, null, 2));
-			setOrganizations(orgs);
+			// Filter out any null/undefined values for safety
+			const validOrgs = orgs.filter((org) => org && org.id);
+
+			console.log("Setting organizations:", validOrgs.length, "orgs");
+			console.log("Organizations:", JSON.stringify(validOrgs, null, 2));
+			setOrganizations(validOrgs);
 		} catch (error) {
 			// Network error or server not running - just show empty state
 			console.log("Could not fetch organizations:", error);

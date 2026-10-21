@@ -193,6 +193,11 @@ export default function OrganizationsScreen() {
 						name: orgName,
 						slug: orgSlug,
 					});
+
+				console.log("=== CREATE ORG DEBUG ===");
+				console.log("Created org response:", createdOrg);
+				console.log("Error:", error);
+
 				if (error) {
 					Alert.alert(
 						error.status === 403 ? "Permission Denied" : "Error",
@@ -201,20 +206,33 @@ export default function OrganizationsScreen() {
 					return;
 				}
 
+				// Extract organization ID from different possible locations
+				const newOrgId = createdOrg?.organization?.id || createdOrg?.id || null;
+
+				console.log("Extracted org ID:", newOrgId);
+
 				// If metadata fields are filled, update them
 				const hasMetadata =
 					orgGstin.trim() || orgPhone.trim() || orgAddress.trim();
-				if (hasMetadata && createdOrg?.organization?.id) {
+
+				console.log("Has metadata?", hasMetadata, "with org ID:", newOrgId);
+
+				if (hasMetadata && newOrgId) {
 					try {
-						await organizationService.updateMetadata({
-							organizationId: createdOrg.organization.id,
+						console.log("Calling updateMetadata...");
+						const metaResult = await organizationService.updateMetadata({
+							organizationId: newOrgId,
 							gstin: orgGstin.trim().toUpperCase(),
 							phone: orgPhone.trim(),
 							address: orgAddress.trim(),
 						});
+						console.log("Metadata saved:", metaResult);
 					} catch (metaError: any) {
 						console.error("Metadata creation error:", metaError);
-						// Don't fail the whole operation
+						Alert.alert(
+							"Warning",
+							"Organization created but store details failed to save. Please edit to add GSTIN.",
+						);
 					}
 				}
 

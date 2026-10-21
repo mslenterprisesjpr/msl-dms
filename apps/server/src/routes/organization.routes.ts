@@ -258,15 +258,28 @@ app.post("/reject-invitation", requireAuth, async (c) => {
  */
 app.patch("/metadata", requireAuth, requireAdmin, async (c) => {
 	try {
-		const organizationId = await resolveOrganizationId(c);
 		const body = await c.req.json().catch(() => ({}));
 
-		const { gstin, phone, address, ...otherMetadata } = body as {
+		const {
+			organizationId: bodyOrgId,
+			gstin,
+			phone,
+			address,
+			...otherMetadata
+		} = body as {
+			organizationId?: string;
 			gstin?: string;
 			phone?: string;
 			address?: string;
 			[key: string]: any;
 		};
+
+		// Use explicit org ID from body, or fallback to resolved
+		const organizationId = bodyOrgId || (await resolveOrganizationId(c));
+
+		if (!organizationId) {
+			throw new HTTPException(400, { message: "Organization ID is required" });
+		}
 
 		// Get existing org
 		const existingOrg = await db.collection("organization").findOne({
