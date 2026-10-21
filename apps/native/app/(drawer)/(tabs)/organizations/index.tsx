@@ -219,19 +219,31 @@ export default function OrganizationsScreen() {
 
 				if (hasMetadata && newOrgId) {
 					try {
-						console.log("Calling updateMetadata...");
+						console.log("Calling updateMetadata with payload:", {
+							organizationId: newOrgId,
+							gstin: orgGstin.trim().toUpperCase(),
+							phone: orgPhone.trim(),
+							address: orgAddress.trim(),
+						});
+
 						const metaResult = await organizationService.updateMetadata({
 							organizationId: newOrgId,
 							gstin: orgGstin.trim().toUpperCase(),
 							phone: orgPhone.trim(),
 							address: orgAddress.trim(),
 						});
-						console.log("Metadata saved:", metaResult);
+
+						console.log("Metadata saved successfully:", metaResult);
 					} catch (metaError: any) {
-						console.error("Metadata creation error:", metaError);
+						console.error("=== METADATA ERROR ===");
+						console.error("Error object:", metaError);
+						console.error("Error message:", metaError?.message);
+						console.error("Error response:", metaError?.response?.data);
+						console.error("=====================");
+
 						Alert.alert(
 							"Warning",
-							"Organization created but store details failed to save. Please edit to add GSTIN.",
+							`Organization created but store details failed to save: ${metaError?.response?.data?.message || metaError?.message || "Unknown error"}. Please edit to add GSTIN.`,
 						);
 					}
 				}

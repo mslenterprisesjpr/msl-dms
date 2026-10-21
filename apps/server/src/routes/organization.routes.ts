@@ -260,6 +260,9 @@ app.patch("/metadata", requireAuth, requireAdmin, async (c) => {
 	try {
 		const body = await c.req.json().catch(() => ({}));
 
+		console.log("=== METADATA UPDATE REQUEST ===");
+		console.log("Body received:", JSON.stringify(body, null, 2));
+
 		const {
 			organizationId: bodyOrgId,
 			gstin,
@@ -277,7 +280,10 @@ app.patch("/metadata", requireAuth, requireAdmin, async (c) => {
 		// Use explicit org ID from body, or fallback to resolved
 		const organizationId = bodyOrgId || (await resolveOrganizationId(c));
 
+		console.log("Resolved organizationId:", organizationId);
+
 		if (!organizationId) {
+			console.log("ERROR: No organization ID found");
 			throw new HTTPException(400, { message: "Organization ID is required" });
 		}
 
@@ -311,7 +317,7 @@ app.patch("/metadata", requireAuth, requireAdmin, async (c) => {
 		}
 
 		// Update in MongoDB
-		await db.collection("organization").updateOne(
+		const updateResult = await db.collection("organization").updateOne(
 			{ id: organizationId },
 			{
 				$set: {
@@ -320,6 +326,10 @@ app.patch("/metadata", requireAuth, requireAdmin, async (c) => {
 				},
 			},
 		);
+
+		console.log("MongoDB update result:", updateResult);
+		console.log("Updated metadata:", updatedMetadata);
+		console.log("===============================");
 
 		return c.json({
 			success: true,
