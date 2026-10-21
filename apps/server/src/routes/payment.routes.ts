@@ -84,7 +84,7 @@ app.get("/pending", requireAuth, async (c) => {
 
 	const sales = await Sale.find(saleFilter)
 		.sort({ createdAt: -1 })
-		.populate("customerId", "name phone address")
+		.populate("customerId", "name phone address gstNumber")
 		.limit(50);
 
 	const summary = {

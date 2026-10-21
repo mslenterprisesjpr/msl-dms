@@ -1,24 +1,95 @@
 /**
  * MSL Thermal POS Printer Helper Utilities
- * Integrated from D:\veer custom printer architecture
  * Using @poriyaalar/react-native-thermal-receipt-printer
  *
  * NOTE: BLEPrinter.printBill on Android can call native printRawData with wrong argument count.
- * We use printText with keepConnection: true and ESC/POS command strings.
+ * We send raw ESC/POS bytes via NativeModules.RNBLEPrinter.printRawData instead.
  */
 
 import { BLEPrinter } from "@poriyaalar/react-native-thermal-receipt-printer";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { PermissionsAndroid, Platform } from "react-native";
+import { NativeModules, PermissionsAndroid, Platform } from "react-native";
 
 const LAST_PRINTER_KEY = "@msl_last_pos_printer";
 
-// 2-inch (58mm) mobile thermal printers: standard 32 characters per line
-export const SMALL_FONT = false;
+// Legacy default (Font A, 32 cols). Use getLayout() for mode-aware widths.
 export const LINE_WIDTH = 32;
 
-// ESC ! 1 -> Font B (small condensed font)
-const SMALL_FONT_CMD = "\x1B!\x01";
+export type PrintFontSize = "large" | "medium" | "small";
+export const LAST_FONT_SIZE_KEY = "@msl_print_font_size";
+
+/**
+ * Print head = 384 dots.
+ * Font A (12 dots) -> 32 cols  (32*12 = 384)
+ * Font B (9 dots)  -> 42 cols  (42*9  = 378)
+ * Some 58mm heads print only ~372 dots; if Font B wraps, change 42 -> 41.
+ */
+export const getLayout = (size: PrintFontSize = "large") =>
+	size === "large"
+		? { cols: 32, item: 14, qty: 5, rate: 6, amt: 7 }
+		: { cols: 42, item: 20, qty: 6, rate: 7, amt: 9 };
+
+// Monospace glyph width ~0.6em, + px-3 padding (24) + border (2)
+const previewWidthFor = (cols: number, fontSize: number) =>
+	Math.ceil(cols * fontSize * 0.6) + 24 + 2;
+
+// ESC/POS Font commands
+// Large : Font A (12x24) + default line spacing
+// Medium: Font B (9x17)  + 22-dot spacing
+// Small : Font B (9x17)  + 16-dot spacing
+export const getFontConfig = (size: PrintFontSize = "large") => {
+	const { cols } = getLayout(size);
+	switch (size) {
+		case "small":
+			return {
+				cols,
+				fontCmd: "\x1B!\x01",
+				lineSpaceCmd: "\x1B3\x10",
+				previewWidth: previewWidthFor(cols, 11),
+				previewFontSize: 11,
+				previewLineHeight: 15,
+			};
+		case "medium":
+			return {
+				cols,
+				fontCmd: "\x1B!\x01",
+				lineSpaceCmd: "\x1B3\x16",
+				previewWidth: previewWidthFor(cols, 12),
+				previewFontSize: 12,
+				previewLineHeight: 16,
+			};
+		case "large":
+		default:
+			return {
+				cols,
+				fontCmd: "\x1B!\x00",
+				lineSpaceCmd: "\x1B2",
+				previewWidth: previewWidthFor(cols, 13),
+				previewFontSize: 13,
+				previewLineHeight: 18,
+			};
+	}
+};
+
+export async function getSavedFontSize(): Promise<PrintFontSize> {
+	try {
+		const saved = await AsyncStorage.getItem(LAST_FONT_SIZE_KEY);
+		if (saved === "large" || saved === "medium" || saved === "small") {
+			return saved;
+		}
+	} catch (e) {
+		console.log("Error reading font size:", e);
+	}
+	return "large";
+}
+
+export async function saveFontSize(size: PrintFontSize): Promise<void> {
+	try {
+		await AsyncStorage.setItem(LAST_FONT_SIZE_KEY, size);
+	} catch (e) {
+		console.log("Error saving font size:", e);
+	}
+}
 
 export interface PrinterDevice {
 	device_name?: string;
@@ -138,103 +209,225 @@ export async function getSavedPrinter(): Promise<PrinterDevice | null> {
 	return null;
 }
 
-/** Low level print text with keepConnection */
-export const printRaw = (text: string) =>
-	new Promise<void>((resolve, reject) => {
-		const finalText = SMALL_FONT
-			? text
-					.split("\n")
-					.map((l) => (l.length ? SMALL_FONT_CMD + l : l))
-					.join("\n")
-			: text;
+/** Convert Uint8Array to Base64 in React Native */
+function uint8ToBase64(bytes: Uint8Array): string {
+	let binary = "";
+	const len = bytes.byteLength;
+	for (let i = 0; i < len; i++) {
+		binary += String.fromCharCode(bytes[i]);
+	}
+	if (typeof btoa === "function") {
+		return btoa(binary);
+	}
+	try {
+		const { Buffer } = require("buffer");
+		return Buffer.from(bytes).toString("base64");
+	} catch {
+		return "";
+	}
+}
 
-		BLEPrinter.printText(
-			finalText,
-			{
-				beep: true,
-				cut: true,
-				tailingLine: true,
-				keepConnection: true,
-			} as any,
-			() => resolve(),
-			(err: any) => reject(err),
-		);
+/**
+ * Encode receipt text directly to binary ESC/POS byte commands:
+ * - ESC @ : Reset printer
+ * - ESC t 0 : CP437
+ * - ESC 2 / ESC 3 n : Line spacing
+ * - ESC M 0/1 + ESC ! 0/1 : Font A vs Font B
+ * - ESC a 1 / ESC a 0 : Center vs Left
+ * Bypasses library middleware so font/spacing commands are not stripped.
+ */
+export const encodeReceiptToEscPos = (
+	rawText: string,
+	fontSize: PrintFontSize = "large",
+): string => {
+	const bytes: number[] = [];
+
+	// 1. Reset printer
+	bytes.push(0x1b, 0x40);
+
+	// 2. Code table CP437
+	bytes.push(0x1b, 0x74, 0x00);
+
+	// 3. Line spacing
+	if (fontSize === "small") {
+		bytes.push(0x1b, 0x33, 16);
+	} else if (fontSize === "medium") {
+		bytes.push(0x1b, 0x33, 22);
+	} else {
+		bytes.push(0x1b, 0x32);
+	}
+
+	// 4. Font
+	const setFontCmds = () => {
+		if (fontSize === "small" || fontSize === "medium") {
+			bytes.push(0x1b, 0x4d, 0x01); // ESC M 1 (Font B)
+			bytes.push(0x1b, 0x21, 0x01); // ESC ! 1
+		} else {
+			bytes.push(0x1b, 0x4d, 0x00); // ESC M 0 (Font A)
+			bytes.push(0x1b, 0x21, 0x00); // ESC ! 0
+		}
+	};
+	setFontCmds();
+
+	// 5. Lines (trailing newlines stripped so no extra blank feed)
+	const lines = rawText.replace(/\n+$/, "").split("\n");
+	for (let i = 0; i < lines.length; i++) {
+		const ln = lines[i];
+		const isCentered = /<\/?C[BD]?>/i.test(ln);
+		const cleanLine = ln.replace(/<[^>]+>/g, "");
+
+		if (isCentered) {
+			bytes.push(0x1b, 0x61, 0x01); // center
+		}
+
+		for (let j = 0; j < cleanLine.length; j++) {
+			const code = cleanLine.charCodeAt(j);
+			bytes.push(code > 127 ? 0x20 : code);
+		}
+
+		bytes.push(0x0a);
+
+		if (isCentered) {
+			bytes.push(0x1b, 0x61, 0x00); // left
+		}
+
+		setFontCmds();
+	}
+
+	// 6. Tear-off margin: exactly 2 feeds, then restore default spacing
+	bytes.push(0x0a, 0x0a);
+	bytes.push(0x1b, 0x32);
+
+	return uint8ToBase64(new Uint8Array(bytes));
+};
+
+/** Low level print with raw ESC/POS bytes */
+export const printRaw = (text: string, fontSize: PrintFontSize = "large") =>
+	new Promise<void>((resolve, reject) => {
+		try {
+			const base64Data = encodeReceiptToEscPos(text, fontSize);
+			const { RNBLEPrinter } = NativeModules;
+			if (RNBLEPrinter && typeof RNBLEPrinter.printRawData === "function") {
+				RNBLEPrinter.printRawData(
+					base64Data,
+					true,
+					() => resolve(),
+					(err: any) => reject(err),
+				);
+			} else {
+				BLEPrinter.printText(
+					text,
+					{
+						beep: false,
+						cut: false,
+						tailingLine: false,
+						keepConnection: true,
+					} as any,
+					() => resolve(),
+					(err: any) => reject(err),
+				);
+			}
+		} catch (e) {
+			reject(e);
+		}
 	});
 
 /* ----------------------------- Text Helpers ----------------------------- */
 
-const line = (ch = "-") => ch.repeat(LINE_WIDTH);
+const line = (ch = "-", cols = LINE_WIDTH) => ch.repeat(cols);
 
-export const leftRight = (left: string, right: string): string => {
-	const maxLeft = Math.max(0, LINE_WIDTH - right.length - 1);
+export const leftRight = (
+	left: string,
+	right: string,
+	cols = LINE_WIDTH,
+): string => {
+	const maxLeft = Math.max(0, cols - right.length - 1);
 	const safeLeft = left.length > maxLeft ? left.slice(0, maxLeft) : left;
-	const space = Math.max(LINE_WIDTH - safeLeft.length - right.length, 1);
+	const space = Math.max(cols - safeLeft.length - right.length, 1);
 	return safeLeft + " ".repeat(space) + right + "\n";
 };
 
 export const formatCurrency = (amount: number): string =>
 	`Rs ${amount.toLocaleString("en-IN")}`;
 
-export const formatDate = (date: Date): string =>
-	date.toLocaleDateString("en-IN", {
-		day: "2-digit",
-		month: "short",
-		year: "numeric",
-	});
+export const formatDate = (date: Date): string => {
+	const months = [
+		"Jan",
+		"Feb",
+		"Mar",
+		"Apr",
+		"May",
+		"Jun",
+		"Jul",
+		"Aug",
+		"Sep",
+		"Oct",
+		"Nov",
+		"Dec",
+	];
+	const d = date.getDate().toString().padStart(2, "0");
+	const m = months[date.getMonth()];
+	const y = date.getFullYear();
+	return `${d} ${m} ${y}`;
+};
 
-export const formatTime = (date: Date): string =>
-	date.toLocaleTimeString("en-IN", {
-		hour: "2-digit",
-		minute: "2-digit",
-		hour12: true,
-	});
-
-/* --------- Column helpers for 2-inch (32 chars): Item(14) Qty(5) Rate(6) Amt(7) = 32 --------- */
-
-const C_ITEM = 14;
-const C_QTY = 5;
-const C_RATE = 6;
-const C_AMT = 7;
+export const formatTime = (date: Date): string => {
+	let h = date.getHours();
+	const m = date.getMinutes().toString().padStart(2, "0");
+	const ampm = h >= 12 ? "pm" : "am";
+	h = h % 12 || 12;
+	return `${h.toString().padStart(2, "0")}:${m} ${ampm}`;
+};
 
 const padR = (s: string, n: number) => s.slice(0, n).padEnd(n);
 const padL = (s: string, n: number) => s.slice(0, n).padStart(n);
 
-const itemRow = (name: string, qty: string, rate: string, amt: string) =>
-	padR(name, C_ITEM) +
-	padL(qty, C_QTY) +
-	padL(rate, C_RATE) +
-	padL(amt, C_AMT) +
-	"\n";
-
 /* --------------------------- Receipt Builder --------------------------- */
 
-export const buildReceiptText = (data: ReceiptData): string => {
+export const buildReceiptText = (
+	data: ReceiptData,
+	fontSize: PrintFontSize = "large",
+): string => {
+	const L = getLayout(fontSize);
+	const ln = (ch = "-") => line(ch, L.cols);
+	const lr = (a: string, b: string) => leftRight(a, b, L.cols);
+	const itemRow = (name: string, qty: string, rate: string, amt: string) =>
+		padR(name, L.item) +
+		padL(qty, L.qty) +
+		padL(rate, L.rate) +
+		padL(amt, L.amt) +
+		"\n";
+
 	let r = "";
 
 	// ── Header ───────────────────────────────────────────────────────────────
-	r += "<CB>POS GST INVOICE</CB>\n";
-	r += `<CB>${data.storeName || "MSL ENTERPRISES"}</CB>\n`;
+	r += "<C>GST INVOICE</C>\n";
+	r += `<C>${data.storeName || "MSL ENTERPRISES"}</C>\n`;
 	if (data.storeAddress) r += `<C>${data.storeAddress}</C>\n`;
-	if (data.gstin) r += `<C>GSTIN: ${data.gstin}</C>\n`;
+	if (data.gstin && data.gstin.trim().length > 0) {
+		r += `<C>GSTIN: ${data.gstin.trim()}</C>\n`;
+	}
 	if (data.phone) r += `<C>Ph: ${data.phone}</C>\n`;
-	r += `${line("=")}\n`;
+	r += `${ln("=")}\n`;
 
 	// ── Bill & Customer details ───────────────────────────────────────────────
 	r += `Invoice: #${data.billNumber}\n`;
 	r += `Date   : ${formatDate(data.date)} ${formatTime(data.date)}\n`;
 	if (data.customerName) r += `Party  : ${data.customerName}\n`;
 	if (data.customerPhone) r += `Phone  : ${data.customerPhone}\n`;
-	if (data.customerGst) r += `Party GSTIN: ${data.customerGst}\n`;
-	r += `${line("-")}\n`;
+	if (data.customerGst && data.customerGst.trim().length > 0) {
+		r += `Party GSTIN: ${data.customerGst.trim()}\n`;
+	} else {
+		r += "Party GSTIN: Unregistered\n";
+	}
+	r += `${ln("-")}\n`;
 
 	// ── Items table ───────────────────────────────────────────────────────────
 	r += itemRow("Item", "Qty", "Rate", "Amt");
-	r += `${line("-")}\n`;
+	r += `${ln("-")}\n`;
 
-	let computedSubtotal = 0;
 	data.items.forEach((item) => {
 		const itemTot = item.total ?? item.quantity * item.price;
-		computedSubtotal += itemTot;
 
 		const casesText = (item.cases || 0) > 0 ? `${item.cases}cs` : "";
 		const unitsText = (item.units || 0) > 0 ? `${item.units}pc` : "";
@@ -243,9 +436,8 @@ export const buildReceiptText = (data: ReceiptData): string => {
 				? `${casesText}+${unitsText}`
 				: casesText || unitsText || `${item.quantity}`;
 
-		if (item.name.length > C_ITEM) {
-			// Long name on its own line, then data row
-			r += `${item.name.slice(0, LINE_WIDTH)}\n`;
+		if (item.name.length > L.item) {
+			r += `${item.name.slice(0, L.cols)}\n`;
 			r += itemRow("", qtyStr, item.price.toFixed(0), itemTot.toFixed(0));
 		} else {
 			r += itemRow(
@@ -256,10 +448,9 @@ export const buildReceiptText = (data: ReceiptData): string => {
 			);
 		}
 	});
-	r += `${line("-")}\n`;
+	r += `${ln("-")}\n`;
 
-	// ── Financial totals ─────────────────────────────────────────────────────
-	// Compute Base / Taxable amounts by backing out GST from item totals (inclusive pricing)
+	// ── Financial totals (GST backed out of inclusive prices) ────────────────
 	let totalTaxable = 0;
 	type GstSlabEntry = {
 		taxable: number;
@@ -302,43 +493,40 @@ export const buildReceiptText = (data: ReceiptData): string => {
 	const discount = data.discount || 0;
 	const taxableValue = Math.max(0, totalTaxable - discount);
 
-	r += leftRight("Subtotal (Taxable)", totalTaxable.toFixed(2));
 	if (discount > 0) {
-		r += leftRight("Discount", `-${discount.toFixed(2)}`);
+		r += lr("Subtotal", totalTaxable.toFixed(2));
+		r += lr("Discount", `-${discount.toFixed(2)}`);
+		r += lr("Taxable Value", taxableValue.toFixed(2));
+	} else {
+		r += lr("Taxable Value", taxableValue.toFixed(2));
 	}
-	r += leftRight("Taxable Value", taxableValue.toFixed(2));
-	r += `${line("-")}\n`;
+	r += `${ln("-")}\n`;
 
-	// ── GST Breakup (slab-wise) ───────────────────────────────────────────────
+	// ── GST Breakup (slab-wise, left aligned) ────────────────────────────────
 	if (gstSlabs.size > 0) {
-		r += "<CB>GST Breakup</CB>\n";
+		r += "GST Breakup\n";
 		gstSlabs.forEach((entry, rate) => {
 			const slabLabel = `${rate}% slab`;
-			r += leftRight(
-				`CGST ${entry.cgstPct}% (${slabLabel})`,
-				entry.cgst.toFixed(2),
-			);
-			r += leftRight(
-				`SGST ${entry.sgstPct}% (${slabLabel})`,
-				entry.sgst.toFixed(2),
-			);
+			r += lr(`CGST ${entry.cgstPct}% (${slabLabel})`, entry.cgst.toFixed(2));
+			r += lr(`SGST ${entry.sgstPct}% (${slabLabel})`, entry.sgst.toFixed(2));
 		});
-		r += `${line("-")}\n`;
+		r += `${ln("-")}\n`;
 	}
 
-	// ── Grand Total & Round Off ───────────────────────────────────────────────
+	// ── Total & Round Off ────────────────────────────────────────────────────
 	const roundOff = Math.round(data.total) - data.total;
 	const roundedTotal = Math.round(data.total);
 
-	r += leftRight("Grand Total", data.total.toFixed(2));
-	r += leftRight(
-		"Round Off",
-		`${roundOff > 0 ? "+" : ""}${roundOff.toFixed(2)}`,
-	);
-	r += `<CB>${leftRight("Rounded Total", roundedTotal.toFixed(2)).trim()}</CB>\n`;
-	r += `${line("-")}\n`;
+	if (Math.abs(roundOff) >= 0.01) {
+		r += lr("Total", data.total.toFixed(2));
+		r += lr("Round Off", `${roundOff > 0 ? "+" : ""}${roundOff.toFixed(2)}`);
+		r += lr("Rounded Total", roundedTotal.toFixed(2));
+	} else {
+		r += lr("Total Amount", roundedTotal.toFixed(2));
+	}
+	r += `${ln("-")}\n`;
 
-	// ── Payment Breakup (CASH, UPI, CARD, etc. + Balance Due) ──────────────────
+	// ── Payment Breakup ──────────────────────────────────────────────────────
 	const methodTotals: Record<string, number> = {};
 	if (data.payments && data.payments.length > 0) {
 		data.payments.forEach((p) => {
@@ -350,22 +538,22 @@ export const buildReceiptText = (data: ReceiptData): string => {
 	const methodsList = Object.keys(methodTotals);
 	if (methodsList.length > 0) {
 		methodsList.forEach((method) => {
-			r += leftRight(`Paid (${method})`, methodTotals[method].toFixed(2));
+			r += lr(`Paid (${method})`, methodTotals[method].toFixed(2));
 		});
 		if (methodsList.length > 1) {
 			const totalPaid =
 				data.paidAmount ??
 				Object.values(methodTotals).reduce((a, b) => a + b, 0);
-			r += leftRight("Total Paid", totalPaid.toFixed(2));
+			r += lr("Total Paid", totalPaid.toFixed(2));
 		}
 	} else if (data.paidAmount !== undefined && data.paidAmount > 0) {
-		r += leftRight("Paid", data.paidAmount.toFixed(2));
+		r += lr("Paid", data.paidAmount.toFixed(2));
 	} else {
-		r += leftRight("Paid", "0.00");
+		r += lr("Paid", "0.00");
 	}
 
 	if (data.pendingAmount && data.pendingAmount > 0) {
-		r += leftRight("Balance Due", data.pendingAmount.toFixed(2));
+		r += lr("Balance Due", data.pendingAmount.toFixed(2));
 		r +=
 			data.paidAmount && data.paidAmount > 0
 				? "Status: PARTIAL PAYMENT\n"
@@ -375,40 +563,40 @@ export const buildReceiptText = (data: ReceiptData): string => {
 	}
 
 	if (data.note) {
-		r += `${line("-")}\n`;
+		r += `${ln("-")}\n`;
 		r += `Note: ${data.note}\n`;
 	}
 
-	// ── Footer ────────────────────────────────────────────────────────────────
-	r += `${line("=")}\n`;
-	r += "<C>GST Included as applicable.</C>\n";
+	// ── Footer (no trailing blank lines; encoder adds the 2 tear feeds) ──────
+	r += `${ln("=")}\n`;
 	r += "<C>Thank You! Visit Again!</C>\n";
-	r += `${line("=")}\n\n\n\n`;
+	r += `${ln("=")}\n`;
 
 	return r;
 };
 
 /**
- * Clean up raw receipt text for on-screen monospace preview and image sharing:
- * 1. Strips all hardware command tags (<CB>, </CB>, <C>, </C>, <B>, etc.).
- * 2. Centers lines that had <C> or <CB> tags within LINE_WIDTH (32 columns).
- * 3. Keeps all column formatting and spacing perfectly intact without line wrapping.
+ * Clean raw receipt text for on-screen preview / image sharing:
+ * strips tags and centers tagged lines within the active column width.
  */
-export const formatReceiptForDisplay = (rawText: string): string => {
+export const formatReceiptForDisplay = (
+	rawText: string,
+	fontSize: PrintFontSize = "large",
+): string => {
+	const cols = getLayout(fontSize).cols;
 	return rawText
 		.split("\n")
 		.map((rawLine) => {
 			const hasCenterTag = /<\/?C[BD]?>/i.test(rawLine);
 			const stripped = rawLine.replace(/<[^>]+>/g, "");
 			const trimmed = stripped.trim();
-			// Center header/footer/breakup titles, but never center 2-column key-value lines
 			if (
 				hasCenterTag &&
 				trimmed.length > 0 &&
-				trimmed.length < LINE_WIDTH &&
+				trimmed.length < cols &&
 				!/\s{4,}/.test(stripped)
 			) {
-				const pad = Math.max(0, Math.floor((LINE_WIDTH - trimmed.length) / 2));
+				const pad = Math.max(0, Math.floor((cols - trimmed.length) / 2));
 				return " ".repeat(pad) + trimmed;
 			}
 			return stripped;
@@ -420,9 +608,12 @@ export const formatReceiptForDisplay = (rawText: string): string => {
 /* ------------------------------ Public APIs ------------------------------ */
 
 /** Print formatted receipt */
-export const printReceipt = async (data: ReceiptData) => {
+export const printReceipt = async (
+	data: ReceiptData,
+	fontSize: PrintFontSize = "large",
+) => {
 	try {
-		await printRaw(buildReceiptText(data));
+		await printRaw(buildReceiptText(data, fontSize), fontSize);
 		return { success: true };
 	} catch (error: any) {
 		console.error("Print receipt error:", error);
@@ -438,6 +629,7 @@ export const printSaleInvoice = async (
 		phone?: string;
 		gstin?: string;
 		address?: string;
+		fontSize?: PrintFontSize;
 	},
 ) => {
 	const customer = typeof sale.customerId === "object" ? sale.customerId : null;
@@ -482,7 +674,7 @@ export const printSaleInvoice = async (
 		note: sale.note,
 	};
 
-	return await printReceipt(receiptData);
+	return await printReceipt(receiptData, options?.fontSize || "large");
 };
 
 /** Print Test Page */
@@ -490,14 +682,14 @@ export const printTestPage = async () => {
 	try {
 		const testReceipt =
 			"<CB>MSL POS TEST</CB>\n\n" +
-			"58mm/80mm Thermal Printer\n" +
+			"58mm Thermal Printer\n" +
 			"<B>Bold Header Text</B>\n" +
 			"<CB>Centered Bold Text</CB>\n\n" +
 			`${line("=")}\n` +
 			leftRight("Left Column", "Right Column") +
 			leftRight("Case Qty: 5 cs", "Rs 1,500.00") +
 			`${line("=")}\n\n` +
-			"<C>Printer Connection OK!</C>\n\n\n\n";
+			"<C>Printer Connection OK!</C>";
 
 		await printRaw(testReceipt);
 		return { success: true };

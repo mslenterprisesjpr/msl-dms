@@ -81,6 +81,9 @@ export default function OrganizationsScreen() {
 	const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
 	const [orgName, setOrgName] = useState("");
 	const [orgSlug, setOrgSlug] = useState("");
+	const [orgGstin, setOrgGstin] = useState("");
+	const [orgPhone, setOrgPhone] = useState("");
+	const [orgAddress, setOrgAddress] = useState("");
 
 	// ── Member modal: invite by email OR add existing user ─────────────────────
 	const [showMemberModal, setShowMemberModal] = useState(false);
@@ -146,6 +149,9 @@ export default function OrganizationsScreen() {
 		setOrgFormMode("create");
 		setOrgName("");
 		setOrgSlug("");
+		setOrgGstin("");
+		setOrgPhone("");
+		setOrgAddress("");
 		setSelectedOrg(null);
 		setIsOrgModalOpen(true);
 	};
@@ -155,12 +161,27 @@ export default function OrganizationsScreen() {
 		setOrgName(org.name);
 		setOrgSlug(org.slug);
 		setSelectedOrg(org);
+
+		// Load metadata
+		const meta =
+			typeof org.metadata === "string"
+				? JSON.parse(org.metadata)
+				: org.metadata || {};
+		setOrgGstin(
+			(meta.gstin as string) ||
+				(meta.gstNumber as string) ||
+				(meta.gst as string) ||
+				"",
+		);
+		setOrgPhone((meta.phone as string) || "");
+		setOrgAddress((meta.address as string) || "");
+
 		setIsOrgModalOpen(true);
 	};
 
 	const handleOrgSubmit = async () => {
 		if (!orgName.trim() || !orgSlug.trim()) {
-			Alert.alert("Error", "Please fill in all fields");
+			Alert.alert("Error", "Please fill in all required fields");
 			return;
 		}
 		setIsSubmitting(true);
@@ -179,20 +200,34 @@ export default function OrganizationsScreen() {
 				}
 				Alert.alert("Success", "Organization created successfully");
 			} else if (selectedOrg) {
-				const { error } = await authClient.organization.update({
+				// Update organization name & slug
+				const { error: updateError } = await authClient.organization.update({
 					organizationId: selectedOrg.id,
 					data: {
 						name: orgName,
 						slug: orgSlug,
 					},
 				});
-				if (error) {
+				if (updateError) {
 					Alert.alert(
 						"Error",
-						error.message || "Failed to update organization",
+						updateError.message || "Failed to update organization",
 					);
 					return;
 				}
+
+				// Update metadata (GSTIN, phone, address) via custom API
+				try {
+					await organizationService.updateMetadata(selectedOrg.id, {
+						gstin: orgGstin.trim().toUpperCase(),
+						phone: orgPhone.trim(),
+						address: orgAddress.trim(),
+					});
+				} catch (metaError: any) {
+					console.error("Metadata update error:", metaError);
+					// Don't fail the whole operation, just log
+				}
+
 				Alert.alert("Success", "Organization updated successfully");
 			}
 			setIsOrgModalOpen(false);
@@ -836,7 +871,7 @@ export default function OrganizationsScreen() {
 				subtitle={
 					orgFormMode === "create"
 						? "Set up a new workspace for your team"
-						: "Update organization name and slug"
+						: "Update organization details"
 				}
 				footer={
 					<View className="flex-row justify-end gap-3">
@@ -884,6 +919,46 @@ export default function OrganizationsScreen() {
 						/>
 						<Description>Used in URLs, must be unique</Description>
 					</TextField>
+
+					{orgFormMode === "edit" && (
+						<>
+							<TextField>
+								<Label>Store GSTIN (GST Number)</Label>
+								<Input
+									placeholder="e.g., 08AAAAA0000A1Z5"
+									value={orgGstin}
+									onChangeText={(t) => setOrgGstin(t.toUpperCase().trim())}
+									autoCapitalize="characters"
+									maxLength={15}
+								/>
+								<Description>
+									15-character GST number for invoices & receipts
+								</Description>
+							</TextField>
+
+							<TextField>
+								<Label>Store Phone Number</Label>
+								<Input
+									placeholder="e.g., +91 98765 43210"
+									value={orgPhone}
+									onChangeText={setOrgPhone}
+									keyboardType="phone-pad"
+								/>
+							</TextField>
+
+							<TextField>
+								<Label>Store Address</Label>
+								<Input
+									placeholder="Complete address with PIN code"
+									value={orgAddress}
+									onChangeText={setOrgAddress}
+									multiline
+									numberOfLines={3}
+									style={{ minHeight: 70 }}
+								/>
+							</TextField>
+						</>
+					)}
 				</View>
 			</DialogModal>
 

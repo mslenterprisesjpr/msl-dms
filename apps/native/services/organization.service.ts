@@ -55,4 +55,25 @@ export const organizationService = {
 		}>("/organizations/reject-invitation", { invitationId });
 		return res.data;
 	},
+
+	updateMetadata: async (
+		organizationId: string,
+		metadata: {
+			gstin?: string;
+			phone?: string;
+			address?: string;
+			[key: string]: any;
+		},
+	) => {
+		const res = await apiClient.patch<{
+			success: boolean;
+			message: string;
+			data?: any;
+		}>("/organizations/update-metadata", metadata, {
+			headers: {
+				"x-organization-id": organizationId,
+			},
+		});
+		return res.data;
+	},
 };

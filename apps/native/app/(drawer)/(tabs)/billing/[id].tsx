@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Sharing from "expo-sharing";
 import { Card, useThemeColor, useToast } from "heroui-native";
@@ -20,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { captureRef } from "react-native-view-shot";
 
 import { Container } from "@/components/container";
+import { DialogModal } from "@/components/dialog-modal";
 import { HeroBottomSheet } from "@/components/hero-bottom-sheet";
 import { useCreatePayment } from "@/hooks/queries/use-payments";
 import { useSale } from "@/hooks/queries/use-sales";
@@ -29,11 +31,16 @@ import type { SaleItem } from "@/services/sale.service";
 import {
 	buildReceiptText,
 	connectToPrinter,
+	disconnectPrinter,
 	formatReceiptForDisplay,
+	getFontConfig,
+	getSavedFontSize,
 	getSavedPrinter,
 	type PrinterDevice,
+	type PrintFontSize,
 	printSaleInvoice,
 	type ReceiptData,
+	saveFontSize,
 	scanBluetoothPrinters,
 } from "@/utils/printer-helper";
 
@@ -51,18 +58,75 @@ export default function InvoiceDetailScreen() {
 	const { data: session } = authClient.useSession();
 	const currentUserId = session?.user?.id || "";
 	const currentOrg = useOrganizationStore((s) => s.getCurrentOrg());
+
+	// Safe parse organization metadata (handles JSON string or object)
+	const orgMeta = useMemo(() => {
+		if (!currentOrg?.metadata) return {};
+		if (typeof currentOrg.metadata === "string") {
+			try {
+				return JSON.parse(currentOrg.metadata);
+			} catch {
+				return {};
+			}
+		}
+		return (currentOrg.metadata as Record<string, any>) || {};
+	}, [currentOrg]);
+
+	// Device-local Store details fallback
+	const [localStoreGstin, setLocalStoreGstin] = useState("");
+	const [localStorePhone, setLocalStorePhone] = useState("");
+	const [localStoreAddr, setLocalStoreAddr] = useState("");
+
+	useEffect(() => {
+		AsyncStorage.getItem("@msl_store_gstin").then((val) => {
+			if (val) setLocalStoreGstin(val);
+		});
+		AsyncStorage.getItem("@msl_store_phone").then((val) => {
+			if (val) setLocalStorePhone(val);
+		});
+		AsyncStorage.getItem("@msl_store_address").then((val) => {
+			if (val) setLocalStoreAddr(val);
+		});
+	}, []);
+
 	const sellerGstin =
-		(currentOrg?.metadata?.gstin as string) ||
-		(currentOrg?.metadata?.gstNumber as string) ||
+		(orgMeta.gstin as string) ||
+		(orgMeta.gstNumber as string) ||
+		(orgMeta.gst as string) ||
 		(currentOrg as any)?.gstNumber ||
 		(currentOrg as any)?.gstin ||
+		localStoreGstin ||
 		"";
 	const sellerPhone =
-		(currentOrg?.metadata?.phone as string) || (currentOrg as any)?.phone || "";
-	const sellerAddr =
-		(currentOrg?.metadata?.address as string) ||
-		(currentOrg as any)?.address ||
+		(orgMeta.phone as string) ||
+		(currentOrg as any)?.phone ||
+		localStorePhone ||
 		"";
+	const sellerAddr =
+		(orgMeta.address as string) ||
+		(currentOrg as any)?.address ||
+		localStoreAddr ||
+		"Jaipur, Rajasthan";
+
+	// Quick prompt to configure Store GSTIN if missing
+	const [isEditStoreModalOpen, setIsEditStoreModalOpen] = useState(false);
+	const [tempStoreGstin, setTempStoreGstin] = useState("");
+
+	const handleEditStoreGstin = () => {
+		setTempStoreGstin(sellerGstin);
+		setIsEditStoreModalOpen(true);
+	};
+
+	const handleSaveStoreGstin = async () => {
+		const clean = tempStoreGstin.trim().toUpperCase();
+		setLocalStoreGstin(clean);
+		await AsyncStorage.setItem("@msl_store_gstin", clean);
+		setIsEditStoreModalOpen(false);
+		toast.show({
+			variant: "success",
+			label: clean ? `Store GSTIN saved: ${clean}` : "Store GSTIN cleared",
+		});
+	};
 
 	// Fetch Sale Detail
 	const { data: sale, isLoading, refetch } = useSale(id || "");
@@ -88,16 +152,24 @@ export default function InvoiceDetailScreen() {
 	const [isScanningPrinters, setIsScanningPrinters] = useState(false);
 	const [connectingMac, setConnectingMac] = useState<string | null>(null);
 	const [showReceiptPreview, setShowReceiptPreview] = useState(true);
+	const [printFontSize, setPrintFontSize] = useState<PrintFontSize>("large");
 	const [isSharingImage, setIsSharingImage] = useState(false);
 	const receiptCardRef = React.useRef<View>(null);
 
-	// Load saved printer on mount
+	// Load saved printer and font size on mount
 	useEffect(() => {
 		(async () => {
 			const saved = await getSavedPrinter();
 			if (saved) setActivePrinter(saved);
+			const savedSize = await getSavedFontSize();
+			if (savedSize) setPrintFontSize(savedSize);
 		})();
 	}, []);
+
+	const handleSelectFontSize = (size: PrintFontSize) => {
+		setPrintFontSize(size);
+		saveFontSize(size);
+	};
 
 	// Handle Direct POS Print
 	const handlePosPrint = async () => {
@@ -117,11 +189,34 @@ export default function InvoiceDetailScreen() {
 
 		setIsPrinting(true);
 		try {
+			// Auto reconnect to saved printer before sending print data
+			try {
+				await connectToPrinter(printer);
+			} catch (connErr: any) {
+				console.log("Printer connect error on print:", connErr);
+				Alert.alert(
+					"Printer Off / Disconnected",
+					`"${printer.device_name || "POS Printer"}" se Bluetooth connect nahi ho paya.\n\nKripya check karein:\n1. Printer machine ON hai ya nahi.\n2. Phone ka Bluetooth ON hai ya nahi.\n3. Printer mobile ki Bluetooth range mein hai.`,
+					[
+						{ text: "Theek Hai", style: "cancel" },
+						{
+							text: "Select / Scan Printer",
+							onPress: () => {
+								setPrinterModalVisible(true);
+								handleScanPrinters();
+							},
+						},
+					],
+				);
+				return;
+			}
+
 			const res = await printSaleInvoice(sale, {
 				storeName: currentOrg?.name,
 				gstin: sellerGstin,
 				phone: sellerPhone,
 				address: sellerAddr,
+				fontSize: printFontSize,
 			});
 			if (res.success) {
 				toast.show({
@@ -180,6 +275,19 @@ export default function InvoiceDetailScreen() {
 		}
 	};
 
+	const handleDisconnectPrinter = async () => {
+		try {
+			await disconnectPrinter();
+			setActivePrinter(null);
+			toast.show({
+				variant: "info",
+				label: "Printer unpaired / removed",
+			});
+		} catch (e: any) {
+			console.log("Disconnect error:", e);
+		}
+	};
+
 	const onRefresh = async () => {
 		setRefreshing(true);
 		try {
@@ -227,7 +335,7 @@ export default function InvoiceDetailScreen() {
 		return { totalCases, totalUnits, totalItems: items.length };
 	}, [items]);
 
-	// Live 2-Inch Thermal Receipt text (matches physical POS printout exactly)
+	// Live 58mm Thermal Receipt text (matches physical POS printout; width follows font mode)
 	const receiptPreviewText = useMemo(() => {
 		if (!sale) return "";
 		const receiptData: ReceiptData = {
@@ -264,7 +372,10 @@ export default function InvoiceDetailScreen() {
 			payments: sale.payments || [],
 			note: sale.note,
 		};
-		return formatReceiptForDisplay(buildReceiptText(receiptData));
+		return formatReceiptForDisplay(
+			buildReceiptText(receiptData, printFontSize),
+			printFontSize,
+		);
 	}, [
 		sale,
 		items,
@@ -275,6 +386,7 @@ export default function InvoiceDetailScreen() {
 		customerName,
 		customerPhone,
 		customerGst,
+		printFontSize,
 	]);
 
 	// Open Payment Modal
@@ -368,7 +480,7 @@ export default function InvoiceDetailScreen() {
 		text += `Date    : ${dateStr} ${timeStr}\n`;
 		text += `Party   : *${customerName}*\n`;
 		if (customerPhone) text += `Phone   : ${customerPhone}\n`;
-		if (customerGst) text += `Party GSTIN: *${customerGst}*\n`;
+		text += `Party GSTIN: *${customerGst || "Unregistered"}*\n`;
 		text += dash;
 
 		// Items
@@ -443,8 +555,8 @@ export default function InvoiceDetailScreen() {
 		const discount = sale.discount || 0;
 		const taxableValue = Math.max(0, totalTaxable - discount);
 
-		text += `Subtotal (Taxable) : ₹${totalTaxable.toFixed(2)}\n`;
 		if (discount > 0) {
+			text += `Subtotal           : ₹${totalTaxable.toFixed(2)}\n`;
 			text += `Discount           : -₹${discount.toFixed(2)}\n`;
 		}
 		text += `Taxable Value      : ₹${taxableValue.toFixed(2)}\n`;
@@ -461,14 +573,18 @@ export default function InvoiceDetailScreen() {
 			text += dash;
 		}
 
-		// Grand Total & Round Off
+		// Total & Round Off
 		const total = sale.total || 0;
 		const roundOff = Math.round(total) - total;
 		const roundedTotal = Math.round(total);
 
-		text += `Grand Total        : ₹${total.toFixed(2)}\n`;
-		text += `Round Off          : ${roundOff > 0 ? "+" : ""}${roundOff.toFixed(2)}\n`;
-		text += `*Rounded Total     : ₹${roundedTotal.toFixed(2)}*\n`;
+		if (Math.abs(roundOff) >= 0.01) {
+			text += `Total              : ₹${total.toFixed(2)}\n`;
+			text += `Round Off          : ${roundOff > 0 ? "+" : ""}${roundOff.toFixed(2)}\n`;
+			text += `*Rounded Total     : ₹${roundedTotal.toFixed(2)}*\n`;
+		} else {
+			text += `*Total Amount      : ₹${roundedTotal.toFixed(2)}*\n`;
+		}
 		text += dash;
 
 		// Payment Breakup (CASH, UPI, CARD, etc. + Balance Due)
@@ -815,11 +931,9 @@ export default function InvoiceDetailScreen() {
 									📍 {customerAddress}
 								</Text>
 							) : null}
-							{customerGst ? (
-								<Text className="mt-0.5 font-medium text-[11px] text-slate-400">
-									GSTIN: {customerGst}
-								</Text>
-							) : null}
+							<Text className="mt-0.5 font-medium text-[11px] text-slate-400">
+								Party GSTIN: {customerGst || "Unregistered"}
+							</Text>
 						</View>
 
 						{/* Quick Customer Action Buttons */}
@@ -949,7 +1063,8 @@ export default function InvoiceDetailScreen() {
 									2-Inch POS Thermal Slip Preview
 								</Text>
 								<Text className="text-[10px] text-slate-400">
-									Exact paper printout layout (32 columns)
+									Exact paper printout layout (
+									{getFontConfig(printFontSize).cols} columns)
 								</Text>
 							</View>
 						</View>
@@ -967,29 +1082,113 @@ export default function InvoiceDetailScreen() {
 
 					{showReceiptPreview && (
 						<View className="border-slate-100 border-t bg-slate-100/80 p-3.5 dark:border-zinc-800 dark:bg-zinc-950">
+							{/* Seller GSTIN quick status / edit banner */}
+							<Pressable
+								onPress={handleEditStoreGstin}
+								className={`mb-2.5 flex-row items-center justify-between rounded-xl border p-2.5 active:opacity-80 ${
+									sellerGstin
+										? "border-emerald-200 bg-emerald-50/70 dark:border-emerald-900/40 dark:bg-emerald-950/20"
+										: "border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/30"
+								}`}
+							>
+								<View className="flex-1 flex-row items-center gap-2">
+									<Ionicons
+										name={sellerGstin ? "shield-checkmark" : "warning"}
+										size={16}
+										color={sellerGstin ? "#059669" : "#d97706"}
+									/>
+									<Text
+										className={`font-bold text-[11px] ${
+											sellerGstin
+												? "text-emerald-900 dark:text-emerald-200"
+												: "text-amber-900 dark:text-amber-200"
+										}`}
+										numberOfLines={1}
+									>
+										{sellerGstin
+											? `Store GSTIN: ${sellerGstin}`
+											: "Store GSTIN not set. Tap to add GSTIN"}
+									</Text>
+								</View>
+								<Text
+									className={`font-bold text-[10px] ${
+										sellerGstin
+											? "text-emerald-700 dark:text-emerald-300"
+											: "text-amber-700 dark:text-amber-300"
+									}`}
+								>
+									{sellerGstin ? "Change" : "Add GSTIN ➔"}
+								</Text>
+							</Pressable>
+							{/* Print Font Size Selector (Large / Medium / Small) */}
+							<View className="mb-3 flex-row items-center justify-between rounded-xl border border-slate-200/80 bg-white px-3 py-2 shadow-xs dark:border-zinc-800 dark:bg-zinc-900">
+								<View className="flex-row items-center gap-1.5">
+									<Ionicons name="text-outline" size={15} color="#64748b" />
+									<Text className="font-bold text-[11px] text-slate-700 dark:text-zinc-300">
+										Print Text Size:
+									</Text>
+								</View>
+								<View className="flex-row items-center gap-1 rounded-lg bg-slate-100 p-0.5 dark:bg-zinc-800">
+									{(["large", "medium", "small"] as const).map((sz) => {
+										const isSel = printFontSize === sz;
+										const label =
+											sz === "large"
+												? "Large"
+												: sz === "medium"
+													? "Medium"
+													: "Small";
+										return (
+											<Pressable
+												key={sz}
+												onPress={() => handleSelectFontSize(sz)}
+												className={`rounded-md px-2.5 py-1 ${
+													isSel
+														? "bg-slate-900 shadow-xs dark:bg-white"
+														: "bg-transparent active:opacity-70"
+												}`}
+											>
+												<Text
+													className={`font-black text-[10px] ${
+														isSel
+															? "text-white dark:text-zinc-900"
+															: "text-slate-500 dark:text-zinc-400"
+													}`}
+												>
+													{label}
+												</Text>
+											</Pressable>
+										);
+									})}
+								</View>
+							</View>
+
 							{/* Thermal Paper Slip Replica - Always White Paper with Black Ink */}
 							<View
 								ref={receiptCardRef}
 								collapsable={false}
-								className="w-full max-w-[340px] self-center overflow-hidden rounded-md border border-slate-300 bg-white shadow-md"
+								style={{ width: getFontConfig(printFontSize).previewWidth }}
+								className="self-center overflow-hidden rounded-md border border-slate-300 bg-white shadow-md"
 							>
 								{/* Paper Top Perforation */}
 								<View className="flex-row items-center justify-between border-slate-200 border-b border-dashed bg-slate-50 px-3 py-1.5">
 									<Text className="font-bold text-[9px] text-slate-400 tracking-wider">
 										2-INCH (58MM) THERMAL ROLL
 									</Text>
-									<Text className="font-semibold text-[9px] text-slate-400">
-										32 COLS
+									<Text className="font-semibold text-[9px] text-slate-400 uppercase">
+										{printFontSize}
 									</Text>
 								</View>
 
 								{/* Monospace Receipt Content */}
 								<View className="px-3 py-2.5">
 									<Text
-										className="font-normal text-[11px] text-slate-950 leading-4 tracking-tight"
+										className="font-normal text-slate-950"
 										style={{
 											fontFamily:
 												Platform.OS === "ios" ? "Courier" : "monospace",
+											fontSize: getFontConfig(printFontSize).previewFontSize,
+											lineHeight:
+												getFontConfig(printFontSize).previewLineHeight,
 										}}
 									>
 										{receiptPreviewText}
@@ -1496,22 +1695,34 @@ export default function InvoiceDetailScreen() {
 								</View>
 							</View>
 
-							<View
-								className={`rounded-full px-2 py-0.5 ${
-									activePrinter
-										? "bg-emerald-100 dark:bg-emerald-950/60"
-										: "bg-slate-200 dark:bg-zinc-800"
-								}`}
-							>
-								<Text
-									className={`font-bold text-[9px] ${
+							<View className="flex-row items-center gap-2">
+								<View
+									className={`rounded-full px-2 py-0.5 ${
 										activePrinter
-											? "text-emerald-700 dark:text-emerald-300"
-											: "text-slate-500"
+											? "bg-emerald-100 dark:bg-emerald-950/60"
+											: "bg-slate-200 dark:bg-zinc-800"
 									}`}
 								>
-									{activePrinter ? "PAIRED" : "UNPAIRED"}
-								</Text>
+									<Text
+										className={`font-bold text-[9px] ${
+											activePrinter
+												? "text-emerald-700 dark:text-emerald-300"
+												: "text-slate-500"
+										}`}
+									>
+										{activePrinter ? "PAIRED" : "UNPAIRED"}
+									</Text>
+								</View>
+								{activePrinter && (
+									<Pressable
+										onPress={handleDisconnectPrinter}
+										className="rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 active:opacity-70 dark:border-rose-900 dark:bg-rose-950/40"
+									>
+										<Text className="font-semibold text-[9px] text-rose-600 dark:text-rose-400">
+											Forget
+										</Text>
+									</Pressable>
+								)}
 							</View>
 						</View>
 					</View>
@@ -1584,6 +1795,53 @@ export default function InvoiceDetailScreen() {
 					)}
 				</ScrollView>
 			</HeroBottomSheet>
+
+			{/* Store GSTIN Configuration Dialog */}
+			<DialogModal
+				visible={isEditStoreModalOpen}
+				onClose={() => setIsEditStoreModalOpen(false)}
+				title="Store GSTIN Configuration"
+				subtitle="Enter your 15-digit GSTIN to print on invoices"
+				footer={
+					<View className="flex-row items-center justify-end gap-2">
+						<Pressable
+							onPress={() => setIsEditStoreModalOpen(false)}
+							className="rounded-xl bg-slate-100 px-4 py-2.5 active:opacity-70 dark:bg-zinc-800"
+						>
+							<Text className="font-semibold text-slate-700 text-xs dark:text-zinc-300">
+								Cancel
+							</Text>
+						</Pressable>
+						<Pressable
+							onPress={handleSaveStoreGstin}
+							className="rounded-xl bg-slate-900 px-4 py-2.5 active:opacity-90 dark:bg-white"
+						>
+							<Text className="font-bold text-white text-xs dark:text-zinc-900">
+								Save GSTIN
+							</Text>
+						</Pressable>
+					</View>
+				}
+			>
+				<View className="py-2">
+					<Text className="mb-1.5 font-bold text-slate-700 text-xs dark:text-zinc-300">
+						15-Digit GSTIN Number:
+					</Text>
+					<TextInput
+						value={tempStoreGstin}
+						onChangeText={(t) => setTempStoreGstin(t.toUpperCase())}
+						placeholder="e.g. 08ABCDE1234F1Z5"
+						placeholderTextColor="#94a3b8"
+						autoCapitalize="characters"
+						maxLength={15}
+						className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 font-bold font-mono text-slate-900 text-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-white"
+					/>
+					<Text className="mt-1 text-[10px] text-slate-400">
+						Yeh GSTIN number aapke sabhi print receipts aur WhatsApp invoice
+						slips par store name ke neeche print hoga.
+					</Text>
+				</View>
+			</DialogModal>
 		</Container>
 	);
 }

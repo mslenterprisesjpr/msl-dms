@@ -85,7 +85,7 @@ app.get(
 				.sort({ orderDate: -1 })
 				.skip(skip)
 				.limit(query.limit)
-				.populate("customerId", "name phone address"),
+				.populate("customerId", "name phone address gstNumber"),
 			Order.countDocuments(filter),
 		]);
 
@@ -120,7 +120,7 @@ app.get("/pending", requireAuth, async (c) => {
 
 	const orders = await Order.find(filter)
 		.sort({ orderDate: -1 })
-		.populate("customerId", "name phone address")
+		.populate("customerId", "name phone address gstNumber")
 		.limit(50);
 
 	return c.json({
@@ -152,7 +152,7 @@ app.get(
 			workerId,
 		})
 			.sort({ orderDate: -1 })
-			.populate("customerId", "name phone address")
+			.populate("customerId", "name phone address gstNumber")
 			.limit(100);
 
 		return c.json({
@@ -175,7 +175,7 @@ app.get(
 
 		const order = await Order.findOne({ _id: id, orgId: orgFilter }).populate(
 			"customerId",
-			"name phone address",
+			"name phone address gstNumber",
 		);
 
 		if (!order) {
@@ -341,7 +341,7 @@ app.put(
 			id,
 			{ ...body },
 			{ new: true },
-		).populate("customerId", "name phone address");
+		).populate("customerId", "name phone address gstNumber");
 
 		return c.json({
 			message: "Order updated successfully",
