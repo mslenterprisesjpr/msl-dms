@@ -46,6 +46,9 @@ export interface SaleItem {
 				unit?: string;
 				unitsPerCase?: number;
 				packSize?: string;
+				gstRate?: number;
+				cgst?: number;
+				sgst?: number;
 		  }
 		| string;
 	quantity: number;

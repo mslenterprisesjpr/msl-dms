@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Card, useThemeColor, useToast } from "heroui-native";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
 	ActivityIndicator,
 	Alert,
@@ -261,62 +261,134 @@ export default function InvoiceDetailScreen() {
 		}
 	};
 
-	// Generate Formatted Slip Text
+	// Generate Formatted Slip Text (WhatsApp / Share) — matches printed receipt
 	const generateSlipText = () => {
 		if (!sale) return "";
 
-		const dateStr = new Date(
-			sale.saleDate || sale.createdAt,
-		).toLocaleDateString("en-IN", {
+		const saleDate = new Date(sale.saleDate || sale.createdAt);
+		const dateStr = saleDate.toLocaleDateString("en-IN", {
 			day: "2-digit",
 			month: "short",
 			year: "numeric",
+		});
+		const timeStr = saleDate.toLocaleTimeString("en-IN", {
 			hour: "2-digit",
 			minute: "2-digit",
+			hour12: true,
 		});
 
-		let text = "🧾 *TAX INVOICE / CASH MEMO*\n";
-		text += "*MSL ENTERPRISES*\n";
-		text += "--------------------------------\n";
-		text += `Invoice No: *#${sale.invoiceNo}*\n`;
-		text += `Date: ${dateStr}\n`;
-		text += `Party: *${customerName}*\n`;
-		if (customerPhone) text += `Phone: ${customerPhone}\n`;
-		if (customerGst) text += `GSTIN: ${customerGst}\n`;
-		text += "--------------------------------\n";
-		text += "*ITEMS BILLED:*\n";
+		const sep = "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+		const dash = "────────────────────────────────\n";
 
-		items.forEach((item, index) => {
+		let text = "🧾 *POS GST INVOICE*\n";
+		text += "*MSL ENTERPRISES*\n";
+		text += sep;
+		text += `Invoice : *#${sale.invoiceNo}*\n`;
+		text += `Date    : ${dateStr} ${timeStr}\n`;
+		text += `Party   : *${customerName}*\n`;
+		if (customerPhone) text += `Phone   : ${customerPhone}\n`;
+		if (customerGst) text += `GSTIN   : ${customerGst}\n`;
+		text += dash;
+
+		// Items
+		text += "*Item                  Qty  Rate    Amt*\n";
+		text += dash;
+		items.forEach((item) => {
 			const prodName =
 				typeof item.productId === "object"
 					? item.productId.name
 					: "Product Item";
-			const casesText = (item.cases || 0) > 0 ? `${item.cases} cs` : "";
-			const looseText = (item.units || 0) > 0 ? `${item.units} pcs` : "";
+			const casesText = (item.cases || 0) > 0 ? `${item.cases}cs` : "";
+			const looseText = (item.units || 0) > 0 ? `${item.units}pc` : "";
 			const qtyStr =
 				casesText && looseText
-					? `${casesText} + ${looseText}`
-					: casesText || looseText || `${item.quantity} units`;
+					? `${casesText}+${looseText}`
+					: casesText || looseText || `${item.quantity}`;
 
-			text += `${index + 1}. *${prodName}*\n`;
-			text += `   Qty: ${qtyStr} @ ₹${item.price} = ₹${item.total.toLocaleString("en-IN")}\n`;
+			const rateStr = `₹${item.price}`;
+			const totStr = `₹${item.total.toLocaleString("en-IN")}`;
+
+			if (prodName.length > 16) {
+				text += `*${prodName}*\n`;
+				text += `  ${qtyStr.padEnd(6)}${rateStr.padEnd(10)}${totStr}\n`;
+			} else {
+				text += `*${prodName}*  ${qtyStr}  ${rateStr}  ${totStr}\n`;
+			}
+		});
+		text += dash;
+
+		// Financial totals
+		const subtotal = sale.subtotal || 0;
+		const discount = sale.discount || 0;
+		const taxableValue = subtotal - discount;
+
+		text += `Subtotal      : ₹${subtotal.toLocaleString("en-IN")}\n`;
+		if (discount > 0) {
+			text += `Discount      : -₹${discount.toLocaleString("en-IN")}\n`;
+		}
+		text += `Taxable Value : ₹${taxableValue.toLocaleString("en-IN")}\n`;
+		text += dash;
+
+		// GST Breakup per slab
+		type SlabMap = {
+			cgst: number;
+			sgst: number;
+			cgstPct: number;
+			sgstPct: number;
+		};
+		const gstSlabs = new Map<number, SlabMap>();
+		items.forEach((item) => {
+			const prod = typeof item.productId === "object" ? item.productId : null;
+			const rate = prod?.gstRate ?? 0;
+			if (rate <= 0) return;
+			const cgstPct = prod?.cgst ?? rate / 2;
+			const sgstPct = prod?.sgst ?? rate / 2;
+			const gstAmt = (item.total * rate) / 100;
+			const entry = gstSlabs.get(rate) ?? {
+				cgst: 0,
+				sgst: 0,
+				cgstPct,
+				sgstPct,
+			};
+			entry.cgst += gstAmt / 2;
+			entry.sgst += gstAmt / 2;
+			gstSlabs.set(rate, entry);
 		});
 
-		text += "--------------------------------\n";
-		text += `Subtotal: ₹${(sale.subtotal || 0).toLocaleString("en-IN")}\n`;
-		if ((sale.discount || 0) > 0) {
-			text += `Discount: -₹${sale.discount.toLocaleString("en-IN")}\n`;
+		if (gstSlabs.size > 0) {
+			text += "*GST Breakup*\n";
+			gstSlabs.forEach((entry, rate) => {
+				const slab = `${rate}% slab`;
+				text += `CGST ${entry.cgstPct}% (${slab})  ₹${entry.cgst.toFixed(2)}\n`;
+				text += `SGST ${entry.sgstPct}% (${slab})  ₹${entry.sgst.toFixed(2)}\n`;
+			});
+			text += dash;
 		}
-		text += `*GRAND TOTAL: ₹${(sale.total || 0).toLocaleString("en-IN")}*\n`;
-		text += `Amount Paid: ₹${(sale.paidAmount || 0).toLocaleString("en-IN")}\n`;
+
+		// Grand Total
+		const total = sale.total || 0;
+		const roundOff = Math.round(total) - total;
+		const roundedTotal = Math.round(total);
+
+		text += `Grand Total    : ₹${total.toLocaleString("en-IN")}\n`;
+		if (Math.abs(roundOff) > 0.001) {
+			text += `Round Off      : ${roundOff > 0 ? "+" : ""}${roundOff.toFixed(2)}\n`;
+		}
+		text += `*Rounded Total : ₹${roundedTotal.toLocaleString("en-IN")}*\n`;
+		text += dash;
+
+		// Payment
+		text += `Paid      : ₹${(sale.paidAmount || 0).toLocaleString("en-IN")}\n`;
 		if (pendingBalance > 0) {
-			text += `*BALANCE DUE: ₹${pendingBalance.toLocaleString("en-IN")}*\n`;
+			text += `*Balance Due : ₹${pendingBalance.toLocaleString("en-IN")}*\n`;
 			text += "Status: ⚠️ PAYMENT PENDING\n";
 		} else {
 			text += "Status: ✅ FULLY PAID\n";
 		}
-		text += "--------------------------------\n";
-		text += "Thank you for your business! 🙏";
+
+		text += sep;
+		text += "_GST Included as applicable._\n";
+		text += "_Thank you for your business! 🙏_";
 
 		return text;
 	};

@@ -197,7 +197,7 @@ app.get(
 		// Get sale items
 		const items = await SaleItem.find({ saleId: sale._id }).populate(
 			"productId",
-			"name sku unit unitsPerCase packSize",
+			"name sku unit unitsPerCase packSize gstRate cgst sgst",
 		);
 
 		// Get payments
@@ -246,7 +246,7 @@ app.get(
 		// Get sale items
 		const items = await SaleItem.find({ saleId: id }).populate(
 			"productId",
-			"name sku unit unitsPerCase packSize",
+			"name sku unit unitsPerCase packSize gstRate cgst sgst",
 		);
 
 		// Get payments

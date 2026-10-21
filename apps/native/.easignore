@@ -1,26 +1,29 @@
+# Native build folders - EAS will rebuild these
+android/
+ios/
+
 # Gradle cache and build files
-android/.gradle/
-android/build/
-android/app/build/
-android/.cxx/
-android/local.properties
 **/.gradle/
 **/build/
+**/.cxx/
+**/local.properties
 
-# iOS build files
-ios/build/
-ios/Pods/
-ios/*.xcworkspace/xcuserdata/
-ios/*.xcodeproj/xcuserdata/
+# Node modules - EAS will install fresh
+node_modules/
 
 # Development files
 .expo/
-node_modules/
-*.log
 .git/
 .vscode/
+*.log
+.DS_Store
 
 # Temporary files
 *.tmp
 *.temp
 .cache/
+
+# Large files
+*.apk
+*.aab
+*.ipa

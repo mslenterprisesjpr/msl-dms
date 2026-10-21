@@ -36,12 +36,16 @@ export interface ReceiptItem {
 	unit?: string;
 	price: number;
 	total?: number;
+	gstRate?: number;
+	cgst?: number;
+	sgst?: number;
 }
 
 export interface ReceiptData {
 	storeName?: string;
 	storeAddress?: string;
 	phone?: string;
+	gstin?: string;
 	billNumber: string;
 	date: Date;
 	customerName?: string;
@@ -181,105 +185,171 @@ export const formatTime = (date: Date): string =>
 		hour12: true,
 	});
 
+/* --------- Column helpers: Item(18) Qty(5) Rate(8) Amt(8) = 39+3 = 42 --------- */
+
+const C_ITEM = 18;
+const C_QTY = 5;
+const C_RATE = 8;
+const C_AMT = 8;
+
+const padR = (s: string, n: number) => s.slice(0, n).padEnd(n);
+const padL = (s: string, n: number) => s.slice(0, n).padStart(n);
+
+const itemRow = (name: string, qty: string, rate: string, amt: string) =>
+	padR(name, C_ITEM) +
+	padL(qty, C_QTY) +
+	padL(rate, C_RATE) +
+	padL(amt, C_AMT) +
+	"\n";
+
 /* --------------------------- Receipt Builder --------------------------- */
 
 export const buildReceiptText = (data: ReceiptData): string => {
-	let receipt = "";
+	let r = "";
 
-	// Header
-	receipt += `<C>${line("=")}</C>\n`;
-	receipt += `<CB>${data.storeName || "MSL ENTERPRISES"}</CB>\n`;
-	if (data.storeAddress) receipt += `<C>${data.storeAddress}</C>\n`;
-	if (data.phone) receipt += `<C>Tel: ${data.phone}</C>\n`;
-	receipt += "<C>TAX INVOICE / CASH MEMO</C>\n";
-	receipt += `<C>${line("=")}</C>\n\n`;
+	// ── Header ───────────────────────────────────────────────────────────────
+	r += "<CB>POS GST INVOICE</CB>\n";
+	r += `<CB>${data.storeName || "MSL ENTERPRISES"}</CB>\n`;
+	if (data.storeAddress) r += `<C>${data.storeAddress}</C>\n`;
+	if (data.gstin) r += `<C>GSTIN: ${data.gstin}</C>\n`;
+	if (data.phone) r += `<C>Ph: ${data.phone}</C>\n`;
+	r += `<C>${line("=")}</C>\n`;
 
-	// Bill & Customer details
-	receipt += `Invoice No : #${data.billNumber}\n`;
-	receipt += `Date       : ${formatDate(data.date)} ${formatTime(data.date)}\n`;
-	if (data.customerName) {
-		receipt += `Party      : ${data.customerName}\n`;
-	}
-	if (data.customerPhone) {
-		receipt += `Phone      : ${data.customerPhone}\n`;
-	}
-	if (data.customerGst) {
-		receipt += `GSTIN      : ${data.customerGst}\n`;
-	}
-	receipt += `${line("-")}\n`;
+	// ── Bill & Customer details ───────────────────────────────────────────────
+	r += `Invoice: #${data.billNumber}\n`;
+	r += `Date   : ${formatDate(data.date)} ${formatTime(data.date)}\n`;
+	if (data.customerName) r += `Party  : ${data.customerName}\n`;
+	if (data.customerPhone) r += `Phone  : ${data.customerPhone}\n`;
+	if (data.customerGst) r += `GSTIN  : ${data.customerGst}\n`;
+	r += `${line("-")}\n`;
 
-	// Items Header
-	receipt += leftRight("ITEMS (Wholesale)", "AMOUNT");
-	receipt += `${line("-")}\n`;
+	// ── Items table ───────────────────────────────────────────────────────────
+	r += itemRow("Item", "Qty", "Rate", "Amt");
+	r += `${line("-")}\n`;
 
-	// Items List
 	let computedSubtotal = 0;
-	data.items.forEach((item, index) => {
+	data.items.forEach((item) => {
 		const itemTot = item.total ?? item.quantity * item.price;
 		computedSubtotal += itemTot;
 
-		const casesText = (item.cases || 0) > 0 ? `${item.cases} cs` : "";
-		const unitsText = (item.units || 0) > 0 ? `${item.units} pcs` : "";
+		const casesText = (item.cases || 0) > 0 ? `${item.cases}cs` : "";
+		const unitsText = (item.units || 0) > 0 ? `${item.units}pc` : "";
 		const qtyStr =
 			casesText && unitsText
-				? `${casesText} + ${unitsText}`
-				: casesText || unitsText || `${item.quantity} ${item.unit || "pcs"}`;
+				? `${casesText}+${unitsText}`
+				: casesText || unitsText || `${item.quantity}`;
 
-		receipt += `${index + 1}. ${item.name}\n`;
-		receipt += leftRight(
-			`   ${qtyStr} @ Rs ${item.price}`,
-			`Rs ${itemTot.toLocaleString("en-IN")}`,
-		);
+		if (item.name.length > C_ITEM) {
+			// Long name on its own line, then data row
+			r += `${item.name.slice(0, LINE_WIDTH)}\n`;
+			r += itemRow("", qtyStr, item.price.toFixed(0), itemTot.toFixed(0));
+		} else {
+			r += itemRow(
+				item.name,
+				qtyStr,
+				item.price.toFixed(0),
+				itemTot.toFixed(0),
+			);
+		}
+	});
+	r += `${line("-")}\n`;
+
+	// ── Financial totals ─────────────────────────────────────────────────────
+	const subtotal = data.subtotal || computedSubtotal;
+	const discount = data.discount || 0;
+	const taxableValue = subtotal - discount;
+
+	r += leftRight("Subtotal:", `Rs ${subtotal.toFixed(2)}`);
+	if (discount > 0) {
+		r += leftRight("Discount:", `-Rs ${discount.toFixed(2)}`);
+	}
+	r += leftRight("Taxable Value:", `Rs ${taxableValue.toFixed(2)}`);
+	r += `${line("-")}\n`;
+
+	// ── GST Breakup (slab-wise) ───────────────────────────────────────────────
+	// Group items by gstRate and compute CGST + SGST per slab
+	type GstSlabEntry = {
+		taxable: number;
+		cgst: number;
+		sgst: number;
+		cgstPct: number;
+		sgstPct: number;
+	};
+	const gstSlabs = new Map<number, GstSlabEntry>();
+
+	data.items.forEach((item) => {
+		const rate = item.gstRate ?? 0;
+		if (rate <= 0) return;
+		const itemTot = item.total ?? item.quantity * item.price;
+		const cgstPct = item.cgst ?? rate / 2;
+		const sgstPct = item.sgst ?? rate / 2;
+		const gstAmt = (itemTot * rate) / 100;
+		const entry = gstSlabs.get(rate) ?? {
+			taxable: 0,
+			cgst: 0,
+			sgst: 0,
+			cgstPct,
+			sgstPct,
+		};
+		entry.taxable += itemTot;
+		entry.cgst += gstAmt / 2;
+		entry.sgst += gstAmt / 2;
+		gstSlabs.set(rate, entry);
 	});
 
-	receipt += `${line("-")}\n`;
-
-	// Financial Totals
-	receipt += leftRight(
-		"Subtotal:",
-		`Rs ${(data.subtotal || computedSubtotal).toLocaleString("en-IN")}`,
-	);
-
-	if (data.discount && data.discount > 0) {
-		receipt += leftRight(
-			"Discount:",
-			`-Rs ${data.discount.toLocaleString("en-IN")}`,
-		);
+	if (gstSlabs.size > 0) {
+		r += "<CB>GST Breakup</CB>\n";
+		gstSlabs.forEach((entry, rate) => {
+			const slabLabel = `${rate}% slab`;
+			r += leftRight(
+				`CGST ${entry.cgstPct}% (${slabLabel})`,
+				entry.cgst.toFixed(2),
+			);
+			r += leftRight(
+				`SGST ${entry.sgstPct}% (${slabLabel})`,
+				entry.sgst.toFixed(2),
+			);
+		});
+		r += `${line("-")}\n`;
 	}
 
-	receipt += `${line("-")}\n`;
-	receipt += `<CB>${leftRight("GRAND TOTAL:", `Rs ${data.total.toLocaleString("en-IN")}`).trim()}</CB>\n`;
+	// ── Grand Total & Round Off ───────────────────────────────────────────────
+	const roundOff = Math.round(data.total) - data.total;
+	const roundedTotal = Math.round(data.total);
 
-	// Paid & Balance Due
+	r += leftRight("Grand Total:", `Rs ${data.total.toFixed(2)}`);
+	if (Math.abs(roundOff) > 0.001) {
+		r += leftRight(
+			"Round Off:",
+			`${roundOff > 0 ? "+" : ""}${roundOff.toFixed(2)}`,
+		);
+	}
+	r += `<CB>${leftRight("Rounded Total:", `Rs ${roundedTotal}`).trim()}</CB>\n`;
+	r += `${line("-")}\n`;
+
+	// ── Payment ───────────────────────────────────────────────────────────────
 	if (data.paidAmount !== undefined) {
-		receipt += leftRight(
-			"Amount Paid:",
-			`Rs ${data.paidAmount.toLocaleString("en-IN")}`,
-		);
+		r += leftRight("Paid:", `Rs ${data.paidAmount.toFixed(2)}`);
 	}
-
 	if (data.pendingAmount && data.pendingAmount > 0) {
-		receipt += leftRight(
-			"BALANCE DUE:",
-			`Rs ${data.pendingAmount.toLocaleString("en-IN")}`,
-		);
-		receipt += "Status: ⚠️ PAYMENT PENDING\n";
+		r += leftRight("Balance Due:", `Rs ${data.pendingAmount.toFixed(2)}`);
+		r += "Status: PAYMENT PENDING\n";
 	} else {
-		receipt += "Status: ✅ FULLY PAID\n";
+		r += "Status: FULLY PAID\n";
 	}
 
 	if (data.note) {
-		receipt += `${line("-")}\n`;
-		receipt += `Note: ${data.note}\n`;
+		r += `${line("-")}\n`;
+		r += `Note: ${data.note}\n`;
 	}
 
-	// Footer
-	receipt += `<C>${line("=")}</C>\n`;
-	receipt += "<C>Thank You! Visit Again!</C>\n";
-	receipt += "<C>MSL Distribution Management</C>\n";
-	receipt += `<C>${line("=")}</C>\n\n\n\n`;
+	// ── Footer ────────────────────────────────────────────────────────────────
+	r += `<C>${line("=")}</C>\n`;
+	r += "<C>GST Included as applicable.</C>\n";
+	r += "<C>Thank You! Visit Again!</C>\n";
+	r += `<C>${line("=")}</C>\n\n\n\n`;
 
-	return receipt;
+	return r;
 };
 
 /* ------------------------------ Public APIs ------------------------------ */
@@ -315,6 +385,9 @@ export const printSaleInvoice = async (
 			unit: p?.unit || "pcs",
 			price: i.price || 0,
 			total: i.total || (i.quantity || 0) * (i.price || 0),
+			gstRate: p?.gstRate ?? 0,
+			cgst: p?.cgst,
+			sgst: p?.sgst,
 		};
 	});
 
