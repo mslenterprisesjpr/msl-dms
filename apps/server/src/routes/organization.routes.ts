@@ -287,12 +287,15 @@ app.patch("/metadata", requireAuth, requireAdmin, async (c) => {
 			throw new HTTPException(400, { message: "Organization ID is required" });
 		}
 
-		// Get existing org
+		// Get existing org - check both id and _id fields for compatibility
 		const existingOrg = await db.collection("organization").findOne({
-			id: organizationId,
+			$or: [{ id: organizationId }, { _id: organizationId }],
 		});
 
+		console.log("Found org:", existingOrg ? "YES" : "NO");
+
 		if (!existingOrg) {
+			console.log("ERROR: Organization not found in database");
 			throw new HTTPException(404, { message: "Organization not found" });
 		}
 
@@ -316,9 +319,11 @@ app.patch("/metadata", requireAuth, requireAdmin, async (c) => {
 			updatedMetadata.address = address.trim();
 		}
 
-		// Update in MongoDB
+		// Update in MongoDB - use $or for compatibility with different id fields
 		const updateResult = await db.collection("organization").updateOne(
-			{ id: organizationId },
+			{
+				$or: [{ id: organizationId }, { _id: organizationId }],
+			},
 			{
 				$set: {
 					metadata: updatedMetadata,
