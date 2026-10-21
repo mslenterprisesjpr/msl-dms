@@ -92,9 +92,24 @@ export const useOrganizationStore = create<OrganizationStore>()(
 
 			getCurrentOrg: () => {
 				const state = get();
+
+				// Safety check: no organizations available
+				if (!state.organizations || state.organizations.length === 0) {
+					console.log("Store: No organizations available");
+					return null;
+				}
+
+				// Safety check: no current org ID set
+				if (!state.currentOrgId) {
+					console.log("Store: No current org ID set");
+					return null;
+				}
+
+				// Find with optional chaining for safety
 				const org = state.organizations.find(
-					(org) => org.id === state.currentOrgId,
+					(org) => org?.id === state.currentOrgId,
 				);
+
 				console.log("Store: Getting current org:", org);
 				return org || null;
 			},

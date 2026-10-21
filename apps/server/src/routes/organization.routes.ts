@@ -252,51 +252,23 @@ app.post("/reject-invitation", requireAuth, async (c) => {
 });
 
 /**
- * GET /current
- * Get current organization details with metadata
- */
-app.get("/current", requireAuth, async (c) => {
-	try {
-		const organizationId = await resolveOrganizationId(c);
-
-		const org = await db.collection("organization").findOne({
-			id: organizationId,
-		});
-
-		if (!org) {
-			throw new HTTPException(404, { message: "Organization not found" });
-		}
-
-		return c.json({
-			success: true,
-			data: org,
-		});
-	} catch (error: any) {
-		console.error("Get organization error:", error);
-		const message =
-			error?.body?.message || error?.message || "Failed to fetch organization";
-		throw new HTTPException(error?.status || 500, { message });
-	}
-});
-
-/**
- * PATCH /update-metadata
+ * PATCH /metadata
  * Update organization metadata (GSTIN, phone, address, etc.)
+ * Simple approach - directly update metadata field
  */
-app.patch("/update-metadata", requireAuth, requireAdmin, async (c) => {
+app.patch("/metadata", requireAuth, requireAdmin, async (c) => {
 	try {
 		const organizationId = await resolveOrganizationId(c);
 		const body = await c.req.json().catch(() => ({}));
 
-		const { gstin, gstNumber, phone, address, ...otherMetadata } = body as {
+		const { gstin, phone, address, ...otherMetadata } = body as {
 			gstin?: string;
-			gstNumber?: string;
 			phone?: string;
 			address?: string;
 			[key: string]: any;
 		};
 
-		// Get existing org to preserve current metadata
+		// Get existing org
 		const existingOrg = await db.collection("organization").findOne({
 			id: organizationId,
 		});
@@ -305,33 +277,28 @@ app.patch("/update-metadata", requireAuth, requireAdmin, async (c) => {
 			throw new HTTPException(404, { message: "Organization not found" });
 		}
 
-		// Merge existing metadata with new values
+		// Merge metadata
 		const currentMetadata = (existingOrg.metadata as Record<string, any>) || {};
-
 		const updatedMetadata = {
 			...currentMetadata,
 			...otherMetadata,
 		};
 
-		// Add GSTIN (support both field names)
-		if (gstin !== undefined || gstNumber !== undefined) {
-			const gstValue = (gstin || gstNumber || "").trim().toUpperCase();
+		// Add store details
+		if (gstin !== undefined) {
+			const gstValue = gstin.trim().toUpperCase();
 			updatedMetadata.gstin = gstValue;
 			updatedMetadata.gstNumber = gstValue;
 		}
-
-		// Add phone
 		if (phone !== undefined) {
 			updatedMetadata.phone = phone.trim();
 		}
-
-		// Add address
 		if (address !== undefined) {
 			updatedMetadata.address = address.trim();
 		}
 
-		// Update organization
-		const result = await db.collection("organization").findOneAndUpdate(
+		// Update in MongoDB
+		await db.collection("organization").updateOne(
 			{ id: organizationId },
 			{
 				$set: {
@@ -339,18 +306,16 @@ app.patch("/update-metadata", requireAuth, requireAdmin, async (c) => {
 					updatedAt: new Date(),
 				},
 			},
-			{ returnDocument: "after" },
 		);
 
 		return c.json({
 			success: true,
-			message: "Organization metadata updated successfully",
-			data: result,
+			message: "Store settings updated successfully",
+			data: { metadata: updatedMetadata },
 		});
 	} catch (error: any) {
-		console.error("Update organization metadata error:", error);
-		const message =
-			error?.body?.message || error?.message || "Failed to update organization";
+		console.error("Update metadata error:", error);
+		const message = error?.message || "Failed to update store settings";
 		throw new HTTPException(error?.status || 500, { message });
 	}
 });

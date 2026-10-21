@@ -25,9 +25,9 @@ export function CustomDrawerContent(props: any) {
 	const currentOrgId = useOrganizationStore((state) => state.currentOrgId);
 	const setCurrentOrg = useOrganizationStore((state) => state.setCurrentOrg);
 
-	// Calculate current org from organizations and currentOrgId
+	// Calculate current org from organizations and currentOrgId (with null safety)
 	const currentOrg =
-		organizations.find((org) => org.id === currentOrgId) || null;
+		organizations.find((org) => org?.id === currentOrgId) || null;
 
 	const [isOrgListExpanded, setIsOrgListExpanded] = useState(false);
 
@@ -47,8 +47,8 @@ export function CustomDrawerContent(props: any) {
 		setCurrentOrg(orgId);
 		setIsOrgListExpanded(false);
 
-		// Get the selected org name for alert
-		const selectedOrg = organizations.find((o) => o.id === orgId);
+		// Get the selected org name for alert (with null safety)
+		const selectedOrg = organizations.find((o) => o?.id === orgId);
 		Alert.alert("Success", `Selected: ${selectedOrg?.name || "Organization"}`);
 	};
 

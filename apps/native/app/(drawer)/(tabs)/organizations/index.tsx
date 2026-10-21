@@ -157,22 +157,23 @@ export default function OrganizationsScreen() {
 	};
 
 	const handleEditOrg = (org: Organization) => {
+		if (!org) {
+			Alert.alert("Error", "Organization not found");
+			return;
+		}
+
 		setOrgFormMode("edit");
 		setOrgName(org.name);
 		setOrgSlug(org.slug);
 		setSelectedOrg(org);
 
-		// Load metadata
+		// Load metadata from organization (with null safety)
 		const meta =
 			typeof org.metadata === "string"
 				? JSON.parse(org.metadata)
 				: org.metadata || {};
-		setOrgGstin(
-			(meta.gstin as string) ||
-				(meta.gstNumber as string) ||
-				(meta.gst as string) ||
-				"",
-		);
+
+		setOrgGstin((meta.gstin as string) || (meta.gstNumber as string) || "");
 		setOrgPhone((meta.phone as string) || "");
 		setOrgAddress((meta.address as string) || "");
 
@@ -187,10 +188,11 @@ export default function OrganizationsScreen() {
 		setIsSubmitting(true);
 		try {
 			if (orgFormMode === "create") {
-				const { error } = await authClient.organization.create({
-					name: orgName,
-					slug: orgSlug,
-				});
+				const { data: createdOrg, error } =
+					await authClient.organization.create({
+						name: orgName,
+						slug: orgSlug,
+					});
 				if (error) {
 					Alert.alert(
 						error.status === 403 ? "Permission Denied" : "Error",
@@ -198,6 +200,24 @@ export default function OrganizationsScreen() {
 					);
 					return;
 				}
+
+				// If metadata fields are filled, update them
+				const hasMetadata =
+					orgGstin.trim() || orgPhone.trim() || orgAddress.trim();
+				if (hasMetadata && createdOrg?.organization?.id) {
+					try {
+						await organizationService.updateMetadata({
+							organizationId: createdOrg.organization.id,
+							gstin: orgGstin.trim().toUpperCase(),
+							phone: orgPhone.trim(),
+							address: orgAddress.trim(),
+						});
+					} catch (metaError: any) {
+						console.error("Metadata creation error:", metaError);
+						// Don't fail the whole operation
+					}
+				}
+
 				Alert.alert("Success", "Organization created successfully");
 			} else if (selectedOrg) {
 				// Update organization name & slug
@@ -216,16 +236,19 @@ export default function OrganizationsScreen() {
 					return;
 				}
 
-				// Update metadata (GSTIN, phone, address) via custom API
-				try {
-					await organizationService.updateMetadata(selectedOrg.id, {
-						gstin: orgGstin.trim().toUpperCase(),
-						phone: orgPhone.trim(),
-						address: orgAddress.trim(),
-					});
-				} catch (metaError: any) {
-					console.error("Metadata update error:", metaError);
-					// Don't fail the whole operation, just log
+				// Update store settings via metadata (only in edit mode)
+				if (selectedOrg?.id) {
+					try {
+						await organizationService.updateMetadata({
+							organizationId: selectedOrg.id,
+							gstin: orgGstin.trim().toUpperCase(),
+							phone: orgPhone.trim(),
+							address: orgAddress.trim(),
+						});
+					} catch (metaError: any) {
+						console.error("Metadata update error:", metaError);
+						// Don't fail the whole operation
+					}
 				}
 
 				Alert.alert("Success", "Organization updated successfully");
@@ -497,58 +520,61 @@ export default function OrganizationsScreen() {
 					</View>
 				) : (
 					<View className="gap-3">
-						{organizations.map((org) => (
-							<Card key={org.id}>
-								<View className="p-4">
-									<View className="mb-3 flex-row items-start justify-between">
-										<View className="flex-1 pr-2">
-											<Typography
-												variant="title3"
-												className="mb-1 text-foreground"
-											>
-												{org.name}
-											</Typography>
-											<Typography
-												variant="caption"
-												className="text-foreground/50"
-											>
-												@{org.slug}
-											</Typography>
+						{organizations.map((org) => {
+							if (!org) return null;
+							return (
+								<Card key={org.id}>
+									<View className="p-4">
+										<View className="mb-3 flex-row items-start justify-between">
+											<View className="flex-1 pr-2">
+												<Typography
+													variant="title3"
+													className="mb-1 text-foreground"
+												>
+													{org.name}
+												</Typography>
+												<Typography
+													variant="caption"
+													className="text-foreground/50"
+												>
+													@{org.slug}
+												</Typography>
+											</View>
+											{currentOrgId === org.id && (
+												<Chip size="sm" variant="primary">
+													Current
+												</Chip>
+											)}
 										</View>
-										{currentOrgId === org.id && (
-											<Chip size="sm" variant="primary">
-												Current
-											</Chip>
-										)}
-									</View>
 
-									<View className="flex-row gap-2">
-										<Button
-											size="sm"
-											variant={
-												currentOrgId === org.id ? "secondary" : "primary"
-											}
-											onPress={() => handleSelectOrg(org.id)}
-											isDisabled={currentOrgId === org.id}
-											className="flex-1"
-										>
-											{currentOrgId === org.id ? "Selected" : "Select"}
-										</Button>
-										<Button
-											size="sm"
-											variant="secondary"
-											onPress={() => handleEditOrg(org)}
-										>
-											<StyledIonicons
-												name="create-outline"
-												size={16}
-												className="text-foreground"
-											/>
-										</Button>
+										<View className="flex-row gap-2">
+											<Button
+												size="sm"
+												variant={
+													currentOrgId === org.id ? "secondary" : "primary"
+												}
+												onPress={() => handleSelectOrg(org.id)}
+												isDisabled={currentOrgId === org.id}
+												className="flex-1"
+											>
+												{currentOrgId === org.id ? "Selected" : "Select"}
+											</Button>
+											<Button
+												size="sm"
+												variant="secondary"
+												onPress={() => handleEditOrg(org)}
+											>
+												<StyledIonicons
+													name="create-outline"
+													size={16}
+													className="text-foreground"
+												/>
+											</Button>
+										</View>
 									</View>
-								</View>
-							</Card>
-						))}
+								</Card>
+							);
+						})}
 					</View>
 				)}
 
@@ -920,45 +946,42 @@ export default function OrganizationsScreen() {
 						<Description>Used in URLs, must be unique</Description>
 					</TextField>
 
-					{orgFormMode === "edit" && (
-						<>
-							<TextField>
-								<Label>Store GSTIN (GST Number)</Label>
-								<Input
-									placeholder="e.g., 08AAAAA0000A1Z5"
-									value={orgGstin}
-									onChangeText={(t) => setOrgGstin(t.toUpperCase().trim())}
-									autoCapitalize="characters"
-									maxLength={15}
-								/>
-								<Description>
-									15-character GST number for invoices & receipts
-								</Description>
-							</TextField>
+					{/* Store Settings - Available in both Create & Edit modes */}
+					<TextField>
+						<Label>Store GSTIN (GST Number)</Label>
+						<Input
+							placeholder="e.g., 08AAAAA0000A1Z5"
+							value={orgGstin}
+							onChangeText={(t) => setOrgGstin(t.toUpperCase().trim())}
+							autoCapitalize="characters"
+							maxLength={15}
+						/>
+						<Description>
+							15-character GST number for invoices & receipts
+						</Description>
+					</TextField>
 
-							<TextField>
-								<Label>Store Phone Number</Label>
-								<Input
-									placeholder="e.g., +91 98765 43210"
-									value={orgPhone}
-									onChangeText={setOrgPhone}
-									keyboardType="phone-pad"
-								/>
-							</TextField>
+					<TextField>
+						<Label>Store Phone Number</Label>
+						<Input
+							placeholder="e.g., +91 98765 43210"
+							value={orgPhone}
+							onChangeText={setOrgPhone}
+							keyboardType="phone-pad"
+						/>
+					</TextField>
 
-							<TextField>
-								<Label>Store Address</Label>
-								<Input
-									placeholder="Complete address with PIN code"
-									value={orgAddress}
-									onChangeText={setOrgAddress}
-									multiline
-									numberOfLines={3}
-									style={{ minHeight: 70 }}
-								/>
-							</TextField>
-						</>
-					)}
+					<TextField>
+						<Label>Store Address</Label>
+						<Input
+							placeholder="Complete address with PIN code"
+							value={orgAddress}
+							onChangeText={setOrgAddress}
+							multiline
+							numberOfLines={3}
+							style={{ minHeight: 70 }}
+						/>
+					</TextField>
 				</View>
 			</DialogModal>
 

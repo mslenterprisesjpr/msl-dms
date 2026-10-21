@@ -143,6 +143,7 @@ export default function Home() {
 		refetch: refetchSession,
 	} = useSession();
 	const currentOrg = useOrganizationStore((state) => state.getCurrentOrg());
+	const organizations = useOrganizationStore((state) => state.organizations);
 	const { toast } = useToast();
 
 	const [refreshing, setRefreshing] = useState(false);
@@ -333,6 +334,32 @@ export default function Home() {
 			<SplashScreen
 				message={!user ? "Redirecting to login..." : "Loading MSL..."}
 			/>
+		);
+	}
+
+	// Show "No Organization" empty state
+	if (!currentOrg || organizations.length === 0) {
+		return (
+			<Container className="flex-1 items-center justify-center bg-slate-50 p-6 dark:bg-zinc-950">
+				<View className="items-center">
+					<Ionicons name="business-outline" size={64} color="#94a3b8" />
+					<Text className="mt-4 font-bold text-slate-900 text-xl dark:text-white">
+						No Organization Found
+					</Text>
+					<Text className="mt-2 text-center font-medium text-slate-500 text-sm dark:text-zinc-400">
+						Aapko pehle ek organization create karna hoga.{"\n"}
+						Settings → Organizations se nayi org banayein.
+					</Text>
+					<Pressable
+						onPress={() => navigation.navigate("organizations" as any)}
+						className="mt-6 rounded-xl bg-accent px-6 py-3 active:opacity-90"
+					>
+						<Text className="font-bold text-accent-foreground text-sm">
+							Create Organization
+						</Text>
+					</Pressable>
+				</View>
+			</Container>
 		);
 	}
 

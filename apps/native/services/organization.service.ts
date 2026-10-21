@@ -56,24 +56,18 @@ export const organizationService = {
 		return res.data;
 	},
 
-	updateMetadata: async (
-		organizationId: string,
-		metadata: {
-			gstin?: string;
-			phone?: string;
-			address?: string;
-			[key: string]: any;
-		},
-	) => {
+	// Update organization metadata (Store GSTIN, phone, address)
+	updateMetadata: async (metadata: {
+		organizationId: string;
+		gstin?: string;
+		phone?: string;
+		address?: string;
+	}) => {
 		const res = await apiClient.patch<{
 			success: boolean;
 			message: string;
 			data?: any;
-		}>("/organizations/update-metadata", metadata, {
-			headers: {
-				"x-organization-id": organizationId,
-			},
-		});
+		}>("/organizations/metadata", metadata);
 		return res.data;
 	},
 };

@@ -27,6 +27,7 @@ import { useCreatePayment } from "@/hooks/queries/use-payments";
 import { useSale } from "@/hooks/queries/use-sales";
 import { authClient } from "@/lib/auth-client";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
+import { organizationService } from "@/services/organization.service";
 import type { SaleItem } from "@/services/sale.service";
 import {
 	buildReceiptText,
@@ -92,41 +93,11 @@ export default function InvoiceDetailScreen() {
 	const sellerGstin =
 		(orgMeta.gstin as string) ||
 		(orgMeta.gstNumber as string) ||
-		(orgMeta.gst as string) ||
-		(currentOrg as any)?.gstNumber ||
-		(currentOrg as any)?.gstin ||
 		localStoreGstin ||
 		"";
-	const sellerPhone =
-		(orgMeta.phone as string) ||
-		(currentOrg as any)?.phone ||
-		localStorePhone ||
-		"";
+	const sellerPhone = (orgMeta.phone as string) || localStorePhone || "";
 	const sellerAddr =
-		(orgMeta.address as string) ||
-		(currentOrg as any)?.address ||
-		localStoreAddr ||
-		"Jaipur, Rajasthan";
-
-	// Quick prompt to configure Store GSTIN if missing
-	const [isEditStoreModalOpen, setIsEditStoreModalOpen] = useState(false);
-	const [tempStoreGstin, setTempStoreGstin] = useState("");
-
-	const handleEditStoreGstin = () => {
-		setTempStoreGstin(sellerGstin);
-		setIsEditStoreModalOpen(true);
-	};
-
-	const handleSaveStoreGstin = async () => {
-		const clean = tempStoreGstin.trim().toUpperCase();
-		setLocalStoreGstin(clean);
-		await AsyncStorage.setItem("@msl_store_gstin", clean);
-		setIsEditStoreModalOpen(false);
-		toast.show({
-			variant: "success",
-			label: clean ? `Store GSTIN saved: ${clean}` : "Store GSTIN cleared",
-		});
-	};
+		(orgMeta.address as string) || localStoreAddr || "Jaipur, Rajasthan";
 
 	// Fetch Sale Detail
 	const { data: sale, isLoading, refetch } = useSale(id || "");
@@ -1082,44 +1053,6 @@ export default function InvoiceDetailScreen() {
 
 					{showReceiptPreview && (
 						<View className="border-slate-100 border-t bg-slate-100/80 p-3.5 dark:border-zinc-800 dark:bg-zinc-950">
-							{/* Seller GSTIN quick status / edit banner */}
-							<Pressable
-								onPress={handleEditStoreGstin}
-								className={`mb-2.5 flex-row items-center justify-between rounded-xl border p-2.5 active:opacity-80 ${
-									sellerGstin
-										? "border-emerald-200 bg-emerald-50/70 dark:border-emerald-900/40 dark:bg-emerald-950/20"
-										: "border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/30"
-								}`}
-							>
-								<View className="flex-1 flex-row items-center gap-2">
-									<Ionicons
-										name={sellerGstin ? "shield-checkmark" : "warning"}
-										size={16}
-										color={sellerGstin ? "#059669" : "#d97706"}
-									/>
-									<Text
-										className={`font-bold text-[11px] ${
-											sellerGstin
-												? "text-emerald-900 dark:text-emerald-200"
-												: "text-amber-900 dark:text-amber-200"
-										}`}
-										numberOfLines={1}
-									>
-										{sellerGstin
-											? `Store GSTIN: ${sellerGstin}`
-											: "Store GSTIN not set. Tap to add GSTIN"}
-									</Text>
-								</View>
-								<Text
-									className={`font-bold text-[10px] ${
-										sellerGstin
-											? "text-emerald-700 dark:text-emerald-300"
-											: "text-amber-700 dark:text-amber-300"
-									}`}
-								>
-									{sellerGstin ? "Change" : "Add GSTIN ➔"}
-								</Text>
-							</Pressable>
 							{/* Print Font Size Selector (Large / Medium / Small) */}
 							<View className="mb-3 flex-row items-center justify-between rounded-xl border border-slate-200/80 bg-white px-3 py-2 shadow-xs dark:border-zinc-800 dark:bg-zinc-900">
 								<View className="flex-row items-center gap-1.5">
@@ -1795,53 +1728,6 @@ export default function InvoiceDetailScreen() {
 					)}
 				</ScrollView>
 			</HeroBottomSheet>
-
-			{/* Store GSTIN Configuration Dialog */}
-			<DialogModal
-				visible={isEditStoreModalOpen}
-				onClose={() => setIsEditStoreModalOpen(false)}
-				title="Store GSTIN Configuration"
-				subtitle="Enter your 15-digit GSTIN to print on invoices"
-				footer={
-					<View className="flex-row items-center justify-end gap-2">
-						<Pressable
-							onPress={() => setIsEditStoreModalOpen(false)}
-							className="rounded-xl bg-slate-100 px-4 py-2.5 active:opacity-70 dark:bg-zinc-800"
-						>
-							<Text className="font-semibold text-slate-700 text-xs dark:text-zinc-300">
-								Cancel
-							</Text>
-						</Pressable>
-						<Pressable
-							onPress={handleSaveStoreGstin}
-							className="rounded-xl bg-slate-900 px-4 py-2.5 active:opacity-90 dark:bg-white"
-						>
-							<Text className="font-bold text-white text-xs dark:text-zinc-900">
-								Save GSTIN
-							</Text>
-						</Pressable>
-					</View>
-				}
-			>
-				<View className="py-2">
-					<Text className="mb-1.5 font-bold text-slate-700 text-xs dark:text-zinc-300">
-						15-Digit GSTIN Number:
-					</Text>
-					<TextInput
-						value={tempStoreGstin}
-						onChangeText={(t) => setTempStoreGstin(t.toUpperCase())}
-						placeholder="e.g. 08ABCDE1234F1Z5"
-						placeholderTextColor="#94a3b8"
-						autoCapitalize="characters"
-						maxLength={15}
-						className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 font-bold font-mono text-slate-900 text-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-white"
-					/>
-					<Text className="mt-1 text-[10px] text-slate-400">
-						Yeh GSTIN number aapke sabhi print receipts aur WhatsApp invoice
-						slips par store name ke neeche print hoga.
-					</Text>
-				</View>
-			</DialogModal>
 		</Container>
 	);
 }
