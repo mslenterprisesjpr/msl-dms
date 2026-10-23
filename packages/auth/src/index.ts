@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { expo } from "@better-auth/expo";
 import type { Database } from "@msl/db";
+import { mongoClient } from "@msl/db";
 import { betterAuth } from "better-auth";
 import { mongodbAdapter } from "better-auth/adapters/mongodb";
 import { admin, organization } from "better-auth/plugins";
@@ -17,7 +18,10 @@ export function createAuth(
 	desktopOrigins: readonly string[] = [],
 ) {
 	return betterAuth({
-		database: mongodbAdapter(database),
+		database: mongodbAdapter(database, {
+			// Pass the client for transaction support
+			client: mongoClient || undefined,
+		}),
 		trustedOrigins: [
 			env.CORS_ORIGIN,
 			...desktopOrigins,
@@ -35,6 +39,30 @@ export function createAuth(
 				sameSite: "none",
 				secure: true,
 				httpOnly: true,
+			},
+			// Enable database joins for better performance (2-3x faster)
+			database: {
+				joins: true,
+			},
+			// Enable debug mode to see what's happening
+			hooks: {
+				after: [
+					{
+						matcher(context) {
+							return context.path?.includes("organization");
+						},
+						handler: async (ctx) => {
+							console.log("=== BETTER AUTH HOOK: AFTER ===");
+							console.log("Path:", ctx.path);
+							console.log("Method:", ctx.method);
+							console.log(
+								"Returned data:",
+								JSON.stringify(ctx.returned, null, 2),
+							);
+							console.log("================================");
+						},
+					},
+				],
 			},
 		},
 		plugins: [

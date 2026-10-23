@@ -65,9 +65,71 @@ const verificationSchema = new Schema(
 );
 verificationSchema.index({ identifier: 1 });
 
+// Organization schema - required for Better Auth organization plugin
+const organizationSchema = new Schema(
+	{
+		id: { type: String, required: true, unique: true },
+		name: { type: String, required: true },
+		slug: { type: String, required: true, unique: true },
+		logo: { type: String },
+		metadata: { type: Schema.Types.Mixed },
+		createdAt: { type: Date, required: true, default: Date.now },
+		updatedAt: { type: Date, required: true, default: Date.now },
+	},
+	{ collection: "organization" },
+);
+organizationSchema.index({ slug: 1 });
+
+// Member schema - links users to organizations
+const memberSchema = new Schema(
+	{
+		// Better Auth uses string IDs, not ObjectIds
+		id: { type: String, required: true, unique: true },
+		organizationId: { type: String, required: true }, // String, not ObjectId!
+		userId: { type: String, required: true }, // String, not ObjectId!
+		role: { type: String, required: true, default: "member" },
+		createdAt: { type: Date, required: true, default: Date.now },
+		updatedAt: { type: Date, required: true, default: Date.now },
+	},
+	{ collection: "member", _id: false }, // Disable auto _id generation
+);
+memberSchema.index({ organizationId: 1 });
+memberSchema.index({ userId: 1 });
+memberSchema.index({ organizationId: 1, userId: 1 }, { unique: true });
+
+// Invitation schema - for organization invitations
+const invitationSchema = new Schema(
+	{
+		id: { type: String, required: true, unique: true },
+		organizationId: { type: String, required: true },
+		email: { type: String, required: true },
+		role: { type: String, required: true, default: "member" },
+		status: { type: String, required: true, default: "pending" },
+		expiresAt: { type: Date, required: true },
+		inviterId: { type: String, required: true },
+		createdAt: { type: Date, required: true, default: Date.now },
+		updatedAt: { type: Date, required: true, default: Date.now },
+	},
+	{ collection: "invitation" },
+);
+invitationSchema.index({ organizationId: 1 });
+invitationSchema.index({ email: 1 });
+invitationSchema.index({ organizationId: 1, email: 1 });
+
 const User = model("User", userSchema);
 const Session = model("Session", sessionSchema);
 const Account = model("Account", accountSchema);
 const Verification = model("Verification", verificationSchema);
+const Organization = model("Organization", organizationSchema);
+const Member = model("Member", memberSchema);
+const Invitation = model("Invitation", invitationSchema);
 
-export { Account, Session, User, Verification };
+export {
+	Account,
+	Invitation,
+	Member,
+	Organization,
+	Session,
+	User,
+	Verification,
+};
