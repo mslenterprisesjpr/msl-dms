@@ -20,6 +20,43 @@ type Variables = {
 const app = new Hono<{ Variables: Variables }>();
 
 /**
+ * GET /my-role
+ * Returns the current authenticated user's role in the active organization.
+ */
+app.get("/my-role", requireAuth, async (c) => {
+	const user = c.get("user") as User;
+	if (!user) {
+		throw new HTTPException(401, { message: "Unauthorized" });
+	}
+
+	const organizationId = await resolveOrganizationId(c);
+	if (!organizationId) {
+		const isSys = user.role === "admin";
+		return c.json({
+			role: isSys ? "admin" : "member",
+			isAdmin: isSys,
+			isOwner: isSys,
+		});
+	}
+
+	// Query member table for org-level role
+	const member = await db.collection("member").findOne({
+		organizationId,
+		userId: user.id,
+	});
+
+	const isSys = user.role === "admin";
+	const memberRole = member?.role || "admin";
+	const isAdmin = isSys || memberRole === "admin" || memberRole === "owner";
+
+	return c.json({
+		role: memberRole,
+		isAdmin,
+		isOwner: memberRole === "owner",
+	});
+});
+
+/**
  * POST /add-member
  * Directly adds a user to an organization without email invitations or verification hurdles.
  * If user exists by ID or email, addMember is invoked directly on the server.

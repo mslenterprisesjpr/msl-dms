@@ -25,6 +25,7 @@ import {
 } from "react-native";
 import { Container } from "@/components/container";
 import { DialogModal } from "@/components/dialog-modal";
+import { useOrgUserRole } from "@/hooks/use-org-user-role";
 import { authClient } from "@/lib/auth-client";
 import { useSession } from "@/lib/hooks/use-session";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
@@ -339,7 +340,8 @@ export default function ProfileScreen() {
 	};
 
 	const userInitials = getInitials(user?.name, user?.email);
-	const isAdmin = user?.role === "admin";
+	const { isOrgAdmin, orgRole } = useOrgUserRole();
+	const isAdmin = isOrgAdmin;
 
 	return (
 		<Container>

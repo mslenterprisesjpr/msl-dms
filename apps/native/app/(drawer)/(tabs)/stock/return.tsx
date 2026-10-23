@@ -25,6 +25,7 @@ import {
 	useWorkerStockByWorker,
 	type WorkerStock,
 } from "@/hooks/queries/use-worker-stock";
+import { useOrgUserRole } from "@/hooks/use-org-user-role";
 import {
 	type OrganizationMember,
 	useOrganizationMembers,
@@ -104,7 +105,8 @@ export default function ReturnStockScreen() {
 	const params = useLocalSearchParams<{ workerId?: string }>();
 	const { data: session } = authClient.useSession();
 	const currentUser = session?.user;
-	const isAdmin = currentUser?.role === "admin";
+	const { isOrgAdmin } = useOrgUserRole();
+	const isAdmin = isOrgAdmin;
 
 	// Members list for selecting worker (if admin)
 	const {
@@ -505,6 +507,54 @@ export default function ReturnStockScreen() {
 		});
 		return { cases, loose, count: manifest.length };
 	}, [manifest]);
+
+	if (!isOrgAdmin) {
+		return (
+			<Container
+				isScrollable={false}
+				className="flex-1 bg-slate-50 dark:bg-zinc-950"
+			>
+				<View className="flex-row items-center border-slate-200 border-b bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
+					<Pressable
+						onPress={() => router.back()}
+						className="h-9 w-9 items-center justify-center rounded-xl bg-slate-100 active:opacity-70 dark:bg-zinc-800"
+						hitSlop={8}
+					>
+						<Ionicons
+							name="arrow-back"
+							size={18}
+							color={themeColorForeground}
+						/>
+					</Pressable>
+					<Text className="ml-3 font-bold text-base text-slate-900 dark:text-white">
+						Return Stock
+					</Text>
+				</View>
+
+				<View className="flex-1 items-center justify-center p-6">
+					<View className="mb-4 h-16 w-16 items-center justify-center rounded-2xl bg-amber-500/10">
+						<Ionicons name="shield-checkmark" size={32} color="#f59e0b" />
+					</View>
+					<Text className="text-center font-bold text-lg text-slate-900 dark:text-white">
+						Admin Verification Required
+					</Text>
+					<Text className="mt-2 max-w-[280px] text-center font-medium text-slate-500 text-sm leading-5 dark:text-zinc-400">
+						Workers cannot directly enter stock returns into the warehouse.
+						Please hand over your unsold van stock to the Godown Incharge /
+						Admin for physical verification and settlement.
+					</Text>
+					<Pressable
+						onPress={() => router.back()}
+						className="mt-6 rounded-xl bg-accent px-6 py-3 active:opacity-90"
+					>
+						<Text className="font-bold text-accent-foreground text-sm">
+							Back to Mera Stock
+						</Text>
+					</Pressable>
+				</View>
+			</Container>
+		);
+	}
 
 	return (
 		<Container

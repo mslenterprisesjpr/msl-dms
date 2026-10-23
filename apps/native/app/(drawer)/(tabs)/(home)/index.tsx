@@ -20,6 +20,7 @@ import { useCustomers } from "@/hooks/queries/use-customers";
 import { useAdminStats, useWorkerStats } from "@/hooks/queries/use-dashboard";
 import { useProducts } from "@/hooks/queries/use-products";
 import { useCreateSale, useSales } from "@/hooks/queries/use-sales";
+import { useOrgUserRole } from "@/hooks/use-org-user-role";
 import { useSession } from "@/lib/hooks/use-session";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 
@@ -155,8 +156,9 @@ export default function Home() {
 	const [paymentMethod, setPaymentMethod] = useState<"CASH" | "UPI">("CASH");
 	const [isSubmittingBill, setIsSubmittingBill] = useState(false);
 
-	const isAdmin = user?.role === "admin";
-	const isWorker = !isAdmin;
+	const { isOrgAdmin, isOrgWorker } = useOrgUserRole();
+	const isAdmin = isOrgAdmin;
+	const isWorker = isOrgWorker;
 
 	// Real Data Queries
 	const {
@@ -460,125 +462,250 @@ export default function Home() {
 					</View>
 				</View>
 
-				{/* QUICK ACTIONS SECTION (Matches reference design) */}
+				{/* QUICK ACTIONS SECTION (Role-Tailored) */}
 				<View className="mb-4">
 					<Text className="mb-2.5 font-bold text-[#0f274a] text-base dark:text-white">
 						Quick Actions
 					</Text>
 
-					<View className="mb-2.5 flex-row gap-3">
-						{/* Add Bill */}
-						<Pressable
-							onPress={() => setCreateBillModalVisible(true)}
-							className="flex-1 flex-row items-center gap-2.5 rounded-2xl border border-sky-100/80 bg-[#f0f7ff] p-3 shadow-xs active:opacity-80 dark:border-zinc-800 dark:bg-zinc-900"
-						>
-							<AddBillIcon />
-							<Text className="font-bold text-[#0f274a] text-sm dark:text-white">
-								Add Bill
-							</Text>
-						</Pressable>
+					{isAdmin ? (
+						<>
+							<View className="mb-2.5 flex-row gap-3">
+								{/* Purchase Stock */}
+								<Pressable
+									onPress={() =>
+										router.push("/(drawer)/(tabs)/stock/entry" as any)
+									}
+									className="flex-1 flex-row items-center gap-2.5 rounded-2xl border border-sky-100/80 bg-[#f0f7ff] p-3 shadow-xs active:opacity-80 dark:border-zinc-800 dark:bg-zinc-900"
+								>
+									<AddStockIcon />
+									<View className="flex-1">
+										<Text className="font-bold text-[#0f274a] text-sm dark:text-white">
+											Purchase Inward
+										</Text>
+										<Text className="text-[10px] text-slate-400">
+											Godown stock
+										</Text>
+									</View>
+								</Pressable>
 
-						{/* Add Stock */}
-						<Pressable
-							onPress={() => router.push("/(drawer)/(tabs)/stock/entry" as any)}
-							className="flex-1 flex-row items-center gap-2.5 rounded-2xl border border-sky-100/80 bg-[#f0f7ff] p-3 shadow-xs active:opacity-80 dark:border-zinc-800 dark:bg-zinc-900"
-						>
-							<AddStockIcon />
-							<Text className="font-bold text-[#0f274a] text-sm dark:text-white">
-								Add Stock
-							</Text>
-						</Pressable>
-					</View>
+								{/* Issue Stock to Van */}
+								<Pressable
+									onPress={() =>
+										router.push("/(drawer)/(tabs)/stock/issue" as any)
+									}
+									className="flex-1 flex-row items-center gap-2.5 rounded-2xl border border-teal-100/80 bg-[#f0fdfa] p-3 shadow-xs active:opacity-80 dark:border-zinc-800 dark:bg-zinc-900"
+								>
+									<View className="h-7 w-7 items-center justify-center rounded-lg bg-teal-500/15">
+										<Ionicons
+											name="swap-horizontal"
+											size={18}
+											color="#0d9488"
+										/>
+									</View>
+									<View className="flex-1">
+										<Text className="font-bold text-[#0f274a] text-sm dark:text-white">
+											Issue to Van
+										</Text>
+										<Text className="text-[10px] text-slate-400">
+											Load worker
+										</Text>
+									</View>
+								</Pressable>
+							</View>
 
-					<View className="flex-row gap-3">
-						{/* Stock Report */}
-						<Pressable
-							onPress={() =>
-								router.push("/(drawer)/(tabs)/stock/history" as any)
-							}
-							className="flex-1 flex-row items-center gap-2.5 rounded-2xl border border-sky-100/80 bg-[#f0f7ff] p-3 shadow-xs active:opacity-80 dark:border-zinc-800 dark:bg-zinc-900"
-						>
-							<StockReportIcon />
-							<Text className="font-bold text-[#0f274a] text-sm dark:text-white">
-								Stock Report
-							</Text>
-						</Pressable>
+							<View className="flex-row gap-3">
+								{/* Workers Vans & Settlement */}
+								<Pressable
+									onPress={() =>
+										router.push("/(drawer)/(tabs)/stock/workers" as any)
+									}
+									className="flex-1 flex-row items-center gap-2.5 rounded-2xl border border-sky-100/80 bg-[#f0f7ff] p-3 shadow-xs active:opacity-80 dark:border-zinc-800 dark:bg-zinc-900"
+								>
+									<View className="h-7 w-7 items-center justify-center rounded-lg bg-sky-500/15">
+										<Ionicons name="people" size={18} color="#0284c7" />
+									</View>
+									<View className="flex-1">
+										<Text className="font-bold text-[#0f274a] text-sm dark:text-white">
+											Workers Vans
+										</Text>
+										<Text className="text-[10px] text-slate-400">
+											Live tracking & cash
+										</Text>
+									</View>
+								</Pressable>
 
-						{/* Sales Report */}
-						<Pressable
-							onPress={() => router.push("/(drawer)/(tabs)/reports" as any)}
-							className="flex-1 flex-row items-center gap-2.5 rounded-2xl border border-sky-100/80 bg-[#f0f7ff] p-3 shadow-xs active:opacity-80 dark:border-zinc-800 dark:bg-zinc-900"
-						>
-							<SalesReportIcon />
-							<Text className="font-bold text-[#0f274a] text-sm dark:text-white">
-								Sales Report
-							</Text>
-						</Pressable>
-					</View>
+								{/* Sales & Analytics Report */}
+								<Pressable
+									onPress={() => router.push("/(drawer)/(tabs)/reports" as any)}
+									className="flex-1 flex-row items-center gap-2.5 rounded-2xl border border-sky-100/80 bg-[#f0f7ff] p-3 shadow-xs active:opacity-80 dark:border-zinc-800 dark:bg-zinc-900"
+								>
+									<SalesReportIcon />
+									<View className="flex-1">
+										<Text className="font-bold text-[#0f274a] text-sm dark:text-white">
+											Reports
+										</Text>
+										<Text className="text-[10px] text-slate-400">
+											Sales & analytics
+										</Text>
+									</View>
+								</Pressable>
+							</View>
+						</>
+					) : (
+						<>
+							<View className="mb-2.5 flex-row gap-3">
+								{/* Create Bill */}
+								<Pressable
+									onPress={() => setCreateBillModalVisible(true)}
+									className="flex-1 flex-row items-center gap-2.5 rounded-2xl border border-amber-100/80 bg-[#fffbeb] p-3 shadow-xs active:opacity-80 dark:border-zinc-800 dark:bg-zinc-900"
+								>
+									<AddBillIcon />
+									<View className="flex-1">
+										<Text className="font-bold text-[#0f274a] text-sm dark:text-white">
+											New Bill
+										</Text>
+										<Text className="text-[10px] text-slate-400">
+											Quick shop sale
+										</Text>
+									</View>
+								</Pressable>
+
+								{/* Mera Van Stock */}
+								<Pressable
+									onPress={() => router.push("/(drawer)/(tabs)/stock" as any)}
+									className="flex-1 flex-row items-center gap-2.5 rounded-2xl border border-teal-100/80 bg-[#f0fdfa] p-3 shadow-xs active:opacity-80 dark:border-zinc-800 dark:bg-zinc-900"
+								>
+									<View className="h-7 w-7 items-center justify-center rounded-lg bg-teal-500/15">
+										<Ionicons name="car-sport" size={18} color="#0d9488" />
+									</View>
+									<View className="flex-1">
+										<Text className="font-bold text-[#0f274a] text-sm dark:text-white">
+											Mera Stock
+										</Text>
+										<Text className="text-[10px] text-slate-400">
+											Vehicle inventory
+										</Text>
+									</View>
+								</Pressable>
+							</View>
+
+							<View className="flex-row gap-3">
+								{/* Customer Khata */}
+								<Pressable
+									onPress={() =>
+										router.push(
+											"/(drawer)/(tabs)/billing/customer-khata" as any,
+										)
+									}
+									className="flex-1 flex-row items-center gap-2.5 rounded-2xl border border-sky-100/80 bg-[#f0f7ff] p-3 shadow-xs active:opacity-80 dark:border-zinc-800 dark:bg-zinc-900"
+								>
+									<View className="h-7 w-7 items-center justify-center rounded-lg bg-sky-500/15">
+										<Ionicons name="book-outline" size={18} color="#0284c7" />
+									</View>
+									<View className="flex-1">
+										<Text className="font-bold text-[#0f274a] text-sm dark:text-white">
+											Customer Khata
+										</Text>
+										<Text className="text-[10px] text-slate-400">
+											Dues & collection
+										</Text>
+									</View>
+								</Pressable>
+
+								{/* Today's Bills */}
+								<Pressable
+									onPress={() => router.push("/(drawer)/(tabs)/billing" as any)}
+									className="flex-1 flex-row items-center gap-2.5 rounded-2xl border border-indigo-100/80 bg-[#f5f3ff] p-3 shadow-xs active:opacity-80 dark:border-zinc-800 dark:bg-zinc-900"
+								>
+									<View className="h-7 w-7 items-center justify-center rounded-lg bg-indigo-500/15">
+										<Ionicons
+											name="receipt-outline"
+											size={18}
+											color="#6366f1"
+										/>
+									</View>
+									<View className="flex-1">
+										<Text className="font-bold text-[#0f274a] text-sm dark:text-white">
+											Today's Bills
+										</Text>
+										<Text className="text-[10px] text-slate-400">
+											Sales & invoices
+										</Text>
+									</View>
+								</Pressable>
+							</View>
+						</>
+					)}
 				</View>
 
-				{/* LOW STOCK ALERTS CARD */}
-				<View className="mb-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-					{/* Card Header */}
-					<View className="flex-row items-center justify-between pb-3">
-						<View className="flex-row items-center">
-							<Ionicons name="warning" size={18} color="#f97316" />
-							<Text className="ml-2 font-bold text-base text-slate-900 dark:text-white">
-								Low Stock Alerts
-							</Text>
-						</View>
-						<Pressable onPress={() => router.push("/stock" as any)} hitSlop={8}>
-							<Text className="font-semibold text-[#0284c7] text-sm dark:text-[#38bdf8]">
-								View All
-							</Text>
-						</Pressable>
-					</View>
-
-					{/* Items List */}
-					<View>
-						{isProductsLoading ? (
-							<View className="items-center py-4">
-								<ActivityIndicator size="small" color="#f97316" />
-							</View>
-						) : lowStockAlerts.length === 0 ? (
-							<View className="items-center py-4">
-								<Ionicons
-									name="checkmark-circle-outline"
-									size={24}
-									color="#10b981"
-								/>
-								<Text className="mt-1 text-slate-500 text-xs dark:text-zinc-400">
-									All inventory stock levels are healthy
+				{/* LOW STOCK ALERTS CARD (Admin Only) */}
+				{isAdmin && (
+					<View className="mb-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+						{/* Card Header */}
+						<View className="flex-row items-center justify-between pb-3">
+							<View className="flex-row items-center">
+								<Ionicons name="warning" size={18} color="#f97316" />
+								<Text className="ml-2 font-bold text-base text-slate-900 dark:text-white">
+									Low Stock Alerts
 								</Text>
 							</View>
-						) : (
-							lowStockAlerts.map((item, index) => (
-								<View key={item.id}>
-									{index > 0 && (
-										<View className="h-px bg-slate-100 dark:bg-zinc-800" />
-									)}
-									<Pressable
-										onPress={() => router.push("/stock" as any)}
-										className="flex-row items-center justify-between py-3 active:opacity-75"
-									>
-										<Text className="flex-1 pr-2 font-medium text-slate-800 text-sm dark:text-zinc-200">
-											{item.name}
-										</Text>
-										<Text
-											className={`font-bold text-sm ${
-												item.isCritical
-													? "text-red-500 dark:text-red-400"
-													: "text-[#f97316] dark:text-orange-400"
-											}`}
-										>
-											{item.quantity}
-										</Text>
-									</Pressable>
+							<Pressable
+								onPress={() => router.push("/stock" as any)}
+								hitSlop={8}
+							>
+								<Text className="font-semibold text-[#0284c7] text-sm dark:text-[#38bdf8]">
+									View All
+								</Text>
+							</Pressable>
+						</View>
+
+						{/* Items List */}
+						<View>
+							{isProductsLoading ? (
+								<View className="items-center py-4">
+									<ActivityIndicator size="small" color="#f97316" />
 								</View>
-							))
-						)}
+							) : lowStockAlerts.length === 0 ? (
+								<View className="items-center py-4">
+									<Ionicons
+										name="checkmark-circle-outline"
+										size={24}
+										color="#10b981"
+									/>
+									<Text className="mt-1 text-slate-500 text-xs dark:text-zinc-400">
+										All inventory stock levels are healthy
+									</Text>
+								</View>
+							) : (
+								lowStockAlerts.map((item, index) => (
+									<View key={item.id}>
+										{index > 0 && (
+											<View className="h-px bg-slate-100 dark:bg-zinc-800" />
+										)}
+										<Pressable
+											onPress={() => router.push("/stock" as any)}
+											className="flex-row items-center justify-between py-3 active:opacity-75"
+										>
+											<Text className="flex-1 pr-2 font-medium text-slate-800 text-sm dark:text-zinc-200">
+												{item.name}
+											</Text>
+											<Text
+												className={`font-bold text-sm ${
+													item.isCritical
+														? "text-red-500 dark:text-red-400"
+														: "text-[#f97316] dark:text-orange-400"
+												}`}
+											>
+												{item.quantity}
+											</Text>
+										</Pressable>
+									</View>
+								))
+							)}
+						</View>
 					</View>
-				</View>
+				)}
 
 				{/* RECENT BILLS CARD */}
 				<View className="mb-6 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">

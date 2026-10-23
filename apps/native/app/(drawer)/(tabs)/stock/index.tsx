@@ -15,18 +15,23 @@ import {
 import { Container } from "@/components/container";
 import { useProducts } from "@/hooks/queries/use-products";
 import { useWorkerStock } from "@/hooks/queries/use-worker-stock";
-import { useSession } from "@/lib/hooks/use-session";
+import { useOrgUserRole } from "@/hooks/use-org-user-role";
 
 export default function StockScreen() {
 	const themeAccent = useThemeColor("accent");
 	const themeColorForeground = useThemeColor("foreground");
-	const { user } = useSession();
-	const isAdmin = user?.role === "admin";
+	const { isOrgAdmin, isOrgWorker, orgRole } = useOrgUserRole();
+	const isAdmin = isOrgAdmin;
 
-	// Mode: For worker, default to "VAN_STOCK" (Mera Van Stock), for Admin default to "WAREHOUSE"
+	// Mode: For worker, strictly "VAN_STOCK" (Mera Van Stock), for Admin "WAREHOUSE"
 	const [stockMode, setStockMode] = useState<"VAN_STOCK" | "WAREHOUSE">(
-		isAdmin ? "WAREHOUSE" : "VAN_STOCK",
+		isOrgAdmin ? "WAREHOUSE" : "VAN_STOCK",
 	);
+
+	// Sync mode when role resolves
+	React.useEffect(() => {
+		setStockMode(isOrgAdmin ? "WAREHOUSE" : "VAN_STOCK");
+	}, [isOrgAdmin]);
 
 	const [activeWarehouseTab, setActiveWarehouseTab] = useState<
 		"STOCK" | "LOW_STOCK"
@@ -151,92 +156,44 @@ export default function StockScreen() {
 	return (
 		<Container className="flex-1 bg-slate-50 dark:bg-zinc-950">
 			{/* ══════════════════════════════════════════════════════════════════
-			    HEADER & VIEW SWITCHER (Van Stock vs Warehouse Stock)
+			    HEADER (Role-Tailored: Clean Van Stock for Worker, Godown for Admin)
 			══════════════════════════════════════════════════════════════════ */}
-			<View className="border-slate-200/80 border-b bg-white px-4 pt-2.5 pb-3 dark:border-zinc-800 dark:bg-zinc-900">
-				<View className="mb-2.5 flex-row items-center justify-between">
+			<View className="border-slate-200/80 border-b bg-white px-4 pt-3 pb-3 dark:border-zinc-800 dark:bg-zinc-900">
+				{isAdmin ? (
+					<View className="flex-row items-center justify-between">
+						<View>
+							<Text className="font-black text-slate-900 text-xl tracking-tight dark:text-white">
+								🏭 Godown Inventory
+							</Text>
+							<Text className="mt-0.5 font-medium text-slate-400 text-xs dark:text-zinc-500">
+								Warehouse stock & worker allocation
+							</Text>
+						</View>
+						<Pressable
+							onPress={() => router.push("/stock/workers" as any)}
+							className="flex-row items-center rounded-xl bg-teal-50 px-3 py-1.5 active:bg-teal-100 dark:bg-teal-950/40"
+						>
+							<Ionicons
+								name="people"
+								size={14}
+								color="#0d9488"
+								style={{ marginRight: 5 }}
+							/>
+							<Text className="font-bold text-teal-800 text-xs dark:text-teal-300">
+								Workers Vans →
+							</Text>
+						</Pressable>
+					</View>
+				) : (
 					<View>
 						<Text className="font-black text-slate-900 text-xl tracking-tight dark:text-white">
-							{stockMode === "VAN_STOCK"
-								? "🚚 Mera Van Stock"
-								: "🏭 Godown Inventory"}
+							🚚 Mera Van Stock
 						</Text>
-						<Text className="font-medium text-slate-400 text-xs dark:text-zinc-500">
-							{stockMode === "VAN_STOCK"
-								? "Live inventory currently loaded in your delivery vehicle"
-								: "Central warehouse & Godown stock level overview"}
+						<Text className="mt-0.5 font-medium text-slate-400 text-xs dark:text-zinc-500">
+							Aapki gaadi mein loaded live inventory
 						</Text>
 					</View>
-
-					<View className="rounded-full bg-slate-100 px-2.5 py-1 dark:bg-zinc-800">
-						<Text className="font-bold text-[10px] text-slate-600 uppercase tracking-wider dark:text-zinc-400">
-							{isAdmin ? "👑 Admin" : "👤 Worker"}
-						</Text>
-					</View>
-				</View>
-
-				{/* Mode Switcher Pills */}
-				<View className="flex-row gap-2">
-					<Pressable
-						onPress={() => setStockMode("VAN_STOCK")}
-						className={`flex-1 flex-row items-center justify-center rounded-xl py-2 ${
-							stockMode === "VAN_STOCK"
-								? "bg-slate-900 dark:bg-white"
-								: "border border-slate-200/80 bg-slate-50/60 dark:border-zinc-800 dark:bg-zinc-800/40"
-						}`}
-					>
-						<Ionicons
-							name="car-sport"
-							size={15}
-							color={
-								stockMode === "VAN_STOCK"
-									? themeColorForeground === "#ffffff"
-										? "#09090b"
-										: "#ffffff"
-									: "#64748b"
-							}
-						/>
-						<Text
-							className={`ml-1.5 font-bold text-xs ${
-								stockMode === "VAN_STOCK"
-									? "text-white dark:text-zinc-900"
-									: "text-slate-600 dark:text-zinc-400"
-							}`}
-						>
-							Mera Van Stock ({myVanProducts.length})
-						</Text>
-					</Pressable>
-
-					<Pressable
-						onPress={() => setStockMode("WAREHOUSE")}
-						className={`flex-1 flex-row items-center justify-center rounded-xl py-2 ${
-							stockMode === "WAREHOUSE"
-								? "bg-slate-900 dark:bg-white"
-								: "border border-slate-200/80 bg-slate-50/60 dark:border-zinc-800 dark:bg-zinc-800/40"
-						}`}
-					>
-						<Ionicons
-							name="business"
-							size={15}
-							color={
-								stockMode === "WAREHOUSE"
-									? themeColorForeground === "#ffffff"
-										? "#09090b"
-										: "#ffffff"
-									: "#64748b"
-							}
-						/>
-						<Text
-							className={`ml-1.5 font-bold text-xs ${
-								stockMode === "WAREHOUSE"
-									? "text-white dark:text-zinc-900"
-									: "text-slate-600 dark:text-zinc-400"
-							}`}
-						>
-							Godown Stock ({warehouseProducts.length})
-						</Text>
-					</Pressable>
-				</View>
+				)}
 			</View>
 
 			<ScrollView
@@ -292,25 +249,39 @@ export default function StockScreen() {
 									</Text>
 								</View>
 
-								<View className="flex-row items-center gap-2">
-									<Pressable
-										onPress={() => router.push("/stock/return" as any)}
-										className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 active:bg-rose-100 dark:border-rose-950 dark:bg-rose-950/30"
-									>
-										<Text className="font-bold text-rose-700 text-xs dark:text-rose-300">
-											🔄 Return Stock
-										</Text>
-									</Pressable>
+								{isAdmin ? (
+									<View className="flex-row items-center gap-2">
+										<Pressable
+											onPress={() => router.push("/stock/return" as any)}
+											className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 active:bg-rose-100 dark:border-rose-950 dark:bg-rose-950/30"
+										>
+											<Text className="font-bold text-rose-700 text-xs dark:text-rose-300">
+												🔄 Return Stock
+											</Text>
+										</Pressable>
 
-									<Pressable
-										onPress={() => router.push("/stock/issue" as any)}
-										className="rounded-xl bg-accent px-3 py-2 active:opacity-90"
-									>
-										<Text className="font-bold text-accent-foreground text-xs">
-											+ Load Van
+										<Pressable
+											onPress={() => router.push("/stock/issue" as any)}
+											className="rounded-xl bg-accent px-3 py-2 active:opacity-90"
+										>
+											<Text className="font-bold text-accent-foreground text-xs">
+												+ Issue Stock
+											</Text>
+										</Pressable>
+									</View>
+								) : (
+									<View className="flex-row items-center rounded-xl bg-emerald-50 px-2.5 py-1.5 dark:bg-emerald-950/40">
+										<Ionicons
+											name="checkmark-circle"
+											size={14}
+											color="#10b981"
+											style={{ marginRight: 4 }}
+										/>
+										<Text className="font-bold text-[11px] text-emerald-800 dark:text-emerald-300">
+											Loaded by Admin
 										</Text>
-									</Pressable>
-								</View>
+									</View>
+								)}
 							</View>
 						</Card>
 
@@ -354,25 +325,28 @@ export default function StockScreen() {
 								<Text className="mt-3 font-bold text-base text-slate-800 dark:text-zinc-200">
 									Your Van is Empty
 								</Text>
-								<Text className="mt-1 text-center text-slate-400 text-xs">
-									Aapki gaadi me abhi koi stock nahi hai. Warehouse se stock
-									load karne ke liye niche tap karein.
+								<Text className="mt-1 text-center font-medium text-slate-400 text-xs leading-5">
+									{isAdmin
+										? "Aapki gaadi mein abhi koi stock nahi hai. Godown se stock issue karne ke liye niche tap karein."
+										: "Aapki gaadi mein abhi koi stock nahi hai.\nSubah Godown Admin dwara maal load karne ke baad yahan dikhega."}
 								</Text>
 
-								<Pressable
-									onPress={() => router.push("/stock/issue" as any)}
-									className="mt-4 flex-row items-center rounded-2xl bg-accent px-5 py-2.5 shadow-sm active:opacity-90"
-								>
-									<Ionicons
-										name="add"
-										size={18}
-										color="#ffffff"
-										style={{ marginRight: 4 }}
-									/>
-									<Text className="font-bold text-accent-foreground text-xs">
-										Issue Stock from Warehouse
-									</Text>
-								</Pressable>
+								{isAdmin && (
+									<Pressable
+										onPress={() => router.push("/stock/issue" as any)}
+										className="mt-4 flex-row items-center rounded-2xl bg-accent px-5 py-2.5 shadow-sm active:opacity-90"
+									>
+										<Ionicons
+											name="add"
+											size={18}
+											color="#ffffff"
+											style={{ marginRight: 4 }}
+										/>
+										<Text className="font-bold text-accent-foreground text-xs">
+											Issue Stock from Warehouse
+										</Text>
+									</Pressable>
+								)}
 							</View>
 						) : (
 							<View className="gap-2.5">
@@ -726,16 +700,16 @@ export default function StockScreen() {
 										</Pressable>
 
 										<Pressable
-											onPress={() => router.push("/reports" as any)}
+											onPress={() => router.push("/stock/workers" as any)}
 											className="flex-1 items-center justify-center rounded-2xl border border-slate-200 bg-white px-2 py-4 shadow-sm active:opacity-90 dark:border-zinc-800 dark:bg-zinc-900"
 										>
 											<Ionicons
-												name="document-text-outline"
+												name="people-outline"
 												size={22}
 												color={themeColorForeground}
 											/>
 											<Text className="mt-1 font-bold text-slate-800 text-xs dark:text-zinc-200">
-												Stock Analytics
+												Workers Vans
 											</Text>
 										</Pressable>
 									</View>

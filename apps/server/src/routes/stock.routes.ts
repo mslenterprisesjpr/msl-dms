@@ -187,10 +187,11 @@ app.post(
 	},
 );
 
-// Return stock from worker - Transfer from worker back to warehouse (All authenticated users)
+// Return stock from worker - Transfer from worker back to warehouse (ADMIN ONLY - Physically verified by Admin)
 app.post(
 	"/return",
 	requireAuth,
+	requireAdmin,
 	zValidator("json", returnStockBodySchema),
 	async (c) => {
 		const user = c.get("user") as User;
@@ -211,8 +212,8 @@ app.post(
 		// Calculate total quantity in units
 		const totalQuantity = body.cases * product.unitsPerCase + body.units;
 
-		// Determine worker ID (admin can return any worker's stock, others can only return own)
-		const workerId = user.role === "admin" ? body.workerId || user.id : user.id;
+		// Worker ID being processed by Admin
+		const workerId = body.workerId || user.id;
 
 		// Check if worker has stock
 		const workerStock = await WorkerStock.findOne({

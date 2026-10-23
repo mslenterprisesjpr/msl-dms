@@ -5,6 +5,7 @@ import { Surface, useThemeColor } from "heroui-native";
 import { useEffect, useState } from "react";
 import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { MslLogo } from "@/components/msl-logo";
+import { useOrgUserRole } from "@/hooks/use-org-user-role";
 import { useOrganizations } from "@/lib/hooks/use-organizations";
 import { useSession } from "@/lib/hooks/use-session";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
@@ -14,7 +15,8 @@ export function CustomDrawerContent(props: any) {
 	const themeColorBackground = useThemeColor("background");
 	const themeColorAccent = useThemeColor("accent");
 	const { user } = useSession();
-	const isSystemAdmin = user?.role === "admin";
+	const { isOrgAdmin, isSystemAdmin } = useOrgUserRole();
+	const isAdmin = isOrgAdmin;
 	const appVersion = Constants.expoConfig?.version || "1.0.0";
 
 	// Fetch organizations when drawer mounts
@@ -179,15 +181,17 @@ export function CustomDrawerContent(props: any) {
 					</View>
 				)}
 
-				{/* Manage Organizations Link */}
-				<Pressable onPress={handleManageOrgs} className="mt-3">
-					<Text
-						className="font-medium text-primary text-sm"
-						style={{ color: themeColorForeground, opacity: 0.7 }}
-					>
-						+ Manage Organizations
-					</Text>
-				</Pressable>
+				{/* Manage Organizations Link (Admin Only) */}
+				{isAdmin && (
+					<Pressable onPress={handleManageOrgs} className="mt-3">
+						<Text
+							className="font-medium text-primary text-sm"
+							style={{ color: themeColorForeground, opacity: 0.7 }}
+						>
+							+ Manage Organizations
+						</Text>
+					</Pressable>
+				)}
 			</View>
 
 			{/* Navigation Items */}

@@ -11,7 +11,7 @@ export function CurrentOrganizationBadge() {
 	if (!currentOrg) {
 		return (
 			<Chip
-				variant="flat"
+				variant="soft"
 				color="warning"
 				startContent={<Ionicons name="warning-outline" size={14} />}
 			>

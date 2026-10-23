@@ -61,6 +61,7 @@ import productRoutes from "./routes/product.routes";
 import reportRoutes from "./routes/report.routes";
 import saleRoutes from "./routes/sale.routes";
 import stockRoutes from "./routes/stock.routes";
+import systemAdminRoutes from "./routes/system-admin.routes";
 import workerStockRoutes from "./routes/worker-stock.routes";
 
 app.route("/api/organizations", organizationRoutes);
@@ -74,6 +75,7 @@ app.route("/api/sales", saleRoutes);
 app.route("/api/payments", paymentRoutes);
 app.route("/api/reports", reportRoutes);
 app.route("/api/cloudinary", cloudinaryRoutes);
+app.route("/api/system-admin", systemAdminRoutes);
 
 app.get("/", (c) => {
 	return c.text("OK 1.0");

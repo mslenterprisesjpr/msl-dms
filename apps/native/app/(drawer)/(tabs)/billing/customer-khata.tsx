@@ -14,6 +14,7 @@ import {
 	TextInput,
 	View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
 import { HeroBottomSheet } from "@/components/hero-bottom-sheet";
 import { useCustomerLedger } from "@/hooks/queries/use-customers";

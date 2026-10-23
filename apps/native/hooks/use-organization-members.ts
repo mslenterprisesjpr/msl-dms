@@ -37,7 +37,7 @@ export function useOrganizationMembers() {
 				throw new Error(error.message || "Failed to fetch members");
 			}
 
-			const members = (data?.members || []) as OrganizationMember[];
+			const members = (data?.members || []) as unknown as OrganizationMember[];
 			return members;
 		},
 		enabled: !!currentOrgId,

@@ -6,14 +6,15 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 
 import { Container } from "@/components/container";
 import { useAppTheme } from "@/contexts/app-theme-context";
+import { useOrgUserRole } from "@/hooks/use-org-user-role";
 import { useSession } from "@/lib/hooks/use-session";
 
 export default function SettingsScreen() {
 	const themeAccent = useThemeColor("accent");
 	const { session, user } = useSession();
 	const { isDark, toggleTheme } = useAppTheme();
-
-	const isAdminUser = user?.role === "admin";
+	const { isOrgAdmin, isSystemAdmin, orgRole } = useOrgUserRole();
+	const isAdmin = isOrgAdmin;
 
 	const settingsOptions = [
 		{
@@ -22,7 +23,7 @@ export default function SettingsScreen() {
 			description: "Global telemetry, SaaS metrics & tenant overview",
 			route: "/(drawer)/system-admin",
 			color: "#002B66",
-			adminOnly: true,
+			systemOnly: true,
 		},
 		{
 			icon: "business-outline" as const,
@@ -30,14 +31,14 @@ export default function SettingsScreen() {
 			description: "Manage your organizations and members",
 			route: "/organizations",
 			color: "#3b82f6",
+			adminOnly: true,
 		},
 		{
-			icon: "people-outline" as const,
-			title: "User Management",
-			description: "Create and manage system users",
-			route: "/settings/users",
-			color: "#8b5cf6",
-			adminOnly: true,
+			icon: "print-outline" as const,
+			title: "POS Thermal Printer",
+			description: "Bluetooth 58mm / 80mm receipt printer",
+			route: "/(drawer)/printer",
+			color: "#0d9488",
 		},
 		{
 			icon: "person-outline" as const,
@@ -48,9 +49,11 @@ export default function SettingsScreen() {
 		},
 	];
 
-	const visibleOptions = settingsOptions.filter(
-		(option) => !option.adminOnly || isAdminUser,
-	);
+	const visibleOptions = settingsOptions.filter((option) => {
+		if (option.systemOnly && !isSystemAdmin) return false;
+		if (option.adminOnly && !isAdmin) return false;
+		return true;
+	});
 
 	return (
 		<Container className="flex-1 bg-slate-50 dark:bg-zinc-950">

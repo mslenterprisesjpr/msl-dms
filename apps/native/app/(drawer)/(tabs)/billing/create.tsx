@@ -21,6 +21,7 @@ import { useCustomers } from "@/hooks/queries/use-customers";
 import { useProducts } from "@/hooks/queries/use-products";
 import { useCreateSale, useSale } from "@/hooks/queries/use-sales";
 import { useWorkerStock } from "@/hooks/queries/use-worker-stock";
+import { useUserRole } from "@/hooks/use-user-role";
 import { useSession } from "@/lib/hooks/use-session";
 import type { Customer } from "@/types/customer";
 
@@ -45,7 +46,7 @@ export default function CreateBillScreen() {
 	const insets = useSafeAreaInsets();
 	const { toast } = useToast();
 	const { user } = useSession();
-	const isAdmin = user?.role === "admin";
+	const { isAdmin } = useUserRole();
 	const themeAccent = useThemeColor("accent");
 	const themeColorForeground = useThemeColor("foreground");
 
@@ -59,6 +60,10 @@ export default function CreateBillScreen() {
 	const [stockSource, setStockSource] = useState<"VAN" | "WAREHOUSE">(
 		isAdmin ? "WAREHOUSE" : "VAN",
 	);
+
+	useEffect(() => {
+		setStockSource(isAdmin ? "WAREHOUSE" : "VAN");
+	}, [isAdmin]);
 
 	// Customer state
 	const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(

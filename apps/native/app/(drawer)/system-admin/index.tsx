@@ -10,16 +10,18 @@ import {
 	Text,
 	View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Container } from "@/components/container";
-import { useSystemStats } from "@/hooks/queries/use-system-stats";
+import { useSystemAdminStats } from "@/hooks/queries/use-system-admin";
 import { useOrganizations } from "@/lib/hooks/use-organizations";
 import { useSession } from "@/lib/hooks/use-session";
 import { useOrganizationStore } from "@/lib/stores/organization-store";
 
 export default function SystemAdminOverviewScreen() {
 	const themeAccent = useThemeColor("accent");
-	const themeForeground = useThemeColor("foreground");
+	const themeColorForeground = useThemeColor("foreground");
+	const insets = useSafeAreaInsets();
 	const { user } = useSession();
 	const { organizations, currentOrgId } = useOrganizations();
 	const { setCurrentOrg } = useOrganizationStore();
@@ -29,7 +31,7 @@ export default function SystemAdminOverviewScreen() {
 		data: stats,
 		isLoading,
 		refetch: refetchStats,
-	} = useSystemStats({ enabled: user?.role === "admin" });
+	} = useSystemAdminStats(user?.role === "admin");
 
 	const onRefresh = async () => {
 		setRefreshing(true);
@@ -42,7 +44,7 @@ export default function SystemAdminOverviewScreen() {
 
 	const totalOrgs = stats?.totalOrganizations ?? organizations.length;
 	const activeOrgs = stats?.activeOrganizations ?? organizations.length;
-	const totalUsers = stats?.totalUsers ?? "--";
+	const totalUsers = stats?.totalUsers ?? 0;
 	const totalRevenue = stats?.totalRevenue ?? 0;
 	const totalBills = stats?.totalBills ?? 0;
 
@@ -51,6 +53,33 @@ export default function SystemAdminOverviewScreen() {
 			className="flex-1 bg-slate-50 dark:bg-zinc-950"
 			isScrollable={false}
 		>
+			{/* Top Header Bar with Exit to Agency Button */}
+			<View className="flex-row items-center justify-between border-slate-200 border-b bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
+				<View className="flex-row items-center gap-2.5">
+					<View className="size-8 items-center justify-center rounded-xl bg-accent/15">
+						<Ionicons name="shield-checkmark" size={18} color={themeAccent} />
+					</View>
+					<View>
+						<Text className="font-bold text-base text-slate-900 dark:text-white">
+							Super Admin Console
+						</Text>
+						<Text className="font-medium text-[11px] text-slate-400 dark:text-zinc-500">
+							Platform Multi-Tenant Control
+						</Text>
+					</View>
+				</View>
+
+				<Pressable
+					onPress={() => router.replace("/(drawer)/(tabs)" as any)}
+					className="flex-row items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-100 px-3 py-1.5 active:opacity-75 dark:border-zinc-700 dark:bg-zinc-800"
+				>
+					<Ionicons name="arrow-back" size={14} color={themeColorForeground} />
+					<Text className="font-bold text-slate-800 text-xs dark:text-zinc-200">
+						Agency DMS
+					</Text>
+				</Pressable>
+			</View>
+
 			<ScrollView
 				className="flex-1"
 				contentContainerStyle={{ padding: 16, paddingBottom: 36 }}
@@ -71,14 +100,14 @@ export default function SystemAdminOverviewScreen() {
 							<View className="mb-1.5 flex-row items-center">
 								<View className="mr-2 size-2 rounded-full bg-emerald-400" />
 								<Text className="font-bold text-[11px] text-accent-foreground/80 uppercase tracking-wider">
-									SYSTEM SUPER ADMIN CONSOLE
+									SYSTEM SUPER ADMIN
 								</Text>
 							</View>
 							<Text className="font-bold text-accent-foreground text-xl">
-								MSL Platform Overview
+								MSL Global Network
 							</Text>
 							<Text className="mt-1 text-accent-foreground/80 text-xs">
-								Global multi-tenant control, agency management & system
+								Global multi-tenant control, agency management & platform
 								telemetry
 							</Text>
 						</View>
@@ -93,223 +122,181 @@ export default function SystemAdminOverviewScreen() {
 							<Text className="ml-1.5 font-medium text-white/90 text-xs">
 								System Health:{" "}
 								<Text className="font-bold text-emerald-300">
-									Optimal (99.9%)
+									{stats?.systemStatus || "OPTIMAL"}
 								</Text>
 							</Text>
 						</View>
 						<View className="rounded-full bg-white/15 px-2.5 py-0.5">
-							<Text className="font-bold text-[10px] text-white uppercase">
-								Role: {user?.role || "Admin"}
+							<Text className="font-bold text-[10px] text-white">
+								Active: {activeOrgs}/{totalOrgs} Orgs
 							</Text>
 						</View>
 					</View>
 				</Card>
 
-				{/* Global KPI Metrics (Real Data) */}
-				<Text className="mb-3 font-bold text-base text-slate-900 dark:text-white">
-					Platform Telemetry
+				{/* 2x2 High-Level SaaS Metrics */}
+				<Text className="mb-3 font-bold text-slate-400 text-xs uppercase tracking-wider dark:text-zinc-500">
+					Global Platform Metrics
 				</Text>
-
-				<View className="mb-6 flex-row flex-wrap gap-3">
-					{/* Total Agencies */}
-					<Card className="min-w-[46%] flex-1 border border-slate-100 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-						<View className="flex-row items-center justify-between">
-							<Text className="font-medium text-slate-500 text-xs dark:text-zinc-400">
-								Registered Agencies
-							</Text>
-							<View className="size-8 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950/40">
-								<Ionicons name="business-outline" size={18} color="#3b82f6" />
+				<View className="mb-5 gap-3">
+					<View className="flex-row gap-3">
+						{/* Total Revenue */}
+						<Card className="flex-1 border border-slate-100 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+							<View className="flex-row items-center justify-between">
+								<Text className="font-semibold text-slate-500 text-xs dark:text-zinc-400">
+									Platform Gross
+								</Text>
+								<View className="size-7 items-center justify-center rounded-lg bg-emerald-500/10">
+									<Ionicons name="cash-outline" size={16} color="#10b981" />
+								</View>
 							</View>
-						</View>
-						<Text className="mt-2 font-bold text-2xl text-slate-900 dark:text-white">
-							{isLoading ? "--" : totalOrgs}
-						</Text>
-						<Text className="mt-1 text-[11px] text-emerald-600 dark:text-emerald-400">
-							{activeOrgs} active tenant{activeOrgs === 1 ? "" : "s"}
-						</Text>
-					</Card>
-
-					{/* Total Platform Users */}
-					<Card className="min-w-[46%] flex-1 border border-slate-100 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-						<View className="flex-row items-center justify-between">
-							<Text className="font-medium text-slate-500 text-xs dark:text-zinc-400">
-								Platform Users
+							<Text className="mt-2 font-black text-2xl text-slate-900 tracking-tight dark:text-white">
+								₹{totalRevenue.toLocaleString("en-IN")}
 							</Text>
-							<View className="size-8 items-center justify-center rounded-lg bg-purple-50 dark:bg-purple-950/40">
-								<Ionicons name="people-outline" size={18} color="#8b5cf6" />
-							</View>
-						</View>
-						<Text className="mt-2 font-bold text-2xl text-slate-900 dark:text-white">
-							{isLoading ? "--" : totalUsers}
-						</Text>
-						<Text className="mt-1 text-[11px] text-slate-400 dark:text-zinc-500">
-							Admins & workers
-						</Text>
-					</Card>
-
-					{/* Platform Revenue */}
-					<Card className="min-w-[46%] flex-1 border border-slate-100 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-						<View className="flex-row items-center justify-between">
-							<Text className="font-medium text-slate-500 text-xs dark:text-zinc-400">
-								Gross Platform Sales
+							<Text className="mt-1 font-medium text-[11px] text-slate-400">
+								Across all agencies
 							</Text>
-							<View className="size-8 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-950/40">
-								<Ionicons name="cash-outline" size={18} color="#10b981" />
-							</View>
-						</View>
-						<Text className="mt-2 font-bold text-2xl text-slate-900 dark:text-white">
-							₹{totalRevenue.toLocaleString("en-IN")}
-						</Text>
-						<Text className="mt-1 text-[11px] text-slate-400 dark:text-zinc-500">
-							{totalBills} total invoices
-						</Text>
-					</Card>
+						</Card>
 
-					{/* Active Services */}
-					<Card className="min-w-[46%] flex-1 border border-slate-100 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-						<View className="flex-row items-center justify-between">
-							<Text className="font-medium text-slate-500 text-xs dark:text-zinc-400">
-								SaaS State
-							</Text>
-							<View className="size-8 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-950/40">
-								<Ionicons name="pulse-outline" size={18} color="#f59e0b" />
+						{/* Total Invoices */}
+						<Card className="flex-1 border border-slate-100 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+							<View className="flex-row items-center justify-between">
+								<Text className="font-semibold text-slate-500 text-xs dark:text-zinc-400">
+									Total Bills
+								</Text>
+								<View className="size-7 items-center justify-center rounded-lg bg-sky-500/10">
+									<Ionicons name="receipt-outline" size={16} color="#0284c7" />
+								</View>
 							</View>
-						</View>
-						<Text className="mt-2 font-bold text-emerald-600 text-lg dark:text-emerald-400">
-							ACTIVE
-						</Text>
-						<Text className="mt-1 text-[11px] text-slate-400 dark:text-zinc-500">
-							MongoDB + Better Auth
-						</Text>
-					</Card>
+							<Text className="mt-2 font-black text-2xl text-slate-900 tracking-tight dark:text-white">
+								{totalBills.toLocaleString("en-IN")}
+							</Text>
+							<Text className="mt-1 font-medium text-[11px] text-slate-400">
+								Invoices generated
+							</Text>
+						</Card>
+					</View>
+
+					<View className="flex-row gap-3">
+						{/* Total Organizations */}
+						<Card className="flex-1 border border-slate-100 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+							<View className="flex-row items-center justify-between">
+								<Text className="font-semibold text-slate-500 text-xs dark:text-zinc-400">
+									Tenants / Orgs
+								</Text>
+								<View className="size-7 items-center justify-center rounded-lg bg-indigo-500/10">
+									<Ionicons name="business-outline" size={16} color="#6366f1" />
+								</View>
+							</View>
+							<Text className="mt-2 font-black text-2xl text-slate-900 tracking-tight dark:text-white">
+								{totalOrgs}
+							</Text>
+							<Text className="mt-1 font-medium text-[11px] text-emerald-600 dark:text-emerald-400">
+								{activeOrgs} active agencies
+							</Text>
+						</Card>
+
+						{/* Total Users */}
+						<Card className="flex-1 border border-slate-100 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+							<View className="flex-row items-center justify-between">
+								<Text className="font-semibold text-slate-500 text-xs dark:text-zinc-400">
+									Global Users
+								</Text>
+								<View className="size-7 items-center justify-center rounded-lg bg-purple-500/10">
+									<Ionicons name="people-outline" size={16} color="#a855f7" />
+								</View>
+							</View>
+							<Text className="mt-2 font-black text-2xl text-slate-900 tracking-tight dark:text-white">
+								{totalUsers}
+							</Text>
+							<Text className="mt-1 font-medium text-[11px] text-slate-400">
+								Staff & Admins
+							</Text>
+						</Card>
+					</View>
 				</View>
 
-				{/* Quick Management Actions */}
-				<Text className="mb-3 font-bold text-base text-slate-900 dark:text-white">
-					System Administration Hub
+				{/* Quick Section Shortcuts */}
+				<Text className="mb-3 font-bold text-slate-400 text-xs uppercase tracking-wider dark:text-zinc-500">
+					Control Center Modules
 				</Text>
-
-				{/* Manage Organizations / Agencies */}
-				<Card className="mb-3 overflow-hidden border border-slate-100 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+				<View className="mb-5 gap-3">
 					<Pressable
-						onPress={() => router.push("/(drawer)/(tabs)/organizations")}
-						className="flex-row items-center p-4"
+						onPress={() =>
+							router.push("/(drawer)/system-admin/organizations" as any)
+						}
 					>
-						<View className="size-11 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/50">
-							<Ionicons name="business" size={22} color="#3b82f6" />
-						</View>
-						<View className="ml-3.5 flex-1">
-							<Text className="font-bold text-base text-slate-900 dark:text-white">
-								Agency & Organization Manager
-							</Text>
-							<Text className="mt-0.5 text-slate-500 text-xs dark:text-zinc-400">
-								Create new agencies, invite distributors, assign org roles
-							</Text>
-						</View>
-						<Ionicons name="chevron-forward" size={20} color="#94a3b8" />
+						<Card className="border border-slate-100 bg-white p-4 shadow-sm active:opacity-80 dark:border-zinc-800 dark:bg-zinc-900">
+							<View className="flex-row items-center">
+								<View className="mr-3.5 size-11 items-center justify-center rounded-xl bg-blue-500/10">
+									<Ionicons name="business" size={22} color="#3b82f6" />
+								</View>
+								<View className="flex-1">
+									<Text className="font-bold text-base text-slate-900 dark:text-white">
+										Manage Agencies
+									</Text>
+									<Text className="text-slate-500 text-xs dark:text-zinc-400">
+										View all tenant agencies, switch context & inspect members
+									</Text>
+								</View>
+								<Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+							</View>
+						</Card>
 					</Pressable>
-				</Card>
 
-				{/* User Management */}
-				<Card className="mb-3 overflow-hidden border border-slate-100 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
 					<Pressable
-						onPress={() => router.push("/settings/users")}
-						className="flex-row items-center p-4"
+						onPress={() => router.push("/(drawer)/system-admin/users" as any)}
 					>
-						<View className="size-11 items-center justify-center rounded-xl bg-purple-50 dark:bg-purple-950/50">
-							<Ionicons name="people" size={22} color="#8b5cf6" />
-						</View>
-						<View className="ml-3.5 flex-1">
-							<Text className="font-bold text-base text-slate-900 dark:text-white">
-								Global User Directory
-							</Text>
-							<Text className="mt-0.5 text-slate-500 text-xs dark:text-zinc-400">
-								Ban/unban accounts, reset passwords, promote to System Admin
-							</Text>
-						</View>
-						<Ionicons name="chevron-forward" size={20} color="#94a3b8" />
+						<Card className="border border-slate-100 bg-white p-4 shadow-sm active:opacity-80 dark:border-zinc-800 dark:bg-zinc-900">
+							<View className="flex-row items-center">
+								<View className="mr-3.5 size-11 items-center justify-center rounded-xl bg-purple-500/10">
+									<Ionicons name="people" size={22} color="#a855f7" />
+								</View>
+								<View className="flex-1">
+									<Text className="font-bold text-base text-slate-900 dark:text-white">
+										Global User Directory
+									</Text>
+									<Text className="text-slate-500 text-xs dark:text-zinc-400">
+										Platform users, role management & agency assignments
+									</Text>
+								</View>
+								<Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+							</View>
+						</Card>
 					</Pressable>
-				</Card>
 
-				{/* Quick Impersonate / Switch Agency */}
-				<Card className="mb-6 overflow-hidden border border-slate-100 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-					<View className="mb-3 flex-row items-center justify-between">
-						<View className="flex-row items-center">
-							<Ionicons name="swap-horizontal" size={18} color={themeAccent} />
-							<Text className="ml-2 font-bold text-slate-900 text-sm dark:text-white">
-								Quick Agency Switcher (Impersonate View)
-							</Text>
-						</View>
-						<Text className="text-[11px] text-slate-400">
-							{organizations.length} available
-						</Text>
-					</View>
+					<Pressable
+						onPress={() =>
+							router.push("/(drawer)/system-admin/telemetry" as any)
+						}
+					>
+						<Card className="border border-slate-100 bg-white p-4 shadow-sm active:opacity-80 dark:border-zinc-800 dark:bg-zinc-900">
+							<View className="flex-row items-center">
+								<View className="mr-3.5 size-11 items-center justify-center rounded-xl bg-emerald-500/10">
+									<Ionicons name="hardware-chip" size={22} color="#10b981" />
+								</View>
+								<View className="flex-1">
+									<Text className="font-bold text-base text-slate-900 dark:text-white">
+										Server & Database Telemetry
+									</Text>
+									<Text className="text-slate-500 text-xs dark:text-zinc-400">
+										MongoDB connection, heap memory & live server stats
+									</Text>
+								</View>
+								<Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+							</View>
+						</Card>
+					</Pressable>
+				</View>
 
-					<Text className="mb-3 text-slate-500 text-xs dark:text-zinc-400">
-						Select any registered distributor to view their daily stock, billing
-						and workers:
-					</Text>
-
-					<View className="gap-2">
-						{organizations.slice(0, 4).map((org) => {
-							const isCurrent = currentOrgId === org.id;
-							return (
-								<Pressable
-									key={org.id}
-									onPress={() => {
-										setCurrentOrg(org.id);
-										router.push("/(drawer)/(tabs)");
-									}}
-									className={`flex-row items-center justify-between rounded-xl border p-3 ${
-										isCurrent
-											? "border-accent bg-accent/5 dark:bg-accent/15"
-											: "border-slate-100 bg-slate-50 dark:border-zinc-800 dark:bg-zinc-800/50"
-									}`}
-								>
-									<View className="flex-1 pr-2">
-										<Text
-											className={`font-semibold text-sm ${
-												isCurrent
-													? "text-accent"
-													: "text-slate-800 dark:text-zinc-200"
-											}`}
-										>
-											{org.name}
-										</Text>
-										<Text className="text-[11px] text-slate-400 dark:text-zinc-500">
-											@{org.slug}
-										</Text>
-									</View>
-									{isCurrent ? (
-										<View className="flex-row items-center rounded-full bg-accent/15 px-2 py-0.5">
-											<Ionicons
-												name="checkmark-circle"
-												size={14}
-												color={themeAccent}
-											/>
-											<Text className="ml-1 font-bold text-[10px] text-accent">
-												ACTIVE VIEW
-											</Text>
-										</View>
-									) : (
-										<Text className="font-medium text-slate-400 text-xs">
-											Switch &rarr;
-										</Text>
-									)}
-								</Pressable>
-							);
-						})}
-					</View>
-				</Card>
-
-				{/* Return to App Button */}
+				{/* Return to Agency App Action */}
 				<Pressable
-					onPress={() => router.push("/(drawer)/(tabs)")}
-					className="h-12 flex-row items-center justify-center rounded-xl border border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
+					onPress={() => router.replace("/(drawer)/(tabs)" as any)}
+					className="flex-row items-center justify-center gap-2 rounded-2xl bg-accent py-4 active:opacity-90"
 				>
-					<Ionicons name="arrow-back" size={18} color={themeForeground} />
-					<Text className="ml-2 font-semibold text-slate-800 text-sm dark:text-zinc-200">
-						Return to Distributor Operations (Tabs)
+					<Ionicons name="arrow-back" size={18} color="#ffffff" />
+					<Text className="font-bold text-base text-white">
+						Return to Agency DMS App
 					</Text>
 				</Pressable>
 			</ScrollView>

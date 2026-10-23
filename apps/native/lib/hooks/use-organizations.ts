@@ -33,7 +33,7 @@ export function useOrganizations() {
 
 			console.log("Setting organizations:", validOrgs.length, "orgs");
 			console.log("Organizations:", JSON.stringify(validOrgs, null, 2));
-			setOrganizations(validOrgs);
+			setOrganizations(validOrgs as any);
 		} catch (error) {
 			// Network error or server not running - just show empty state
 			console.log("Could not fetch organizations:", error);

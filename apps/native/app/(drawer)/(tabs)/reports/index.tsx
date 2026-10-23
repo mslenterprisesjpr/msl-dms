@@ -20,6 +20,7 @@ import {
 	useStockSummary,
 	useWorkerPerformance,
 } from "@/hooks/queries/use-reports";
+import { useUserRole } from "@/hooks/use-user-role";
 import { useSession } from "@/lib/hooks/use-session";
 import type { ReportPeriod } from "@/services/report.service";
 
@@ -37,7 +38,7 @@ export default function ReportsScreen() {
 	const themeAccent = useThemeColor("accent");
 	const themeColorForeground = useThemeColor("foreground");
 	const { user } = useSession();
-	const isAdmin = user?.role === "admin";
+	const { isAdmin } = useUserRole();
 
 	const [activeTab, setActiveTab] = useState<ReportTab>("SALES");
 	const [period, setPeriod] = useState<ReportPeriod>("month");
