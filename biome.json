@@ -35,6 +35,7 @@
 			"!**/ios/Pods",
 			"!**/.agents",
 			"!**/.kiro",
+			"!**/.claude",
 			"!**/node_modules",
 			"!**/build",
 			"!**/*.generated.*"

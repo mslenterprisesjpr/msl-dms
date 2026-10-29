@@ -57,6 +57,197 @@ app.get("/my-role", requireAuth, async (c) => {
 });
 
 /**
+ * POST /create-worker
+ * Directly creates a worker/salesman account (Name, Phone/Email, Password, Van/Route)
+ * without any email verification or invite link hurdles.
+ * Immediately links the worker as an active member of the active organization.
+ */
+app.post("/create-worker", requireAuth, requireAdmin, async (c) => {
+	const organizationId = await resolveOrganizationId(c);
+
+	if (!organizationId) {
+		throw new HTTPException(400, { message: "Organization ID is required" });
+	}
+
+	const body = await c.req.json().catch(() => ({}));
+	const { name, phone, email, password, vanName, role } = body as {
+		name?: string;
+		phone?: string;
+		email?: string;
+		password?: string;
+		vanName?: string;
+		role?: string;
+	};
+
+	if (!name || !name.trim()) {
+		throw new HTTPException(400, { message: "Worker name is required" });
+	}
+
+	if (!password || password.length < 6) {
+		throw new HTTPException(400, {
+			message: "Password must be at least 6 characters",
+		});
+	}
+
+	const cleanPhone = (phone || "").replace(/\D/g, "");
+	let resolvedEmail = (email || "").trim().toLowerCase();
+
+	if (!resolvedEmail) {
+		if (cleanPhone.length >= 10) {
+			resolvedEmail = `${cleanPhone.slice(-10)}@msl.local`;
+		} else {
+			throw new HTTPException(400, {
+				message:
+					"Either a valid 10-digit mobile number or an email is required",
+			});
+		}
+	}
+
+	const memberRole = role || "member";
+	if (!isValidOrganizationRole(memberRole)) {
+		throw new HTTPException(400, { message: `Invalid role: ${memberRole}` });
+	}
+
+	// Check if user already exists
+	const existingUser = await db.collection("user").findOne({
+		$or: [
+			{ email: resolvedEmail },
+			...(cleanPhone.length >= 10 ? [{ phone: cleanPhone.slice(-10) }] : []),
+		],
+	});
+
+	let userId = "";
+
+	if (existingUser) {
+		userId = existingUser._id
+			? existingUser._id.toString()
+			: (existingUser.id as string);
+
+		// Update phone and vanName if provided
+		await db.collection("user").updateOne(
+			{ _id: existingUser._id },
+			{
+				$set: {
+					name: name.trim(),
+					...(cleanPhone ? { phone: cleanPhone.slice(-10) } : {}),
+					...(vanName ? { vanName: vanName.trim() } : {}),
+					emailVerified: true,
+					updatedAt: new Date(),
+				},
+			},
+		);
+	} else {
+		// Create user via Better Auth
+		let createdUserResult: any;
+		try {
+			createdUserResult = await auth.api.signUpEmail({
+				body: {
+					name: name.trim(),
+					email: resolvedEmail,
+					password,
+				},
+			});
+		} catch (signupErr: any) {
+			console.log(
+				"signUpEmail attempt error, trying createUser:",
+				signupErr?.message,
+			);
+			try {
+				createdUserResult = await auth.api.createUser({
+					body: {
+						name: name.trim(),
+						email: resolvedEmail,
+						password,
+						role: "user",
+					},
+				});
+			} catch (createErr: any) {
+				console.error("User creation failed:", createErr);
+				throw new HTTPException(400, {
+					message:
+						createErr?.message ||
+						signupErr?.message ||
+						"Failed to create worker account",
+				});
+			}
+		}
+
+		const createdUser = createdUserResult?.user || createdUserResult;
+		userId = createdUser?._id ? createdUser._id.toString() : createdUser?.id;
+
+		if (!userId) {
+			throw new HTTPException(500, {
+				message: "Failed to resolve new user ID",
+			});
+		}
+
+		// Update user record with phone, vanName, and emailVerified: true
+		await db.collection("user").updateOne(
+			{
+				$or: [
+					{ id: userId },
+					...(ObjectId.isValid(userId) ? [{ _id: new ObjectId(userId) }] : []),
+				],
+			},
+			{
+				$set: {
+					emailVerified: true,
+					...(cleanPhone ? { phone: cleanPhone.slice(-10) } : {}),
+					...(vanName ? { vanName: vanName.trim() } : {}),
+					updatedAt: new Date(),
+				},
+			},
+		);
+	}
+
+	// Link user to organization as member
+	const existingMember = await db.collection("member").findOne({
+		organizationId,
+		userId,
+	});
+
+	if (!existingMember) {
+		try {
+			await auth.api.addMember({
+				body: {
+					userId,
+					role: memberRole,
+					organizationId,
+				},
+			});
+		} catch (addMemberErr: any) {
+			console.log(
+				"auth.api.addMember fallback to direct insert:",
+				addMemberErr?.message,
+			);
+			await db.collection("member").insertOne({
+				id: new ObjectId().toString(),
+				organizationId,
+				userId,
+				role: memberRole,
+				createdAt: new Date(),
+			});
+		}
+	}
+
+	return c.json(
+		{
+			success: true,
+			message: `Worker "${name.trim()}" onboarded successfully!`,
+			worker: {
+				id: userId,
+				name: name.trim(),
+				email: resolvedEmail,
+				phone: cleanPhone.slice(-10) || undefined,
+				vanName: vanName?.trim() || undefined,
+				role: memberRole,
+			},
+		},
+		201,
+	);
+});
+
+/**
  * POST /add-member
  * Directly adds a user to an organization without email invitations or verification hurdles.
  * If user exists by ID or email, addMember is invoked directly on the server.

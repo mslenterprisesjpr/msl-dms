@@ -237,9 +237,9 @@ export default function SystemAdminUsersScreen() {
 									</Text>
 									{user.organizations.length > 0 ? (
 										<View className="mt-1 flex-row flex-wrap gap-1.5">
-											{user.organizations.map((org, idx) => (
+											{user.organizations.map((org) => (
 												<View
-													key={`${org.organizationId}-${idx}`}
+													key={org.organizationId}
 													className="flex-row items-center gap-1 rounded-lg bg-slate-100 px-2 py-0.5 dark:bg-zinc-800"
 												>
 													<Text className="font-medium text-[11px] text-slate-700 dark:text-zinc-300">

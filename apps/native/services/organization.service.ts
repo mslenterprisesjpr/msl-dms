@@ -70,4 +70,28 @@ export const organizationService = {
 		}>("/organizations/metadata", metadata);
 		return res.data;
 	},
+
+	createWorker: async (data: {
+		organizationId?: string;
+		name: string;
+		phone?: string;
+		email?: string;
+		password: string;
+		vanName?: string;
+		role?: OrganizationRole | string;
+	}) => {
+		const res = await apiClient.post<{
+			success: boolean;
+			message: string;
+			worker: {
+				id: string;
+				name: string;
+				email: string;
+				phone?: string;
+				vanName?: string;
+				role: string;
+			};
+		}>("/organizations/create-worker", data);
+		return res.data;
+	},
 };

@@ -85,15 +85,19 @@ export default function OrganizationsScreen() {
 	const [orgPhone, setOrgPhone] = useState("");
 	const [orgAddress, setOrgAddress] = useState("");
 
-	// ── Member modal: invite by email OR add existing user ─────────────────────
+	// ── Member modal: create worker directly OR invite by email OR add existing user ─────
 	const [showMemberModal, setShowMemberModal] = useState(false);
 	const [memberModalMode, setMemberModalMode] = useState<
-		"invite" | "role" | "add-user"
-	>("invite");
+		"create-worker" | "invite" | "role" | "add-user"
+	>("create-worker");
 	const [selectedMember, setSelectedMember] =
 		useState<OrganizationMember | null>(null);
 	const [memberEmail, setMemberEmail] = useState("");
 	const [memberRole, setMemberRole] = useState("member");
+	const [workerName, setWorkerName] = useState("");
+	const [workerPhone, setWorkerPhone] = useState("");
+	const [workerPassword, setWorkerPassword] = useState("123456");
+	const [workerVan, setWorkerVan] = useState("");
 
 	// ── Add-existing-user state ────────────────────────────────────────────────
 	const [systemUsers, setSystemUsers] = useState<SystemUser[]>([]);
@@ -352,6 +356,16 @@ export default function OrganizationsScreen() {
 		}
 	};
 
+	const openCreateWorker = () => {
+		setMemberModalMode("create-worker");
+		setWorkerName("");
+		setWorkerPhone("");
+		setWorkerPassword("123456");
+		setWorkerVan("");
+		setMemberRole("member");
+		setShowMemberModal(true);
+	};
+
 	const openInviteByEmail = () => {
 		setMemberModalMode("invite");
 		setMemberEmail("");
@@ -411,6 +425,40 @@ export default function OrganizationsScreen() {
 	const handleMemberSubmit = async () => {
 		setIsSubmitting(true);
 		try {
+			// ── Create worker directly (Zero email verification) ──────────────
+			if (memberModalMode === "create-worker") {
+				if (!workerName.trim()) {
+					Alert.alert("Error", "Please enter worker name");
+					return;
+				}
+				const cleanPhone = workerPhone.replace(/\D/g, "");
+				if (cleanPhone.length < 10) {
+					Alert.alert("Error", "Please enter a valid 10-digit mobile number");
+					return;
+				}
+				if (!workerPassword || workerPassword.length < 6) {
+					Alert.alert("Error", "Password must be at least 6 characters");
+					return;
+				}
+				const result = await organizationService.createWorker({
+					organizationId: currentOrgId!,
+					name: workerName.trim(),
+					phone: cleanPhone,
+					password: workerPassword,
+					vanName: workerVan.trim() || undefined,
+					role: memberRole,
+				});
+
+				Alert.alert(
+					"Success",
+					result.message ||
+						`Worker "${workerName}" onboarded successfully! Login with mobile: ${cleanPhone}`,
+				);
+				setShowMemberModal(false);
+				refetchMembers();
+				return;
+			}
+
 			// ── Invite by email ──────────────────────────────────────────────
 			if (memberModalMode === "invite") {
 				if (!memberEmail.trim()) {
@@ -783,8 +831,26 @@ export default function OrganizationsScreen() {
 							<Typography variant="title2" className="text-foreground">
 								Members
 							</Typography>
-							{/* Two add-member buttons */}
-							<View className="flex-row gap-2">
+							{/* Add-member buttons */}
+							<View className="flex-row items-center gap-2">
+								<Button
+									size="sm"
+									variant="primary"
+									onPress={openCreateWorker}
+									className="flex-row items-center gap-1 bg-accent"
+								>
+									<StyledIonicons
+										name="person-add"
+										size={14}
+										className="text-white"
+									/>
+									<Typography
+										variant="caption"
+										className="font-bold text-white"
+									>
+										+ Add Worker
+									</Typography>
+								</Button>
 								<Button
 									size="sm"
 									variant="secondary"
@@ -796,7 +862,7 @@ export default function OrganizationsScreen() {
 										className="text-foreground"
 									/>
 								</Button>
-								<Button size="sm" variant="primary" onPress={openInviteByEmail}>
+								<Button size="sm" variant="ghost" onPress={openInviteByEmail}>
 									<StyledIonicons
 										name="mail-outline"
 										size={16}
@@ -1022,18 +1088,22 @@ export default function OrganizationsScreen() {
 				visible={showMemberModal}
 				onClose={() => setShowMemberModal(false)}
 				title={
-					memberModalMode === "invite"
-						? "Invite by Email"
-						: memberModalMode === "add-user"
-							? "Add Existing User"
-							: "Change Member Role"
+					memberModalMode === "create-worker"
+						? "Onboard New Salesman / Worker"
+						: memberModalMode === "invite"
+							? "Invite by Email"
+							: memberModalMode === "add-user"
+								? "Add Existing User"
+								: "Change Member Role"
 				}
 				subtitle={
-					memberModalMode === "invite"
-						? "Send an email invitation to join this organization"
-						: memberModalMode === "add-user"
-							? "Pick a registered user and assign them a role directly"
-							: `Update role for ${selectedMember?.user.name}`
+					memberModalMode === "create-worker"
+						? "Direct 10-second account creation. Worker logs in with Mobile & Password."
+						: memberModalMode === "invite"
+							? "Send an email invitation to join this organization"
+							: memberModalMode === "add-user"
+								? "Pick a registered user and assign them a role directly"
+								: `Update role for ${selectedMember?.user.name}`
 				}
 				footer={
 					<View className="flex-row justify-end gap-3">
@@ -1056,16 +1126,78 @@ export default function OrganizationsScreen() {
 						>
 							{isSubmitting
 								? "Saving..."
-								: memberModalMode === "invite"
-									? "Send Invite"
-									: memberModalMode === "add-user"
-										? "Add Member"
-										: "Update Role"}
+								: memberModalMode === "create-worker"
+									? "Create Worker"
+									: memberModalMode === "invite"
+										? "Send Invite"
+										: memberModalMode === "add-user"
+											? "Add Member"
+											: "Update Role"}
 						</Button>
 					</View>
 				}
 			>
 				<View className="gap-4">
+					{/* ── Create Worker Directly (Zero Email Jhanjhat) ── */}
+					{memberModalMode === "create-worker" && (
+						<View className="gap-3.5">
+							<TextField>
+								<Label>Worker Full Name *</Label>
+								<Input
+									placeholder="e.g. Ramesh Kumar"
+									value={workerName}
+									onChangeText={setWorkerName}
+								/>
+							</TextField>
+
+							<TextField>
+								<Label>10-Digit Mobile Number * (Login ID)</Label>
+								<Input
+									placeholder="e.g. 9876543210"
+									value={workerPhone}
+									onChangeText={setWorkerPhone}
+									keyboardType="phone-pad"
+									maxLength={10}
+								/>
+							</TextField>
+
+							<TextField>
+								<Label>Login Password * (Default: 123456)</Label>
+								<Input
+									placeholder="Min 6 characters"
+									value={workerPassword}
+									onChangeText={setWorkerPassword}
+									secureTextEntry
+								/>
+							</TextField>
+
+							<TextField>
+								<Label>Assigned Van / Route (Optional)</Label>
+								<Input
+									placeholder="e.g. Van RJ-14, City Route 1"
+									value={workerVan}
+									onChangeText={setWorkerVan}
+								/>
+							</TextField>
+
+							<View className="rounded-xl bg-emerald-50 p-3 dark:bg-emerald-950/30">
+								<Typography
+									variant="caption"
+									className="font-bold text-emerald-800 dark:text-emerald-300"
+								>
+									✓ Instant Activation: No Email Verification Needed
+								</Typography>
+								<Typography
+									variant="caption"
+									className="mt-1 text-emerald-700 dark:text-emerald-400"
+								>
+									Worker account turant active ho jayega. Wo mobile aur password
+									se seedha login karega.
+								</Typography>
+							</View>
+						</View>
+					)}
+
 					{/* ── Invite by email ── */}
 					{memberModalMode === "invite" && (
 						<TextField>

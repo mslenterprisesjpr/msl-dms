@@ -22,6 +22,8 @@ import {
 	type WorkerVanSummary,
 } from "@/hooks/queries/use-worker-stock";
 
+import { organizationService } from "@/services/organization.service";
+
 export default function WorkersLiveStockScreen() {
 	const themeAccent = useThemeColor("accent");
 	const themeColorForeground = useThemeColor("foreground");
@@ -29,6 +31,14 @@ export default function WorkersLiveStockScreen() {
 
 	const [search, setSearch] = useState("");
 	const [refreshing, setRefreshing] = useState(false);
+
+	// Onboard Worker Modal State
+	const [addWorkerModalVisible, setAddWorkerModalVisible] = useState(false);
+	const [newWorkerName, setNewWorkerName] = useState("");
+	const [newWorkerPhone, setNewWorkerPhone] = useState("");
+	const [newWorkerPassword, setNewWorkerPassword] = useState("123456");
+	const [newWorkerVan, setNewWorkerVan] = useState("");
+	const [isCreatingWorker, setIsCreatingWorker] = useState(false);
 
 	// Settlement Modal State
 	const [settleModalVisible, setSettleModalVisible] = useState(false);
@@ -42,6 +52,60 @@ export default function WorkersLiveStockScreen() {
 	// Queries & Mutations
 	const { data: allWorkersResponse, isLoading, refetch } = useAllWorkersStock();
 	const closeDayMutation = useCloseDay();
+
+	const handleCreateWorker = async () => {
+		if (!newWorkerName.trim()) {
+			toast.show({ variant: "danger", label: "Please enter worker name" });
+			return;
+		}
+		const cleanPhone = newWorkerPhone.replace(/\D/g, "");
+		if (cleanPhone.length < 10) {
+			toast.show({
+				variant: "danger",
+				label: "Please enter a valid 10-digit mobile number",
+			});
+			return;
+		}
+		if (!newWorkerPassword || newWorkerPassword.length < 6) {
+			toast.show({
+				variant: "danger",
+				label: "Password must be at least 6 characters",
+			});
+			return;
+		}
+
+		setIsCreatingWorker(true);
+		try {
+			const res = await organizationService.createWorker({
+				name: newWorkerName.trim(),
+				phone: cleanPhone,
+				password: newWorkerPassword,
+				vanName: newWorkerVan.trim() || undefined,
+				role: "member",
+			});
+
+			toast.show({
+				variant: "success",
+				label: `Worker ${res.worker.name} onboarded! Login: ${cleanPhone}`,
+			});
+
+			setNewWorkerName("");
+			setNewWorkerPhone("");
+			setNewWorkerPassword("123456");
+			setNewWorkerVan("");
+			setAddWorkerModalVisible(false);
+			await refetch();
+		} catch (error: any) {
+			console.error("Create worker error:", error);
+			const errMsg =
+				error?.response?.data?.message ||
+				error?.message ||
+				"Failed to onboard worker";
+			Alert.alert("Onboarding Failed", errMsg);
+		} finally {
+			setIsCreatingWorker(false);
+		}
+	};
 
 	const onRefresh = async () => {
 		setRefreshing(true);
@@ -156,21 +220,34 @@ export default function WorkersLiveStockScreen() {
 						<Text className="font-bold text-slate-400 text-xs uppercase tracking-wider dark:text-zinc-500">
 							Van Fleet & Day-End Overview
 						</Text>
-						<Pressable
-							onPress={onRefresh}
-							disabled={refreshing}
-							className="flex-row items-center gap-1 rounded-lg bg-slate-200/60 px-2 py-1 active:opacity-70 dark:bg-zinc-800"
-							hitSlop={8}
-						>
-							<Ionicons
-								name="refresh"
-								size={12}
-								color={themeAccent || "#0284c7"}
-							/>
-							<Text className="font-semibold text-[11px] text-slate-600 dark:text-zinc-300">
-								{refreshing ? "Syncing..." : "Sync Live"}
-							</Text>
-						</Pressable>
+						<View className="flex-row items-center gap-2">
+							<Pressable
+								onPress={() => setAddWorkerModalVisible(true)}
+								className="flex-row items-center gap-1 rounded-lg bg-accent px-2.5 py-1 active:opacity-80"
+								hitSlop={8}
+							>
+								<Ionicons name="person-add" size={12} color="#ffffff" />
+								<Text className="font-bold text-[11px] text-white">
+									+ Add Worker
+								</Text>
+							</Pressable>
+
+							<Pressable
+								onPress={onRefresh}
+								disabled={refreshing}
+								className="flex-row items-center gap-1 rounded-lg bg-slate-200/60 px-2 py-1 active:opacity-70 dark:bg-zinc-800"
+								hitSlop={8}
+							>
+								<Ionicons
+									name="refresh"
+									size={12}
+									color={themeAccent || "#0284c7"}
+								/>
+								<Text className="font-semibold text-[11px] text-slate-600 dark:text-zinc-300">
+									{refreshing ? "Syncing..." : "Sync Live"}
+								</Text>
+							</Pressable>
+						</View>
 					</View>
 
 					{/* Row 1: Active Vans & Total Van Stock Value */}
@@ -652,6 +729,127 @@ export default function WorkersLiveStockScreen() {
 							placeholderTextColor="#94a3b8"
 							className="rounded-xl border border-slate-200 bg-white p-3 font-medium text-slate-900 text-xs dark:border-zinc-800 dark:bg-zinc-800 dark:text-white"
 						/>
+					</View>
+				</ScrollView>
+			</HeroBottomSheet>
+
+			{/* ══════════════════════════════════════════════════════════════
+			    ONBOARD NEW WORKER / SALESMAN BOTTOM SHEET (Zero Email Jhanjhat)
+			══════════════════════════════════════════════════════════════ */}
+			<HeroBottomSheet
+				visible={addWorkerModalVisible}
+				onClose={() => setAddWorkerModalVisible(false)}
+				title="Onboard New Salesman / Worker"
+				subtitle="Direct 10-second account creation. Worker logs in with Mobile & Password."
+				snapPoints={["75%", "92%"]}
+				footer={
+					<View className="flex-row items-center gap-3">
+						<Pressable
+							onPress={() => setAddWorkerModalVisible(false)}
+							className="flex-1 items-center justify-center rounded-2xl border border-slate-200 py-3 active:opacity-80 dark:border-zinc-800"
+						>
+							<Text className="font-bold text-slate-700 text-xs dark:text-zinc-300">
+								Cancel
+							</Text>
+						</Pressable>
+
+						<Pressable
+							onPress={handleCreateWorker}
+							disabled={isCreatingWorker}
+							className="flex-1 items-center justify-center rounded-2xl bg-accent py-3 shadow-sm active:opacity-90"
+						>
+							{isCreatingWorker ? (
+								<ActivityIndicator size="small" color="#ffffff" />
+							) : (
+								<Text className="font-bold text-accent-foreground text-xs">
+									Create & Activate Worker
+								</Text>
+							)}
+						</Pressable>
+					</View>
+				}
+			>
+				<ScrollView
+					className="max-h-[480px]"
+					showsVerticalScrollIndicator={false}
+					keyboardShouldPersistTaps="handled"
+				>
+					{/* Worker Full Name */}
+					<View className="mb-3.5">
+						<Text className="mb-1.5 font-bold text-slate-700 text-xs dark:text-zinc-300">
+							Worker Full Name *
+						</Text>
+						<TextInput
+							value={newWorkerName}
+							onChangeText={setNewWorkerName}
+							placeholder="e.g. Ramesh Kumar"
+							placeholderTextColor="#94a3b8"
+							className="rounded-xl border border-slate-200 bg-white p-3 font-semibold text-slate-900 text-sm dark:border-zinc-800 dark:bg-zinc-800 dark:text-white"
+						/>
+					</View>
+
+					{/* 10-Digit Mobile Number */}
+					<View className="mb-3.5">
+						<Text className="mb-1.5 font-bold text-slate-700 text-xs dark:text-zinc-300">
+							10-Digit Mobile Number * (Login Username)
+						</Text>
+						<View className="flex-row items-center rounded-xl border border-slate-200 bg-white px-3 py-2.5 dark:border-zinc-800 dark:bg-zinc-800">
+							<Text className="mr-1.5 font-bold text-slate-400 text-sm">
+								+91
+							</Text>
+							<TextInput
+								keyboardType="phone-pad"
+								maxLength={10}
+								value={newWorkerPhone}
+								onChangeText={setNewWorkerPhone}
+								placeholder="9876543210"
+								placeholderTextColor="#94a3b8"
+								className="flex-1 font-bold text-slate-900 text-sm dark:text-white"
+							/>
+						</View>
+					</View>
+
+					{/* Password */}
+					<View className="mb-3.5">
+						<Text className="mb-1.5 font-bold text-slate-700 text-xs dark:text-zinc-300">
+							Login Password * (Default: 123456)
+						</Text>
+						<TextInput
+							value={newWorkerPassword}
+							onChangeText={setNewWorkerPassword}
+							placeholder="Min 6 characters"
+							placeholderTextColor="#94a3b8"
+							secureTextEntry
+							className="rounded-xl border border-slate-200 bg-white p-3 font-semibold text-slate-900 text-sm dark:border-zinc-800 dark:bg-zinc-800 dark:text-white"
+						/>
+					</View>
+
+					{/* Van / Vehicle / Route Allocation */}
+					<View className="mb-4">
+						<Text className="mb-1.5 font-bold text-slate-700 text-xs dark:text-zinc-300">
+							Assigned Van / Route Name (Optional)
+						</Text>
+						<TextInput
+							value={newWorkerVan}
+							onChangeText={setNewWorkerVan}
+							placeholder="e.g. Van RJ-14, City Route 1"
+							placeholderTextColor="#94a3b8"
+							className="rounded-xl border border-slate-200 bg-white p-3 font-medium text-slate-900 text-sm dark:border-zinc-800 dark:bg-zinc-800 dark:text-white"
+						/>
+					</View>
+
+					{/* Info Banner */}
+					<View className="mb-2 rounded-xl bg-emerald-50 p-3 dark:bg-emerald-950/30">
+						<View className="flex-row items-center gap-1.5">
+							<Ionicons name="checkmark-circle" size={16} color="#10b981" />
+							<Text className="font-bold text-emerald-800 text-xs dark:text-emerald-300">
+								Zero Email Verification
+							</Text>
+						</View>
+						<Text className="mt-1 font-medium text-[11px] text-emerald-700 dark:text-emerald-400">
+							Account instantly active ho jayega. Worker apne phone me Mobile
+							aur Password daal kar turant login kar sakta hai.
+						</Text>
 					</View>
 				</ScrollView>
 			</HeroBottomSheet>

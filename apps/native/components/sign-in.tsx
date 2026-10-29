@@ -20,12 +20,19 @@ const signInSchema = z.object({
 	email: z
 		.string()
 		.trim()
-		.min(1, "Email is required")
-		.email("Enter a valid email address"),
+		.min(1, "Email or Mobile number is required")
+		.refine(
+			(val) => {
+				const digits = val.replace(/\D/g, "");
+				if (digits.length >= 10 && !val.includes("@")) return true;
+				return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+			},
+			{ message: "Enter a valid email address or 10-digit mobile number" },
+		),
 	password: z
 		.string()
 		.min(1, "Password is required")
-		.min(8, "Use at least 8 characters"),
+		.min(6, "Use at least 6 characters"),
 });
 
 function getErrorMessage(error: unknown): string | null {
@@ -77,9 +84,16 @@ function SignIn({ onSwitchToSignUp, onForgotPassword }: SignInProps) {
 			onSubmit: signInSchema,
 		},
 		onSubmit: async ({ value, formApi }) => {
+			const rawInput = value.email.trim();
+			const digits = rawInput.replace(/\D/g, "");
+			const resolvedEmail =
+				!rawInput.includes("@") && digits.length >= 10
+					? `${digits.slice(-10)}@msl.local`
+					: rawInput.toLowerCase();
+
 			await authClient.signIn.email(
 				{
-					email: value.email.trim(),
+					email: resolvedEmail,
 					password: value.password,
 				},
 				{
@@ -95,7 +109,7 @@ function SignIn({ onSwitchToSignUp, onForgotPassword }: SignInProps) {
 							variant: "success",
 							label: "Signed in successfully",
 						});
-						router.replace("/(drawer)/(tabs)" as any);
+						router.replace("/(drawer)/(tabs)");
 					},
 				},
 			);
